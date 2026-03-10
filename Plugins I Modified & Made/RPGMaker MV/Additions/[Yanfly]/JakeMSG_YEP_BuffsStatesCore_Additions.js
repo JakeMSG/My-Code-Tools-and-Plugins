@@ -8,7 +8,7 @@ Imported.JakeMSG_YEP_BuffsStatesCore_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.BuffsStates_JakeMSGAdd = Yanfly.BuffsStates_JakeMSGAdd || {};
-Yanfly.BuffsStates_JakeMSGAdd.version = 1.2;
+Yanfly.BuffsStates_JakeMSGAdd.version = 1.0;
 
 //=============================================================================
 /*:
