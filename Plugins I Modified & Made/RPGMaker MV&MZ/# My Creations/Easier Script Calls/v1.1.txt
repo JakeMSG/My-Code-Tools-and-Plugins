@@ -1,0 +1,4 @@
+1.1 - 2.15th.2026
+ * Added the Script call for Plugin Commands (useful when using the MZ editor for an MV project)
+1.0 - 2.13th.2026
+ * initial release

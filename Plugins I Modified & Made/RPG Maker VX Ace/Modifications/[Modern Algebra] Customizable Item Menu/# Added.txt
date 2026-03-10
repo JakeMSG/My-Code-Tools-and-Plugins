@@ -1,0 +1,4 @@
+======== Ability to use in-game Variable & Switch to determine Help window's number of lines to show (and change that number dynamically in-game)
+==== Set the Number of the Variable & Switch to use from the Script, on line 84 and 87
+== If any of them is set to 0, will simply default to using the value from "description_lines", as usual
+== If the Switch from "description_switch" is False, will also defeault to using the value from "description_lines", as usual

@@ -1,0 +1,297 @@
+#==============================================================================
+#    Equipment Loadouts
+#    Version: 1.0
+#    Author: JakeMSG
+#    Date: October 18, 2025
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Description:
+#
+#     This script allows you to save and load Equipment Loadouts (your currently
+#    equipped equipment, including their actual positions).
+#  - Saving and Loading of Equipment Loadout is done for ALL THE ACTORS IN THE 
+#  CURRENT PARTY (unless you use the Individual versions of the script calls)
+#  - Loading automatically unequips equipment slots that conflict with the Saved loadout
+#  - Loading will only equip slots if you have the required equipment in inventory!
+#  - Also made a version of the Loading as "Additive Loading", which works like 
+#  the normal Load, but won't empty the Slots that are empty in the Saved loadout
+#  (will simply add&replace the slots Saved in the Saved loadout)
+#  - Compatible with plugins that change the number and designation of Equipment Slots!
+#  - Tested (and compatible) with:
+#- "Custom Equipment Slots Script" by Fomar0153
+#  - Also made version of script calls for only Saving/Loading Individual Actor's
+#  loadouts, so long as they are in the active party
+#  (Uses the same Loadout database as the normal versions of the Script Calls)
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Script Installation & Usage instructions:
+#
+#    Paste this script into its own slot in the Script Editor, above Main but
+#   below Materials and other custom scripts.
+#
+#    All of the configuration for this script is done within the Editable 
+#   Region starting at line 71. It is heavily commented and explains what each
+#   option does, so I encourage you to read it. Here, however, I will explain
+#   the configuration you can do within the note field of each item.
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Script Calls:
+#
+#      $game_party.save_loadout(X)
+#    - X = Loadout slot
+#    Saves (all) the actors' equipment loadout to slot X.
+#
+#      $game_party.load_loadout(X)
+#    - X = Loadout slot
+#    Loads (all) the actors' equipment loadout from slot X, equipping equipment
+#  to its specific slots if you have the required equipment, and emptying slots
+#  that were empty in the saved loadout slots.
+#
+#      $game_party.addload_loadout(X)
+#    - X = Loadout slot
+#    Additively loads (all) the actors' equipment loadout from slot X, equipping equipment
+#  to its specific slots if you have the required equipment WITHOUT emptying slots
+#  that were empty in the saved loadout slots (simply adds/replaces slots)
+#
+#
+#      $game_party.save_loadout_s(X,[Y1,Y2,Y3...])
+#    - X = Loadout slot
+#    - [Y1,Y2,Y3...] = Array with the Actor IDs selected for the call (can be only 1 ID, too)
+#    Saves the Specified Actor(s) equipment loadout to slot X.
+#
+#      $game_party.load_loadout_s(X,[Y1,Y2,Y3...])
+#    - X = Loadout slot
+#    - [Y1,Y2,Y3...] = Array with the Actor IDs selected for the call (can be only 1 ID, too)
+#    Loads the Specified Actor(s) equipment loadout from slot X, equipping equipment
+#  to its specific slots if you have the required equipment, and emptying slots
+#  that were empty in the saved loadout slots.
+#
+#      $game_party.addload_loadout_S(X,[Y1,Y2,Y3...])
+#    - X = Loadout slot
+#    - [Y1,Y2,Y3...] = Array with the Actor IDs selected for the call (can be only 1 ID, too)
+#    Additively loads the Specified Actor(s) equipment loadout from slot X, equipping equipment
+#  to its specific slots if you have the required equipment WITHOUT emptying slots
+#  that were empty in the saved loadout slots (simply adds/replaces slots)
+#
+#==============================================================================
+
+$imported ||= {}
+$imported[:"JakeMSG Equipment Loadouts 1.0"] = true
+
+JMSG_EQUIPMENT_LOADOUTS = {
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+#    BEGIN Editable Region
+#||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+#
+#  max_loadouts = Maximum number of loadouts available to use (Default: 10)
+  max_loadouts: 10,
+#  max_actors = Maximum number of actors saved to the loadout (Default: 10)
+	max_actors: 10,
+#
+#||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+#    END Editable Region
+#//////////////////////////////////////////////////////////////////////////////
+}
+
+
+
+
+# ================================================================ Needed for both versions of the Script calls
+# ================ Separate version of "change_equip" methods, for the Script to work for duplicate of same Equipment (when you have multiple similar slots)
+# ======== Commented out what I had to remove from the Original
+class Game_Actor < Game_Battler
+  def f_change_equip(slot_id, item)
+    #return unless trade_item_with_party(item, equips[slot_id])
+    #return if item && equip_slots[slot_id] != item.etype_id
+    @equips[slot_id].object = item
+    refresh
+  end
+  def f_change_equip_by_id(slot_id, item_id)
+    if equip_slots[slot_id] == 0
+      f_change_equip(slot_id, $data_weapons[item_id])
+    else
+      f_change_equip(slot_id, $data_armors[item_id])
+    end
+  end
+end
+
+# ================ Initializes this on Loading a Save that doesn't have the Loadout&Storage initialized
+class Game_System
+  alias :ie_ls_sl_on_after_load :on_after_load
+  def on_after_load
+    ie_ls_sl_on_after_load
+    if !$game_party.loadstor_initalized?
+		  $game_party.loadstor_initalize
+		end
+  end
+end
+
+class Game_Party < Game_Unit
+	# ==== Initializes Loadout&Storage
+	def loadstor_initalize
+	  @loadout = [] 
+		# ==== The "for" loops are needed since we're using multi-dimensional arrays, and you need to "define" the higher dimensions (for a 3-dimensional Array, you need to define the first 2 dimensions)
+		# == Maximum number of Loadout slots
+		for i in 0..(JMSG_EQUIPMENT_LOADOUTS[:max_loadouts]+1) do   
+			@loadout[i] = []
+			# == Maximum number of Actors to save/load to Loadouts
+			for j in 0..(JMSG_EQUIPMENT_LOADOUTS[:max_actors]+1) do
+				@loadout[i][j] = []
+			end		
+    end
+	end
+	# ==== Inserts the Loadout&Storage initialization in the original Initialize method
+	alias :ie_ls_sl_initialize :initialize
+	def initialize
+		ie_ls_sl_initialize
+    loadstor_initalize
+	end
+	# ==== Checks if Loadout&Storage is initialized
+	def loadstor_initalized?
+	  if @loadout
+		  return true
+		else
+		  return false
+		end
+	end
+end
+
+
+
+
+# ================================================================ Version of the Script calls for All Actors (up to max_actors) 
+class Game_Party < Game_Unit
+# ==== Save loadout
+  def save_loadout(loadout_slot)
+    members.each { |actor|
+      actor.equips.each_with_index { |equip, equip_slot|
+        if equip
+          @loadout[loadout_slot][actor.id][equip_slot] = equip
+        end
+      }
+    }
+  end
+	
+# ==== Load loadout
+  def load_loadout(loadout_slot)
+    members.each { |actor|
+      actor.equips.each_with_index { |equip, equip_slot|
+        load_equip = @loadout[loadout_slot][actor.id][equip_slot]
+				# == Checks if current loadout has this Equip slot filled or not
+				if load_equip
+				  # == Only equips if you have the equipment for it
+					if $game_party.has_item?(load_equip,true)
+					  # == Unequips current equipment from this Slot (if Slot is not Empty)
+				    if equip
+					    $game_party.gain_item(equip,1)		
+				  	end
+				 	  $game_party.gain_item(load_equip,-1)
+						# == Equips loadout equipment (using the custom method, to allow for duplicates)
+					  actor.f_change_equip_by_id(equip_slot,load_equip.id)
+					end
+				else
+				  # == Unequips current equipment (if there's one in this Slot) from this Slot (since loadout has this slot empty)
+					if equip
+					  $game_party.gain_item(equip,1)
+					  actor.f_change_equip_by_id(equip_slot,0)			
+					end
+				end
+      }
+    }
+  end
+	
+# ==== Additive load loadout (same as normal "load loadout", but won't empty slots that are empty in the Saved loadout
+  def addload_loadout(loadout_slot)
+    members.each { |actor|
+      actor.equips.each_with_index { |equip, equip_slot|
+        load_equip = @loadout[loadout_slot][actor.id][equip_slot]
+				# == Checks if current loadout has this Equip slot filled or not
+				if load_equip
+				  # == Only equips if you have the equipment for it
+					if $game_party.has_item?(load_equip,true)
+					  # == Unequips current equipment from this Slot (if Slot is not Empty)
+				    if equip
+					    $game_party.gain_item(equip,1)		
+				  	end
+				 	  $game_party.gain_item(load_equip,-1)
+						# == Equips loadout equipment (using the custom method, to allow for duplicates)
+					  actor.f_change_equip_by_id(equip_slot,load_equip.id)
+					end
+				end
+      }
+    }
+  end
+end
+
+
+
+
+# ================================================================ Version of the Script calls for Specific Actors
+class Game_Party < Game_Unit
+# ==== Save loadout (for Specific Actors)
+  def save_loadout_s(loadout_slot,actors_chosen)
+    members.each { |actor|		
+		  # == Conditional for the Specific Actors
+		  if actors_chosen.any? { |x| x==actor.id}
+        actor.equips.each_with_index { |equip, equip_slot|
+          if equip
+            @loadout[loadout_slot][actor.id][equip_slot] = equip
+          end
+        }
+			end
+    }
+  end
+	
+# ==== Load loadout (for Specific Actors)
+  def load_loadout_s(loadout_slot,actors_chosen)
+    members.each { |actor|
+		  # == Conditional for the Specific Actors
+		  if actors_chosen.any? { |x| x==actor.id}
+				actor.equips.each_with_index { |equip, equip_slot|
+					load_equip = @loadout[loadout_slot][actor.id][equip_slot]
+					# == Checks if current loadout has this Equip slot filled or not
+					if load_equip
+						# == Only equips if you have the equipment for it
+						if $game_party.has_item?(load_equip,true)
+							# == Unequips current equipment from this Slot (if Slot is not Empty)
+							if equip
+								$game_party.gain_item(equip,1)		
+							end
+							$game_party.gain_item(load_equip,-1)
+							# == Equips loadout equipment (using the custom method, to allow for duplicates)
+							actor.f_change_equip_by_id(equip_slot,load_equip.id)
+						end
+					else
+						# == Unequips current equipment (if there's one in this Slot) from this Slot (since loadout has this slot empty)
+						if equip
+							$game_party.gain_item(equip,1)
+							actor.f_change_equip_by_id(equip_slot,0)			
+						end
+					end
+				}
+			end
+    }
+  end
+	
+# ==== Additive load loadout (same as normal "load loadout", but won't empty slots that are empty in the Saved loadout) (for Specific Actors)
+  def addload_loadout_s(loadout_slot,actors_chosen)
+    members.each { |actor|
+		  # == Conditional for the Specific Actors
+		  if actors_chosen.any? { |x| x==actor.id}
+				actor.equips.each_with_index { |equip, equip_slot|
+					load_equip = @loadout[loadout_slot][actor.id][equip_slot]
+					# == Checks if current loadout has this Equip slot filled or not
+					if load_equip
+						# == Only equips if you have the equipment for it
+						if $game_party.has_item?(load_equip,true)
+							# == Unequips current equipment from this Slot (if Slot is not Empty)
+							if equip
+								$game_party.gain_item(equip,1)		
+							end
+							$game_party.gain_item(load_equip,-1)
+							# == Equips loadout equipment (using the custom method, to allow for duplicates)
+							actor.f_change_equip_by_id(equip_slot,load_equip.id)
+						end
+					end
+				}
+			end
+    }
+  end
+end
