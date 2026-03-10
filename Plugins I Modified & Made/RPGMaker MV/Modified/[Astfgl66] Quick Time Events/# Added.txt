@@ -1,0 +1,10 @@
+======== New function to call on QTEs with Tip messages (and initial duration in which the QTE is frozen, to give time to the player to read the Tip)
+
+The Tipped QTEs => QTEt 
+
+Function is similar (instead of "$gameMap.QTE()", you use "$gameMap.QTEt()"), and in the new function, 2 new parameters are added right at the beginning (the rest of the parameters remain the same):
+
+"$gameMap.QTEt(TipMessage,TipDuration,...)" 
+
+TipMessage => String message to show under the QTE (as a "Tip" to the player about the current QTE)
+TipDuration => Initial Duration in Which the QTE is "frozen" (to give time to the player to read the Tip)

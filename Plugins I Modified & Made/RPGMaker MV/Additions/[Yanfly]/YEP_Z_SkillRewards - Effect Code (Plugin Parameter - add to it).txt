@@ -1,0 +1,55 @@
+// ================================
+// Global Cooldowns Manipulation
+// ================================
+
+// ================================ Percentage Chance
+// ================ Global add/subtract ("Global Cooldowns +-X Y%")
+} else if (data.match(/GLOBAL COOLDOWNS[ ]([\+\-]\d+)[ ](\d+)([%％])/i)) {
+  if (isSkill) {
+    value = parseFloat(RegExp.$1);
+    chance = parseFloat(RegExp.$2) * 0.01;
+    if ( Math.random() < chance)
+    {
+      user.applyDirectGlobalCooldownChange(skill, value);
+    } else {
+      skip = true;
+    }
+  } else {
+    skip = true;
+  }
+
+// ================ Global set ("Global Cooldowns X Y%")
+} else if (data.match(/GLOBAL COOLDOWNS[ ](\d+)[ ](\d+)([%％])/i)) {
+  if (isSkill) {
+    value = parseFloat(RegExp.$1);
+    chance = parseFloat(RegExp.$2) * 0.01;
+    if ( Math.random() < chance)
+    {
+      user.payDirectGlobalCooldown(skill, value);
+    } else {
+      skip = true;
+    }
+  } else {
+    skip = true;
+  }
+
+
+// ================================ Guaranteed
+// ================ Global add/subtract  ("Global Cooldowns +-X")
+} else if (data.match(/GLOBAL COOLDOWNS[ ]([\+\-]\d+)/i)) {
+  if (isSkill) {
+    value = parseFloat(RegExp.$1);
+    user.applyDirectGlobalCooldownChange(skill, value);
+  } else {
+    skip = true;
+  }
+
+// ================ Global set ("Global Cooldowns X")
+} else if (data.match(/GLOBAL COOLDOWNS[ ](\d+)/i)) {
+  if (isSkill) {
+    value = parseFloat(RegExp.$1);
+    user.payDirectGlobalCooldown(skill, value);
+  } else {
+    skip = true;
+  }
+

@@ -1,0 +1,5 @@
+======== Improved upon pEcOsGhOsT initial plugin, by first making it toggle-able (via script call methods), then making the Disabling of Visual Effects now also get rid of the last FadeIn&Out transitions that were not found before.
+======== Finally, I added a few more things to disable separatedly about Battle Encounters, including the Snapshot Blur effect, hiding/showing Map Characters on Snapshot, Battle BGM&SEs, and Battle Text Messages, Skill Names showing and even the Battle Box UI at the bottom.
+==== I also added a method that can toggle all of the the previous toggles into having a "Seamless Battle" 
+== The last thing you may want to remove is Damage Number pop-ups, that can be easily done via other Scripts such as "SRD_BattlePopupCustomizer"
+======== Disabling all of them at once makes the Battle seamlessly transition from Map Screen, and back to it at the end.

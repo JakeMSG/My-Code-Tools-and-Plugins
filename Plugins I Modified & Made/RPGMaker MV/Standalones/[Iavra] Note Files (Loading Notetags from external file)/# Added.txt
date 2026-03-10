@@ -1,0 +1,2 @@
+======== Possibility to set Global Default Notetags per each data type (via separate Json file)
+==== Works similarly to the base Iavra Note Files function

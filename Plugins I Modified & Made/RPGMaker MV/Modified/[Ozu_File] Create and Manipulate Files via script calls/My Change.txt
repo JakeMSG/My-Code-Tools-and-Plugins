@@ -1,0 +1,7 @@
+================ Added a new function "file.Dwrite()"
+======== Works like the normal "file.write()" function, but can also create a new folder when specifying the "path" parameter
+==== Can only create 1 new folder at once (eg.: path = "<PathWithExistentFolders>/<NewFolderName>")
+== However, repeatedly using this function, adding a new Folder level inside each previous folder, allows you to create Nested folders too (although using multiple Script calls)
+= eg:
+firstpath = "<PathWithExistentFolders>/<FirstNewFolderName>"
+secondpath = "<PathWithExistentFolders>/<FirstNewFolderName>/<SecondNewFolderName>"

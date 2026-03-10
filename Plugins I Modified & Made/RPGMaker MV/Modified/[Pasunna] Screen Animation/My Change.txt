@@ -1,0 +1,6 @@
+================ Added Global X/Y offsets (Multiplier, Adder/Subtracter) to the functions (as Parameters to set)
+======== You can set them so that all functions use said Offsets AFTER the offset you set to them in the functions themselves
+==== Formula used:
+== (X/Yoffset * OffsetMultiplier) + Offset Adder/Subtracter
+======== Multipliers have a base value of 1 (use decimals to do divisions; eg: 0.5 for /2)
+======== Adders/Subtracters have a base value of 0 (use negative numbers for Subtractions; eg: -2)

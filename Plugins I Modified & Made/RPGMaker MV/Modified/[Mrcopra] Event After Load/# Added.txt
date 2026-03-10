@@ -1,0 +1,1 @@
+======== Mixed the 2 versions of the plugin by having a Plugin parameter that allows you to change whether the Common Event should always run, or depend on the Switch you then set, also from the Plugin Parameters)
