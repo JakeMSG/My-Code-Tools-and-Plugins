@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="34">
+  <CheatEntries/>
+  <UserdefinedSymbols/>
+  <LuaScript>-- ↓↓↓↓========================================↓↓↓↓ Attach (And Print) to Foreground Process
+
+-- ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Modify Here for Your Own Options
+attachProc = true
+-- If you wish to attach to Process, default is True
+printProc = false
+-- If you wish to print the Process to the Cheat Table (as an address), default is True
+rememberProc = true
+-- If you wish to Re-Attach later to this same process, default is True
+hAttachToForegroundProcess = {VK_NUMPAD7,VK_NUMPAD8,VK_NUMPAD9}
+  -- The hotkeys are either value (0xc0, 1, 25 etc) or name (VK_Z, VK_X etc)
+  -- Check The wiki, Virtual Keys for their names/values
+  -- Maximum of 5 keys per Hotkey
+  -- the hotkey for tilde ('~') is 0xc0
+  -- Numlock needs to be On to be able to use numpad keys
+
+-- ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Modify Here for Your Own Options
+
+theNewProcessName = ''
+
+function attachToForegroundProcess(sender)
+    local addressList = getAddressList()
+    local foreProc = getForegroundProcess()
+    if( attachProc == true )
+    then
+        openProcess(foreProc)
+        if( rememberProc == true )
+        then
+            local m = enumModules();
+            if(#m &gt; 0)
+            then
+                theNewProcessName = m[1].Name;
+            end
+        end
+    end
+    if( printProc == true )
+    then
+        local exeName = addressList.createMemoryRecord()
+        exeName.setDescription('The Foreground Executable Process ID (In the "Address" section)')
+        exeName.setAddress( foreProc )
+    end
+
+end
+attachToForegroundProcessHotkey=createHotkey(attachToForegroundProcess,hAttachToForegroundProcess)
+
+
+
+
+-- ↓↓↓↓========================================↓↓↓↓ Auto Re-attach v2
+
+-- ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Modify Here for Your Own Options
+
+autoReattach = true
+-- This variable is used for the toggleAutoReattach, default is "true" (will AutoReattach)
+reattachInterval = 1000
+   -- The time interval between checks, in milisecs (1000=1sec)
+processNameToReattach = 'YOUR_EXECUTABLE_FILE_NAME_HERE'
+   -- Your process' name
+hToggleAutoReattach = {VK_NUMPAD0,VK_NUMPAD1,VK_NUMPAD2}
+hManualReattach = {VK_NUMPAD0,VK_NUMPAD3}
+  -- The hotkeys are either value (0xc0, 1, 25 etc) or name (VK_Z, VK_X etc)
+  -- Check The wiki, Virtual Keys for their names/values
+  -- Maximum of 5 keys per Hotkey
+  -- the hotkey for tilde ('~') is 0xc0
+  -- Numlock needs to be On to be able to use numpad keys
+
+-- ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Modify Here for Your Own Options
+
+do
+    reattachTimer = createTimer( getMainForm( ) )
+    reattachTimer.Interval = reattachInterval
+    reattachTimer.onTimer = function ()
+    local attachedID = getOpenedProcessID
+    local properID = getProcessIDFromProcessName(processNameToReattach)
+    if( ( attachedID == 0) or ( attachedID ~= properID ) )
+    then
+        if( ( processNameToReattach == '' ) or (processNameToReattach == 'YOUR_EXECUTABLE_FILE_NAME_HERE') )
+        then
+            openProcess(theNewProcessName)
+        else
+        openProcess(processNameToReattach)
+        end
+    end
+    end
+end
+
+function toggleAutoReattach(sender)
+    if(autoReattach == false)
+    then
+        autoReattach = true
+        reattachTimer = createTimer( getMainForm() )
+        reattachTimer.Interval = reattachInterval
+        reattachTimer.onTimer = function ()
+        local attachedID = getOpenedProcessID
+        local properID = getProcessIDFromProcessName(processNameToReattach)
+        if( ( attachedID == 0) or ( attachedID ~= properID ) )
+        then
+            if( ( processNameToReattach == '' ) or (processNameToReattach == 'YOUR_EXECUTABLE_FILE_NAME_HERE') )
+            then
+                openProcess(theNewProcessName)
+            else
+            openProcess(processNameToReattach)
+            end
+        end
+        end
+    else
+        autoReattach = false
+        reattachTimer.destroy()
+    end
+end
+
+toggleAutoReattachHotkey=createHotkey(toggleAutoReattach,hToggleAutoReattach)
+manualReattachHotkey=createHotkey(reattach,hManualReattach)
+
+
+
+
+
+-- ↓↓↓↓========================================↓↓↓↓ Speedhack
+
+-- ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Modify Here for Your Own Options
+  -- The hotkeys are either value (0xc0, 1, 25 etc) or name (VK_Z, VK_X etc)
+  -- Check The wiki, Virtual Keys for their names/values
+  -- Maximum of 5 keys per Hotkey
+  -- the hotkey for tilde ('~') is 0xc0
+hStep1 = {0xc0,VK_1}
+hStep2 = {0xc0,VK_2}
+hStep3 = {0xc0,VK_3}
+hStep4 = {0xc0,VK_4}
+hStep5 = {0xc0,VK_5}
+hStep6 = {0xc0,VK_6}
+hStep7 = {0xc0,VK_7}
+hStep8 = {0xc0,VK_8}
+hStep9 = {0xc0,VK_9}
+
+hStop = {0xc0,VK_RCONTROL}
+
+hInc = {0xc0,VK_F1}
+hHfInc = {0xc0,VK_F2}
+hHfDcr = {0xc0,VK_F3}
+hDcr = {0xc0,VK_F4}
+
+spd1 = 1
+spd2 = 2
+spd3 = 3
+spd4 = 4
+spd5 = 5
+spd6 = 6
+spd7 = 7
+spd8 = 8
+spd9 = 9
+
+spdStop = 0
+
+inc = 1
+hfInc = 0.5
+hfDcr = -0.5
+dcr = -1
+-- ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Modify Here for Your Own Options
+
+speed = 1.000
+-- This Variable is used for the speed calculations, don't change (it is initialised with the default speed, 1)
+
+-- ================ The functions for Speed Steps
+function step1(sender)
+    speed = spd1
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step1,hStep1)
+
+function step2(sender)
+    speed = spd2
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step2,hStep2)
+
+function step3(sender)
+    speed = spd3
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step3,hStep3)
+
+function step4(sender)
+    speed = spd4
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step4,hStep4)
+
+function step5(sender)
+    speed = spd5
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step5,hStep5)
+
+function step6(sender)
+    speed = spd6
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step6,hStep6)
+
+function step7(sender)
+    speed = spd7
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step7,hStep7)
+
+function step8(sender)
+    speed = spd8
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step8,hStep8)
+
+function step9(sender)
+    speed = spd9
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(step9,hStep9)
+
+
+-- ================ The functions for Speed Modifiers &amp; Stop
+
+function stop(sender)
+    speed = spdStop
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(stop,hStop)
+
+function increase(sender)
+    speed = speed + inc
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(increase,hInc)
+
+function halfIncrease(sender)
+    speed = speed + hfInc
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(halfIncrease,hHfInc)
+
+function halfDecrease(sender)
+    speed = speed + hfDcr
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(halfDecrease,hHfDcr)
+
+function decrease(sender)
+    speed = speed + dcr
+    speedhack_setSpeed(speed)
+    return true
+end
+speedhackHotkeys=createHotkey(decrease,hDcr)
+
+
+
+
+-- ================================================================ Address List in separate Window
+
+--##### Popout Address List
+--##### Author: Dark Byte, menu added by FreeER
+--##### Github: https://github.com/FreeER
+--##### Website: https://www.facebook.com/groups/CheatTheGame
+--##### YouTube: https://www.youtube.com/channel/UCLy60mbqc3rSvh42jkpCDxw
+--[[
+  https://forum.cheatengine.org/viewtopic.php?p=5743590#5743590
+]]
+
+-- START OF USER CONFIG --
+local useGroupMenu = true
+local extItemShortcut = ''
+-- END OF CONFIG --
+
+-- START OF EXT TEMPLATE CONFIG --
+local extGroupMenuCaption = 'F&amp;reeER\'s Extensions'
+local extItemCaption = 'Popout Address List'
+local requiredVersion = 6.4
+-- START OF EXT TEMPLATE CONFIG --
+
+if getCEVersion() &lt; requiredVersion then
+    error(("%s requires CE &gt;= %d, update CE!"):format(extItemCaption, requiredVersion))
+end
+
+-- menu code --
+local mf = getMainForm()
+local mm = mf.Menu
+local extMenu = nil
+
+if useGroupMenu then
+  -- look for existing group menu
+  for i=0,mm.Items.Count-1 do
+      if mm.Items.Item[i].Caption == extGroupMenuCaption then
+          extMenu = mm.Items.Item[i]
+          break
+      end
+  end
+  if not extMenu then -- not found so create it
+      extMenu = createMenuItem(mm)
+      extMenu.Caption = extGroupMenuCaption
+      mm.Items.add(extMenu)
+  end
+else
+  extMenu = mm.Items
+end
+
+local extMenuItem = createMenuItem(extMenu)
+extMenuItem.Caption = extItemCaption
+extMenuItem.Shortcut = extItemShortcut
+extMenu.add(extMenuItem)
+-- menu code --
+
+local alw=createForm()
+alw.PopupMode='pmNone' --comment this if you want stay on top behaviour
+alw.Caption="Address List"
+alw.BorderStyle="bsSizeable"
+alw.ClientWidth=AddressList.Width
+alw.visible = false
+
+local alwsettings=getSettings('alw')
+if alwsettings.Value['x']~='' then alw.left=tonumber(alwsettings.Value['x']) end
+if alwsettings.Value['y']~='' then alw.top=tonumber(alwsettings.Value['y']) end
+if alwsettings.Value['width']~='' then alw.width=tonumber(alwsettings.Value['width']) end
+if alwsettings.Value['height']~='' then alw.height=tonumber(alwsettings.Value['height']) end
+
+alw.OnCloseQuery=function(sender)
+  AddressList.Parent = MainForm.Panel1
+  alw.visible=false
+  return false
+end
+
+alw.OnDestroy=function(sender)
+  alwsettings.Value['x']=alw.left
+  alwsettings.Value['y']=alw.top
+  alwsettings.Value['width']=alw.width
+  alwsettings.Value['height']=alw.height
+end
+
+extMenuItem.OnClick = function()
+  if AddressList.Parent==alw then
+    AddressList.Parent = MainForm.Panel1
+    alw.visible=false
+  else
+    AddressList.Parent = alw
+    alw.visible=true
+  end
+end
+</LuaScript>
+</CheatTable>
