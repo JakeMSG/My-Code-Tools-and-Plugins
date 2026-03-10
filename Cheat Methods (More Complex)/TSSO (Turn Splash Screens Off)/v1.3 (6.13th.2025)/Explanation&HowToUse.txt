@@ -1,0 +1,29 @@
+================ Explanation
+==== Another quick Batch-powered utility to help you quickly Turn Splash Screens Off on games that have them
+==== I made this using the knowledge from making ERDO, but with slight improvements 
+==== At its core, it's a simple batch file that runs commands on the "Xchang32" CMD utility 
+== Link to the Website of the Utility (pack of Utilities): http://bbses.info/mirrors/clayruth.com/index.html
+
+
+================ How to Use
+==== 1. Copy the 2 files from here and move them in the folder of your RPG Maker game (right next to it's Executable (".exe") file)
+==== 2. Run the "[Run This!]" file (the batch file)
+==== 3. Now, simply select the desired option, and Exit when done (either via the option or by closing the window)
+== I will add further options for further possible Splash Screens (such as unique ones from special Circles, etc.)
+
+================ Possible Issue - Long paths
+==== If it shows that it "Cannot Change", it's very likely that your current folder path is too long
+== A quick side-fix is to temporarily move the game folder closer to your root path (eg: on "F:\" instead of "F:\[VERY_LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONG__PAAAAAAAAAAAAAAAAATH]"), run the utility, then move the folder back
+
+
+
+
+================ Advanced Use - Editing the "[Run this!].bat" (to search for custom Strings)
+======== For the ".bat" (Cmd) commands
+==== Look it up on the internet
+======== For the "xchange32"-specific commands
+==== To search, within your string:
+== For a literal "," or "^" signs => double them (eg: ",," and "^^")
+== For ASCII characters => Use "^" sign, then their code next to it
+= "\n" (Line Feed / New Line) => "^10"
+= Quotes (" "" ") => "^34"

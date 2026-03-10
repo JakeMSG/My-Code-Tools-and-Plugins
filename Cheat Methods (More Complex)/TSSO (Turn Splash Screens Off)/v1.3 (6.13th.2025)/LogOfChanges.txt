@@ -1,0 +1,10 @@
+================ v1.0 (1.10th.2024)
+==== Initial Release of the Utility
+== Has the Basic MV Splash Screen
+================ v1.1 (4.28th.2024)
+==== Change to use "xchange32" utility instead of "Fart" utility (easier to work with)
+== Can cause issues with Long Path folders, but easy fix is to temporarily move the folder to a shorter path (within the same Drive)
+================ v1.2 (5.4th.2024)
+==== Added the Dieselmine circle's Splash screens
+================ v1.3 (6.13th.2025)
+==== Added the Cliplogger plugin to disable (useful for me since I use some Cheats that auto-add the Cliplogger plugin)
