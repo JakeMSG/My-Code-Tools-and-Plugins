@@ -1,0 +1,16 @@
+================ 0. Prerequisites 
+======== If you want to use this for MV, for the .png/.webp asset files to work from Subfolders, you'll also need my plugin "JakeMSG_WebpAndSubfoldersInMVCommands", you can download it from here:
+https://forums.rpgmakerweb.com/threads/webp-and-subfolders-in-mv-commands-mv-mz-version.182777/
+
+================ 1. How to use
+======== 1. Make any subfolders you wish in your asset folders, for any asset type, as many subfolders as you wish, nested however you wish
+======== 2. Organize your assets however you wish in said subfolders
+======== 3. Now, copy the 2 files (the .bat file and the .ps1 file) in the:
+==== MV: "www" folder of your project (next to your project file)
+==== MZ: in the game folder (next to your project file)
+======== 4. Run the .bat file, and select which engine you're using
+======== 5. Let it run, and it will show, at the end:
+==== Asset files that were called by the "Data\*.json" files, but were not found (as Warnings)
+==== How many files were modified for the new asset locations
+
+======== 6. Now, you can run your project, and it should automatically work with the updated locations of each asset file!
