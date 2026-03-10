@@ -3,6 +3,9 @@
 // JakeMSG_Olivia_StateTooltipDisplay_Additions
 //=============================================================================
 
+var Imported = Imported || {};
+Imported.JakeMSG_Olivia_StateTooltipDisplay_Additions = true;
+
 var JakeMSG = JakeMSG || {};
 JakeMSG.Olivia_StateTooltipDisplay = JakeMSG.Olivia_StateTooltipDisplay || {};
 
@@ -115,7 +118,7 @@ Window_StateIconTooltip.prototype.setTargetHost = function (a30) {
   if (this._targetHost !== a30 && this._visibilityTimer !== 0) {
     this._targetHost = a30;
     this.updateNewData();
-    // ==== Added thecheck for "_pinned", to be able to disable it if it's been pinned from before
+    // ==== Added the check for "_pinned", to be able to disable it if it's been pinned from before
     if (this._pinned) {
       this._pinned = false;
     }
