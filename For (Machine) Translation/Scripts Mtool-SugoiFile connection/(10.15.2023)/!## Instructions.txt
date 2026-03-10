@@ -1,0 +1,32 @@
+======== 0. Needed programs
+==== Python 
+==== Node.js
+==== Ruby
+
+======== 00. Getting the MTool ".json" file
+==== 1. Load the chosen game through the MTool, as normal
+==== 2. On the Translation tab, choose the "Export..." option to obtain the file
+== The file is called "ManualTransFile.json" and will be in the game's folder
+
+======== I. MTool ".json" file to ".txt" file (to put into Sugoi File Translator)
+==== 1. "TheScripts" folder (where the Batch files are)
+==== 2. Copy your "ManualTransFile.json" that you want translated to this folder
+==== 3. Run the "# A.bat" batch file
+
+======== II. Translating the text
+==== 1. Open the Sugoi Toolkit, enter the Sugoi File Translator
+==== 2. Drag&Drop all the txt files named "string__X_slash-n-amount", where X is various digits/numbers
+== You'll have more files the bigger your "ManualTransFile.json" file is
+==== 3. Let it translate (it will take a while)
+== The Translated files will be named "string__X_slash-n-amount_output" (added "_output" to the name of the original file)
+==== 4. After Translating, Copy the Translated content from the "_output" files into the original files (that you previously Drag&Dropped into the File Translator)
+
+======== III. Convert back to a ".json" file for MTool to load into
+==== 1. Run the "# B.bat" batch file
+== The final file is called "combined_final.json"
+==== 2. Back into the MTool (with the opened game), in the Translation tab, choose the "Load Translation File" option, then choose the "combined_final.json" file to load
+==== DONE!
+
+======== IV. (Optional) Cleanup
+==== 1. Run the "# C.bat" batch file
+== This will delete all the Temporary files created so far, besides the "ManualTransFile.json" and "combined_final.json" files
