@@ -1,0 +1,24 @@
+================ Explanation
+==== A quick Batch-powered utility to help you quickly Enable Renpy Developer Options on any Renpy Game
+==== I made this really quick, using the knowledge I had on which files to modify in Renpy for Developer Options, plus a bit of research (and "Inspiration") on the internet to make this file modifying as easy, automated and intuitive as possible
+==== At its core, it's a simple batch file that runs commands on the "FART (Find and Replace Text)" CMD utility 
+== Link to the FART Developer website: https://fart-it.sourceforge.net/
+
+
+================ How to Use
+==== 1. Copy the 2 files from here and move them in the folder of your Renpy game (right next to it's Executable (".exe") file)
+==== 2. Run the "(Run This!)" file (the batch file)
+==== 3. Now, simply select the desired option, and Exit when done (either via the option or by closing the window)
+== Option 2 Enables all the Developer Options in a different way than Option 1 Enables just the Console (different files changed)
+
+**** If you're unsure if you already modified the Renpy files to Enable Developer options prior to using this program, you can Go with Option 3 initially (to revert any such changes) before choosing option 1/2 (to have a fresh start).
+
+
+================ Hotkeys
+==== [Shift + O ] = Console
+==== [Shift + D ] = Developer Menu
+
+==== [Shift + E ] = Opens "script.rpy" file (you'll have to specify a program to open the ".rpy" file)
+==== [Shift + R ] = Reloading (Current game is saved, then game scripts & game are reloaded (placing you back in the same dialogue)
+==== [Shift + I ] = Style Inspecting
+==== [Shift + Y ] = Style Dumping

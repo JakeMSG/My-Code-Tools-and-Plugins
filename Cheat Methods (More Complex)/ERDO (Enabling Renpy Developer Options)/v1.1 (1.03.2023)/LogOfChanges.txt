@@ -1,0 +1,6 @@
+================ v1.0 (12.12.2022)
+==== Initial Release of the Utility!!
+==== Has all the current features explained.
+================ v1.1 (1.03.2023)
+==== Fixed for the case in which the "option.rpy" file in the "game" folder would not be there (it can happen in some games)
+== The utility will now detect this and create the file when needed. Everything else works the same besides that.
