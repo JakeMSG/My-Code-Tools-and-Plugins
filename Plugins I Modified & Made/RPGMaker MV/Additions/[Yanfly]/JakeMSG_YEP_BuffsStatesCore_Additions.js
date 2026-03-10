@@ -31,11 +31,9 @@ Yanfly.BuffsStates_JakeMSGAdd.version = 1.2;
  * This plugin requires YEP_BuffsStatesCore.
  * Make sure this plugin is located under YEP_BuffsStatesCore in the plugin list.
  *
- * This plugin simply allows the use of normal line breaks within Message commands
- * at the same time with Word Wrapping turned On.
+ * This plugin simply adds the functionality of Multiple Counters per state, each with its own visuals and possible visual settings via notetags,
+ * as well as a new hidden value called AuxVal for any background logic you may want to use it for.
  *
- * Keep in mind, if you also use <br>, both that, and the normal line breaks,
- * will create new lines.
  *
  * ============================================================================
  * State Multi-Counters
