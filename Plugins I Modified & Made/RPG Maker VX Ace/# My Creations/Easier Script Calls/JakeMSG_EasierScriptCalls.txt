@@ -1,0 +1,230 @@
+################################################################  Explaining the script
+# ================================================ Method Wrappers - For Easier Script Calls
+# ======================== Initial Explanations
+# ======== General
+# ==== These Method Wrappers are made to use Script Calls for easier Asset (Audio/Visual) Manipulation
+# ==== For each of these Methods, all parameters have Default Values
+# == Meaning that you can leave those parameters empty/unspecified, to automatically use their default values
+# = This can mean you can have way shorter script calls, if you only modify 1-2 parameters!
+# ==== For Methods that Add (to an existing value), if you specify a negative value, it will Subtract instead
+# ==== Keep in mind, for any Asset Name, you can instead specify a subfolder path to the file (with its name at the end)
+# ======== Root folders used for each Asset type:
+# ==== Visual
+# == Enemy Sprites: "Graphics/Battlers"
+# == Pictures: "Graphics/Pictures"
+# ==== Audio
+# == BGM: "Audio/BGM"
+# == BGS: "Audio/BGS"
+# == ME: "Audio/ME"
+# == SE: "Audio/SE"
+# ======================== Examples of Method usage
+# ======== Full usage of all parameters
+# picChange("Ariel", 1, 0, 0, 0, 100, 100, 255, 0)
+# ======== Partial usage of parameters (empty in the middle)
+# picChange("Ariel", 1, 0, , , , 150, 150, 0)
+# ======== Omitting unused parameters at the end
+# picChange("Ariel", 1)
+# ======== Using Subfolders
+# picChange("Ariel/Standing/Default", 1)
+# ======================== The Methods
+# ==================== Visual
+# ================ Pictures
+# ============ Show
+# ======== On Map
+# picChange(picName = "", index=1, placement=0, x=0, y=0, xZoom=100, yZoom=100, opacity=255, blend=0)
+# ======== During Battle
+# picChangeBattle(picName = "", index=1, placement=0, x=0, y=0, xZoom=100, yZoom=100, opacity=255, blend=0)
+#
+# picName = Name of the Pic (leave blank to erase picture)
+# index = ID of the Picture to modify
+# placement = Placement of the X&Y anchor (0 = Upper-Left; 1 = Centered)
+# x/y = The coordinates of the X&Y anchor
+# xZoom/yZoom = scaling, in percentage, on the X/Y axis
+# opacity = Opacity (255 = Solid; 0 = Completely Transparent)
+# blend = 0 (Normal), 1 (Additive), 2 (Multiply), or 3 (Screen)
+#
+#
+# ============ Move
+# ======== On Map
+# picMove(index=1, placement=0, x=0, y=0, duration = 20, xZoom=100, yZoom=100, opacity=255, blend=0)
+# ======== During Battle
+# picMoveBattle(index=1, placement=0, x=0, y=0, duration = 20, xZoom=100, yZoom=100, opacity=255, blend=0)
+#
+# index = ID of the Picture to modify
+# placement = Placement of the X&Y anchor (0 = Upper-Left; 1 = Centered)
+# x/y = The coordinates of the X&Y anchor
+# duration = Duration, in frames, of the Movement 
+# xZoom/yZoom = scaling, in percentage, on the X/Y axis
+# opacity = Opacity (255 = Solid; 0 = Completely Transparent)
+# blend = 0 (Normal), 1 (Additive), 2 (Multiply), or 3 (Screen)
+#
+#
+# ============ Change Angle (adds to the current angle)
+# ======== On Map
+# picChangeAngle(index=1, angle=0)
+# ======== During Battle
+# picChangeAngleBattle(index=1, angle=0)
+ 
+# ============ Set Angle (sets the angle)
+# ======== On Map
+# picSetAngle(index=1, angle=0)
+# ======== During Battle
+# picSetAngleBattle(index=1, angle=0)
+
+# ============ Set Mirroring (to True/False)
+# ======== On Map
+# picSetMirroring(index=1, mirroring=false)
+# ======== During Battle
+# picSetMirroringBattle(index=1, mirroring=false)
+ 
+# ================ Enemy Sprites
+# ============ Change Enemy Troop's picture (without switching to another Enemy entry)
+# ==== Warning: Will change the Enemy entry's picture for the rest of the game's runtime!
+# == Recommended: Reset this back to the default picture after the battle
+# troopChangePic(picName = "",troopID = 0)
+#
+# picName = Name of the Pic to change to (leave blank to erase picture)
+# troopID = ID if the Troop member whose Enemy entry is to be changed
+
+
+
+
+# ================================================ Newly-added Methods
+# ======================== Usable by:
+# ======== Pictures outside of Battle
+# $game_map.screen.pictures[index]            # Index count starts at 1 
+# ======== Pictures during the battle
+# $game_troop.screen.pictures[index]          # Index count starts at 1  
+# ======================== The Methods:
+# ======== Changes (Add if Positive, Subtract if Negative) the angle of the Picture
+# .change_angle(value)
+# ==== value = Angle (0-360)
+# ======== Sets the angle of the Picture to a specific Value
+# .set_angle(value)
+# ==== value = Angle (0-360)
+# ======== Sets the mirroring of the Picture to True/False
+# .set_mirroring(state)
+# ==== state = True/False
+
+
+
+
+
+
+
+
+################################################################  The Script
+
+# ================================================ Visual
+# ================================ Implementing Picture Angle Change/Set and Mirroring (without requiring use of Rotation instruction and Speed etc)
+# ------------
+# Game_Picture
+# ------------
+class Game_Picture
+  attr_accessor :mirror
+  def change_angle(value)
+    @angle += value
+    @angle %= 360
+    if @angle < 0
+      @angle += 360
+    end
+  end
+  def set_angle(value)
+    @angle = value
+    @angle %= 360
+    if @angle < 0
+      @angle += 360
+    end
+  end
+	def set_mirroring(state)
+		@mirror = state
+	end
+end
+# ------------
+# Sprite_Picture
+# ------------
+class Sprite_Picture < Sprite
+  # Aliases the "update" method to also consider the "mirror" variable of the Picture
+  alias sprite_picture_update_jakemsg update
+  def update
+    sprite_picture_update_jakemsg
+    self.mirror = @picture.mirror
+  end
+end 
+# ================================
+
+
+
+
+# ================================ Pictures
+# ================ Show (/Remove (by leaving the picName blank) )
+# ======== On Map
+def picChange(picName = "", index=1, placement=0, x=0, y=0, xZoom=100, yZoom=100, opacity=255, blend=0)
+  $game_map.screen.pictures[index].show(picName, placement, x, y, xZoom, yZoom, opacity, blend)
+end
+# ======== During Battle
+def picChangeBattle(picName = "", index=1, placement=0, x=0, y=0, xZoom=100, yZoom=100, opacity=255, blend=0)
+  $game_troop.screen.pictures[index].show(picName, placement, x, y, xZoom, yZoom, opacity, blend)
+end
+
+# ================ Move
+# ======== On Map
+def picMove(index=1, placement=0, x=0, y=0, duration = 20, xZoom=100, yZoom=100, opacity=255, blend=0)
+  $game_map.screen.pictures[index].move(placement, x, y, xZoom, yZoom, opacity, blend, duration)
+end
+# ======== During Battle
+def picMoveBattle(index=1, placement=0, x=0, y=0, duration = 20, xZoom=100, yZoom=100, opacity=255, blend=0)
+  $game_troop.screen.pictures[index].move(placement, x, y, xZoom, yZoom, opacity, blend, duration)
+end
+
+
+# ================ Change Angle (Adds to the current angle)
+# ======== On Map
+def picChangeAngle(index=1, angle=0)
+  $game_map.screen.pictures[index].change_angle(angle)
+end
+# ======== During Battle
+def picChangeAngleBattle(index=1, angle=0)
+  $game_troop.screen.pictures[index].change_angle(angle)
+end
+# ================ Set Angle (Sets the angle)
+# ======== On Map
+def picSetAngle(index=1, angle=0)
+  $game_map.screen.pictures[index].set_angle(angle)
+end
+# ======== During Battle
+def picSetAngleBattle(index=1, angle=0)
+  $game_troop.screen.pictures[index].set_angle(angle)
+end
+
+# ================ Set Mirroring (to True/False)
+# ======== On Map
+def picSetMirroring(index=1, mirroring=false)
+  $game_map.screen.pictures[index].set_mirroring(mirroring)
+end
+# ======== During Battle
+def picSetMirroringBattle(index=1, mirroring=false)
+  $game_troop.screen.pictures[index].set_mirroring(mirroring)
+end
+
+
+
+
+# ================================ Enemy Sprites
+# ======== Change Enemy Troop's picture
+def troopChangePic(picName = "",troopID = 0)
+  $data_enemies[ $game_troop.members[troopID].enemy_id].battler_name = picName
+  $game_troop.members[troopID].transform($game_troop.members[troopID].enemy_id )
+end
+
+
+
+
+
+
+
+
+# ================================================ Audio
+
+
+  

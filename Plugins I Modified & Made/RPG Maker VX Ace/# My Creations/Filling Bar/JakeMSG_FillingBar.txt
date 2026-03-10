@@ -1,0 +1,342 @@
+# !!!!!!!! REQUIRES "JakeMSG - Easier Script Calls"!  !!!!!!!! 
+
+
+# ================================================================
+# ==== CUSTOMIZE HERE!
+# ================================================================
+module FILL_BAR
+# ==== Picture names for Base/Filling/Symbol&Border of the FILL_BAR
+# == Supports subfolders!
+  PIC_BASE            = "#FillingBar/Base"
+  PIC_FILLING         = "#FillingBar/Filling"
+  PIC_SYMBOLBORDER    = "#FillingBar/Symbol&Border"
+# ==== IDs for the Pictures to use
+  ID_PIC_BASE         = 10
+  ID_PIC_FILLING      = 11
+  ID_PIC_SYMBOLBORDER = 12
+# ==== Whether the bar should be Horizontal or Vertical
+# == If Horizontal = Bar increases from Left to Right
+# == If Vertical   = Bar increases from Up to Down		
+  ORIENTATION         = "Horizontal" # Default = "Horizontal"
+# ==== The Maximum Cap the value of the Bar should be able to reach normally
+# == Can be overwritten per-instance of Bar by 
+  VALUE_MAX_CAP      = 100 # Default = 100 (%)
+  VALUE_MIN_CAP      =   0 # Default =   0 (%)
+# ==== X&Y position for the Pictures to use
+  X_PIC         = 370 #370
+  Y_PIC         = 270 #270
+  X_PIC_FILLING = 397 #389
+  Y_PIC_FILLING = 287 #280
+# == X&Y Offset (can also be Negative), that applies to all Pictures uniformly
+  X_OFFSET      =  0    # Default = 0
+  Y_OFFSET      =  0    # Default = 0
+# == X&Y Zoom (a multiplier), that applies to all Pictures uniformly
+# = WARNING: You may have to adjust the X&Y values for each Pic after Zoom changes
+  X_ZOOM        = 1.0   # Default = 1.0
+  Y_ZOOM        = 1.0   # Default = 1.0
+# ==== The duration, in Frames (60 = 1sec), of the change/set animation in the Filling bar 
+  CHANGE_DUR = 20
+# ==== Default angle of the Bar (0 = no rotation, rotates counterclockwise; 0-360)
+# == This is needed when you want the Bar to increase from Right to Left or from Down to Up	
+	ANGLE         =   0   # Default = 0
+# ==== Default mirroring of the Bar (false = no mirroring)
+# == WARNING: This will NOT make the Bar fill in reverse!	
+	MIRRORING     = false # Default = false
+# ==== Default Multiplier (can also be negative!) to all changes done by the "fillbar_change(value)" method
+	MULT  = 1.0 # Default = 1.0  
+# ==== Default Bonus (can also be negative!) to all changes done by the "fillbar_change(value)" method
+	BONUS = 0   # Default = 0
+# == This applies AFTER the Multiplier	
+end
+# ================================================================
+# ==== END OF CUSTOMIZATION
+# ================================================================
+# Advanced use Tip: If you wish for multiple similar independent Bars,
+# Simply copy this Script, and add a letter to each "Filling" word used,
+# To get another independent bar! (Change the customization values for
+# it accordingly)
+#
+# ================================================================
+# Script Calls - These commands are used with script calls.
+# ================================================================
+# ======== Resets (and Initializes) the Filling Bar (resets Value, then Shows the bar)
+# fillbar_reset()
+#
+# ======== Changes (Add if Positive, Subtract if Negative) the Filling Bar
+# fillbar_change(value)
+# ==== value = Percentage
+#
+# ======== Sets the Filling Bar to a specific Value
+# fillbar_set(value)
+# ==== value = Percentage
+#
+# ======== Returns the Filling Bar's value
+# fillbar_check()
+#
+# ======== Shows the Filling Bar (Does NOT reset its value)
+# fillbar_show()
+#
+# ======== Hides the Filling Bar (Does NOT reset its value)
+# fillbar_hide()
+#
+# ======== Deletes the Filling Bar (WILL also reset its value)
+# fillbar_delete()
+#
+# ======== Sets a Min cap the Filling Bar
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_setTempMinCap(value)
+# ==== value = Percentage
+#
+# ======== Sets a Max cap the Filling Bar
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_setTempMaxCap(value)
+# ==== value = Percentage
+#
+# ======== Changes (Add if Positive, Subtract if Negative) the Filling Bar's Angle
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_changeAngle(value)
+# ==== value = Angle (0-360; counts counterclockwise)
+#
+# ======== Sets the Filling Bar's Angle
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_setAngle(value)
+# ==== value = Angle (0-360; counts counterclockwise)
+#
+# ======== Sets the Mirroring of the Filling Bar
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_setMirroring(state)
+# ==== state = True/False (Default False)
+#
+# ======== Sets the Multiplier applied to the Filling Bar's increases via "fillbar_change(value)" method
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_multSet(value)
+#
+# ======== Sets the Bonus applied to the Filling Bar's increases via "fillbar_change(value)" method
+# === Will ONLY apply to the current bar, and WILL reset on "Reset" or "Delete" script calls
+# fillbar_bonusSet(value)
+#
+# ======== Returns the Filling Bar's multiplier
+# fillbar_multCheck()
+#
+# ======== Returns the Filling Bar's bonus
+# fillbar_bonusCheck()
+#
+#
+#
+#
+# ================================================================
+# Rest of the Script (DON'T MODIFY FROM HERE ON OUT)
+# ================================================================
+def fillbar_show()
+	if $game_party.in_battle    
+		picChangeBattle(FILL_BAR::PIC_BASE,FILL_BAR::ID_PIC_BASE,0,FILL_BAR::X_PIC+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC+FILL_BAR::Y_OFFSET,100*FILL_BAR::X_ZOOM,100*FILL_BAR::Y_ZOOM);
+		picChangeBattle(FILL_BAR::PIC_SYMBOLBORDER,FILL_BAR::ID_PIC_SYMBOLBORDER,0,FILL_BAR::X_PIC+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC+FILL_BAR::Y_OFFSET,100*FILL_BAR::X_ZOOM,100*FILL_BAR::Y_ZOOM);
+	else
+		picChange(FILL_BAR::PIC_BASE,FILL_BAR::ID_PIC_BASE,0,FILL_BAR::X_PIC+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC+FILL_BAR::Y_OFFSET,100*FILL_BAR::X_ZOOM,100*FILL_BAR::Y_ZOOM);
+		picChange(FILL_BAR::PIC_SYMBOLBORDER,FILL_BAR::ID_PIC_SYMBOLBORDER,0,FILL_BAR::X_PIC+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC+FILL_BAR::Y_OFFSET,100*FILL_BAR::X_ZOOM,100*FILL_BAR::Y_ZOOM);
+	end
+  if FILL_BAR::ORIENTATION == "Horizontal"
+		if $game_party.in_battle    
+      picChangeBattle(FILL_BAR::PIC_FILLING,FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET, $fillbarValue*FILL_BAR::X_ZOOM ,100*FILL_BAR::Y_ZOOM);
+		else
+      picChange(FILL_BAR::PIC_FILLING,FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET, $fillbarValue*FILL_BAR::X_ZOOM ,100*FILL_BAR::Y_ZOOM);
+		end
+  else # Vertical
+		if $game_party.in_battle    
+      picChangeBattle(FILL_BAR::PIC_FILLING,FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET, 100*FILL_BAR::X_ZOOM ,$fillbarValue*FILL_BAR::Y_ZOOM);
+		else
+      picChange(FILL_BAR::PIC_FILLING,FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET, 100*FILL_BAR::X_ZOOM ,$fillbarValue*FILL_BAR::Y_ZOOM);
+		end
+  end
+	if $game_party.in_battle    
+		picSetAngleBattle(FILL_BAR::ID_PIC_BASE, $fillbarAngle);
+		picSetAngleBattle(FILL_BAR::ID_PIC_FILLING, $fillbarAngle);
+		picSetAngleBattle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarAngle);
+
+		picSetMirroringBattle(FILL_BAR::ID_PIC_BASE, $fillbarMirroring);
+		picSetMirroringBattle(FILL_BAR::ID_PIC_FILLING, $fillbarMirroring);
+		picSetMirroringBattle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarMirroring);
+	else
+		picSetAngle(FILL_BAR::ID_PIC_BASE, $fillbarAngle);
+		picSetAngle(FILL_BAR::ID_PIC_FILLING, $fillbarAngle);
+		picSetAngle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarAngle);
+
+		picSetMirroring(FILL_BAR::ID_PIC_BASE, $fillbarMirroring);
+		picSetMirroring(FILL_BAR::ID_PIC_FILLING, $fillbarMirroring);
+		picSetMirroring(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarMirroring);
+	end
+end
+
+def fillbar_reset()
+  $fillbarValue = 0;
+	$fillbarMinCap = FILL_BAR::VALUE_MIN_CAP;
+	$fillbarMaxCap = FILL_BAR::VALUE_MAX_CAP;
+	$fillbarAngle = FILL_BAR::ANGLE;
+	$fillbarAngle %= 360;
+	if $fillbarAngle < 0
+		$fillbarAngle += 360;
+	end
+	$fillbarMirroring = FILL_BAR::MIRRORING;
+	$fillbarMult = FILL_BAR::MULT;
+	$fillbarBonus = FILL_BAR::BONUS;
+  fillbar_show();
+end
+
+def fillbar_change(value)
+  $fillbarValue += (value * $fillbarMult) + $fillbarBonus;
+  if ($fillbarMaxCap < $fillbarValue)
+		$fillbarValue = $fillbarMaxCap;
+	end 
+	if ($fillbarMinCap > $fillbarValue)
+		$fillbarValue = $fillbarMinCap;
+  end
+	
+  if FILL_BAR::ORIENTATION == "Horizontal"
+		if $game_party.in_battle    
+      picMoveBattle(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, $fillbarValue *FILL_BAR::X_ZOOM,100 *FILL_BAR::Y_ZOOM,255,0);
+		else
+      picMove(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, $fillbarValue *FILL_BAR::X_ZOOM,100 *FILL_BAR::Y_ZOOM,255,0);
+		end
+  else # Vertical
+		if $game_party.in_battle    
+      picMoveBattle(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, 100 *FILL_BAR::X_ZOOM, $fillbarValue *FILL_BAR::Y_ZOOM,255,0);
+		else
+      picMove(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, 100 *FILL_BAR::X_ZOOM, $fillbarValue *FILL_BAR::Y_ZOOM,255,0);
+		end
+  end
+end
+
+def fillbar_set(value)
+  $fillbarValue = value;
+  if ($fillbarMaxCap < $fillbarValue)
+		$fillbarValue = $fillbarMaxCap;
+	end
+	if ($fillbarMinCap > $fillbarValue)
+		$fillbarValue = $fillbarMinCap;
+  end
+	
+  if FILL_BAR::ORIENTATION == "Horizontal"
+		if $game_party.in_battle    
+      picMoveBattle(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, $fillbarValue *FILL_BAR::X_ZOOM,100 *FILL_BAR::Y_ZOOM,255,0);
+		else
+      picMove(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, $fillbarValue *FILL_BAR::X_ZOOM,100 *FILL_BAR::Y_ZOOM,255,0);
+		end
+  else # Vertical
+		if $game_party.in_battle    
+      picMoveBattle(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, 100 *FILL_BAR::X_ZOOM, $fillbarValue *FILL_BAR::Y_ZOOM,255,0);
+		else
+      picMove(FILL_BAR::ID_PIC_FILLING,0,FILL_BAR::X_PIC_FILLING+FILL_BAR::X_OFFSET,FILL_BAR::Y_PIC_FILLING+FILL_BAR::Y_OFFSET,FILL_BAR::CHANGE_DUR, 100 *FILL_BAR::X_ZOOM, $fillbarValue *FILL_BAR::Y_ZOOM,255,0);
+		end
+  end
+end
+
+def fillbar_check()
+  return $fillbarValue;
+end
+
+def fillbar_hide()
+	if $game_party.in_battle    
+  $game_troop.game.screen.pictures[FILL_BAR::ID_PIC_BASE].erase;
+  $game_troop.game.screen.pictures[FILL_BAR::ID_PIC_FILLING].erase;
+  $game_troop.game.screen.pictures[FILL_BAR::ID_PIC_SYMBOLBORDER].erase;
+	else
+  $game_map.game.screen.pictures[FILL_BAR::ID_PIC_BASE].erase;
+  $game_map.game.screen.pictures[FILL_BAR::ID_PIC_FILLING].erase;
+  $game_map.game.screen.pictures[FILL_BAR::ID_PIC_SYMBOLBORDER].erase;
+	end
+end
+
+def fillbar_delete()
+  fillbar_hide();
+  $fillbarValue = 0;
+	$fillbarMinCap = FILL_BAR::VALUE_MIN_CAP;
+	$fillbarMaxCap = FILL_BAR::VALUE_MAX_CAP;
+	$fillbarAngle = FILL_BAR::ANGLE;
+	$fillbarAngle %= 360;
+	if $fillbarAngle < 0
+		$fillbarAngle += 360;
+	end
+	$fillbarMirroring = FILL_BAR::MIRRORING;
+	$fillbarMult = FILL_BAR::MULT;
+	$fillbarBonus = FILL_BAR::BONUS;
+end
+
+def fillbar_setTempMinCap(value)
+  $fillbarMinCap = value;
+end
+			
+def fillbar_setTempMaxCap(value)
+  $fillbarMaxCap = value;
+end		
+
+def fillbar_changeAngle(value)
+	$fillbarAngle += value;
+	$fillbarAngle %= 360;
+	if $fillbarAngle < 0
+		$fillbarAngle += 360;
+	end
+	
+	if $game_party.in_battle    
+		picChangeAngleBattle(FILL_BAR::ID_PIC_BASE, $fillbarAngle);
+		picChangeAngleBattle(FILL_BAR::ID_PIC_FILLING, $fillbarAngle);
+		picChangeAngleBattle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarAngle);
+	else
+		picChangeAngle(FILL_BAR::ID_PIC_BASE, $fillbarAngle);
+		picChangeAngle(FILL_BAR::ID_PIC_FILLING, $fillbarAngle);
+		picChangeAngle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarAngle);
+	end
+end
+		
+def fillbar_setAngle(value)
+	$fillbarAngle = value;
+	$fillbarAngle %= 360;
+	if $fillbarAngle < 0
+		$fillbarAngle += 360;
+	end
+	
+	if $game_party.in_battle    
+		picSetAngleBattle(FILL_BAR::ID_PIC_BASE, $fillbarAngle);
+		picSetAngleBattle(FILL_BAR::ID_PIC_FILLING, $fillbarAngle);
+		picSetAngleBattle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarAngle);
+	else
+		picSetAngle(FILL_BAR::ID_PIC_BASE, $fillbarAngle);
+		picSetAngle(FILL_BAR::ID_PIC_FILLING, $fillbarAngle);
+		picSetAngle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarAngle);
+	end
+end
+
+def fillbar_setMirroring(state)
+	$fillbarMirroring = state;	
+	
+	if $game_party.in_battle    
+		picSetMirroringBattle(FILL_BAR::ID_PIC_BASE, $fillbarMirroring);
+		picSetMirroringBattle(FILL_BAR::ID_PIC_FILLING, $fillbarMirroring);
+		picSetMirroringBattle(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarMirroring);
+	else
+		picSetMirroring(FILL_BAR::ID_PIC_BASE, $fillbarMirroring);
+		picSetMirroring(FILL_BAR::ID_PIC_FILLING, $fillbarMirroring);
+		picSetMirroring(FILL_BAR::ID_PIC_SYMBOLBORDER, $fillbarMirroring);
+	end
+
+end
+		
+def fillbar_multSet(value)
+  $fillbarMult = value;
+end
+		
+def fillbar_bonusSet(value)
+  $fillbarBonus = value;
+end
+		
+def fillbar_multCheck()
+  return $fillbarMult;
+end
+		
+def fillbar_bonusCheck()
+  return $fillbarBonus;
+end
+
+
+
+
+
