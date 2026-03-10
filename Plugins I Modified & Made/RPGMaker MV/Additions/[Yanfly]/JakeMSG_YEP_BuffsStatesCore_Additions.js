@@ -12,11 +12,16 @@ Yanfly.BuffsStates_JakeMSGAdd.version = 1.2;
 
 //=============================================================================
 /*:
- * @plugindesc v1.2 (Requires YEP_BuffsStatesCore.js) Additions to the base
+ * @plugindesc v1.0 (Requires YEP_BuffsStatesCore.js) Additions to the base
  * BuffsStates Core yanfly Plugin, such as multiple counters per state and new AuxVal value
  * (for background logic, not shown on screen)
  * @author JakeMSG
- * v1.2
+ * v1.0
+ * 
+============ Change Log ============
+1.0 - 3.10th.2026
+ * initial release
+====================================
  *
  * @help
  * ============================================================================
