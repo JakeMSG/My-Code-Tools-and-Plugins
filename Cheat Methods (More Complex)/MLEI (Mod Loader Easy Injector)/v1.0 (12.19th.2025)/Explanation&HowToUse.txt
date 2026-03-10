@@ -1,0 +1,44 @@
+================ Explanation
+==== Another quick Batch-powered utility to help you quickly add Mods to any MV game using the MV Mod Loader, but also being able to inject it into any "plugin.js" file without having to modify the file manually yourself
+== Link to the MV Mod Loader source: https://github.com/1d51/mv-mod-loader
+==== I made this using the knowledge from making ERDO, but with slight improvements 
+==== At its core, it's a simple batch file that runs commands on the "Xchang32" CMD utility 
+== Link to the Website of the Utility (pack of Utilities): http://bbses.info/mirrors/clayruth.com/index.html
+
+
+================ How to Use
+======== I. Injection of MV Mod Loader
+==== 1. Copy the files from here and move them in the folder of your RPG Maker game (right next to it's Executable (".exe") file)
+==== 2. Run the "[Run This!]" file (the batch file)
+==== 3. Now, simply select the desired option, and Exit when done (either via the option or by closing the window)
+== When it adds the plugin, it adds it at the very bottom of the list
+== When it removes the plugin, it removes it from wherever first on the list it finds it (if there's multiple entries of it in the plugins.js (for some reason) you'll have to use the remove option multiple times)
+======== Possible Issue - Long paths
+==== If it shows that it "Cannot Change", it's very likely that your current folder path is too long
+== A quick side-fix is to temporarily move the game folder closer to your root path (eg: on "F:\" instead of "F:\[VERY_LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONG__PAAAAAAAAAAAAAAAAATH]"), run the utility, then move the folder back
+
+======== II. Usage of Mods (for the MV Mod Loader)
+==== 0. Prepare your modified files in the Mods folder, in the proper format (in a folder called by your mod name, and inside a "www" folder that holds all the files to add/replace in the "www" folder of the actual game)
+==== 1. Run the game once, with the plugin for the MV Mod Loader installed
+==== 2. Enable the mod, then let the game restart to "Compress" the Mod files to only the entries/files that were added/modified
+==== 3. Now you can share the "Compressed" Mod (should be smaller in size now), and the Mod injector, with whoever you wish!
+
+
+
+================ Advanced Use - Editing the "[Run this!].bat" (to search for custom Strings)
+======== For the ".bat" (Cmd) commands
+==== Look it up on the internet
+======== For the "xchange32"-specific commands
+==== To search, within your string:
+== For a literal "," or "^" signs => double them (eg: ",," and "^^")
+== For ASCII characters => Use "^" sign, then their code next to it
+= "\n" (Line Feed / New Line) => "^10"
+= Quotes (" " ") => "^34"
+= "[" => "^91"
+= "]" => "^93"
+= "{" => "^123"
+= "}" => "^125"
+= "0" => "^48"
+= "1" => "^49"
+= "9" => "^57"
+== If you have another number next to the ASCII character you want to replace with their code, it will end up being taken by the code (eg: replacing "[1" with "^911"), so you'll instead also have to write the number next to that code as its ASCII code (eg: to properly replace "[1", you'll have to use "^91^49")

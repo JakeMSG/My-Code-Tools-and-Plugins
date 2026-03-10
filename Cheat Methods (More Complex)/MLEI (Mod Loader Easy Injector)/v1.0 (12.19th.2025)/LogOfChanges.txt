@@ -1,0 +1,3 @@
+================ v1.0 (12.19th.2025)
+==== Initial Release of the Utility
+== Has the bare Mod Loader and its necessities, nothing else
