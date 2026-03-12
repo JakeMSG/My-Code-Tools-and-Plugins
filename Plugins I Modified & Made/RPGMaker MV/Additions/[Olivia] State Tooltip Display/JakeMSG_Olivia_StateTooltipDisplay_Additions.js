@@ -17,15 +17,18 @@ JakeMSG.Olivia_StateTooltipDisplay = JakeMSG.Olivia_StateTooltipDisplay || {};
  * - Also adds alternative Pin key, customizable via Parameter
  * REQUIRES: "Olivia_StateTooltipDisplay" plugin!
  * @author JakeMSG
- * v1.0
+ * v1.1
  * 
 ============ Change Log ============
+1.1 - 3.12th.2026
+ * Made sure Pinned tooltips get cleared on Action end, Battle end and Battle abort, to avoid
+stuck tooltips lingering
 1.0 - 2.26th.2026
  * initial release
 ====================================
  * @help
  * ======================== New Features:
- * ================ Right-Click to Pin Help message
+ * ================ Right-Click to Pin Tooltip message
  * ======== If you Right-Click while a Tooltip is showing, said tooltip will be "Pinned", remaining on the screen even when you hover off the state that triggered it
  * ==== Hovering on a different State, or away and back to the initial one, will unpin the Tooltip
  * ==== Also added a Parameter to set an Alternative Key for pinning Help Messages (set via KeyCode)
@@ -125,6 +128,44 @@ Window_StateIconTooltip.prototype.setTargetHost = function (a30) {
   }
   this._visibilityTimer = 1;
 };
+
+// ======== Utility
+JakeMSG.Olivia_StateTooltipDisplay.clearPinnedTooltip = function (forceClear) {
+  if (!forceClear && (!$gameParty || !$gameParty.inBattle())) {
+    return;
+  }
+  var scene = SceneManager._scene;
+  if (!scene || !scene._stateIconTooltipWindow) {
+    return;
+  }
+  var tooltip = scene._stateIconTooltipWindow;
+  tooltip._pinned = false;
+  tooltip._visibilityTimer = 0;
+  tooltip._targetHost = undefined;
+};
+
+// ======== Method Alias-ing
+JakeMSG_OliviaStateTooltipDisplay_BattleManager_endAction = BattleManager.endAction;
+BattleManager.endAction = function () {
+  JakeMSG.Olivia_StateTooltipDisplay.clearPinnedTooltip();
+  JakeMSG_OliviaStateTooltipDisplay_BattleManager_endAction.call(this);
+};
+
+// ======== Method Alias-ing
+JakeMSG_OliviaStateTooltipDisplay_BattleManager_endBattle = BattleManager.endBattle;
+BattleManager.endBattle = function (result) {
+  JakeMSG.Olivia_StateTooltipDisplay.clearPinnedTooltip(true);
+  JakeMSG_OliviaStateTooltipDisplay_BattleManager_endBattle.call(this, result);
+};
+
+// ======== Method Alias-ing
+if (BattleManager.abort) {
+  JakeMSG_OliviaStateTooltipDisplay_BattleManager_abort = BattleManager.abort;
+  BattleManager.abort = function () {
+    JakeMSG.Olivia_StateTooltipDisplay.clearPinnedTooltip(true);
+    JakeMSG_OliviaStateTooltipDisplay_BattleManager_abort.call(this);
+  };
+}
 
 
 
