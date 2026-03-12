@@ -123,6 +123,8 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * ================================ ID usage:
  * == Adv IDs are local to this plugin and are remapped to internal/base IDs at runtime.
  * == You can use either Adv ID or field name in supported notetags/plugin commands.
+ * = There are 20 separate Adv Field lists, but they are all merged into one list,
+ * with IDs assigned in order of the parameter list, and ingoring the parameters that are empty/not used.        
  * == SetAdvField supports optional turns overwrite.
  *
  * ================================ Global Notetag integration (GDN):
@@ -562,7 +564,7 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * Param Declarations
  * ======================================
  * @param data
- * @text --- Data ---
+ * @text --- Advanced Fields ---
  * @default
 
  * @param generalFieldEffects
@@ -640,8 +642,141 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * @desc Text used for never-ending fields (turns = 0).
  * @default \u221e
  *
- * @param advFieldData
- * @text Adv Fields
+ * @param advFields1
+ * @text AdvFields 1
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields2
+ * @text AdvFields 2
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields3
+ * @text AdvFields 3
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields4
+ * @text AdvFields 4
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields5
+ * @text AdvFields 5
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields6
+ * @text AdvFields 6
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields7
+ * @text AdvFields 7
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields8
+ * @text AdvFields 8
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields9
+ * @text AdvFields 9
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields10
+ * @text AdvFields 10
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields11
+ * @text AdvFields 11
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields12
+ * @text AdvFields 12
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields13
+ * @text AdvFields 13
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields14
+ * @text AdvFields 14
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields15
+ * @text AdvFields 15
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields16
+ * @text AdvFields 16
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields17
+ * @text AdvFields 17
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields18
+ * @text AdvFields 18
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields19
+ * @text AdvFields 19
+ * @parent data
+ * @desc List of advanced field definitions appended after base HO fields.
+ * @type struct<AdvFieldEffect>[]
+ * @default []
+
+ * @param advFields20
+ * @text AdvFields 20
  * @parent data
  * @desc List of advanced field definitions appended after base HO fields.
  * @type struct<AdvFieldEffect>[]
@@ -1253,7 +1388,19 @@ $.decodeEscapedParameterText = function(text) {
         .replace(/\\t/g, '\t');
 };
 
-$.advFieldData = parameters.advFieldData || '[]';
+$.collectAdvFieldDataBlocks = function() {
+    const out = [];
+    for (let i = 1; i <= 20; ++i) {
+        out.push(parameters['advFields' + i] || '[]');
+    }
+    // Backward compatibility with projects that still have the old single parameter.
+    if (out.every(function(raw) { return String(raw || '[]') === '[]'; })) {
+        out[0] = parameters.advFieldData || '[]';
+    }
+    return out;
+};
+
+$.advFieldDataBlocks = $.collectAdvFieldDataBlocks();
 $.fieldEffectsCommandText = String(parameters.fieldEffectsCommandText || 'Field Effects');
 $.showFieldEffectsCommand = String(parameters.showFieldEffectsCommand || 'true') === 'true';
 $.fieldEffectsWindowX = String(parameters.fieldEffectsWindowX || '0');
@@ -2684,7 +2831,7 @@ DataManager.isDatabaseLoaded = function() {
     if (!$.isGdnFieldsIntegrationReady()) return false;
     // HO_FieldEffects recreates $dataFields during database load checks.
     // Re-append Adv fields every successful pass so they are not lost.
-    this.loadAdvFields($.advFieldData);
+    this.loadAdvFields($.advFieldDataBlocks);
     $.advFieldsLoaded = true;
     return true;
 };
@@ -2695,20 +2842,31 @@ DataManager.loadDatabase = function() {
     DataManager_loadDatabase_AdvFields.call(this);
 };
 
-DataManager.loadAdvFields = function(rawFieldData) {
-    if (!rawFieldData) return;
-    const fieldData = Horsti.Utils.parseJson(rawFieldData);
-    if (!fieldData || !Array.isArray(fieldData) || fieldData.length <= 0) {
-        return;
+DataManager.loadAdvFields = function(rawFieldDataBlocks) {
+    const blocks = Array.isArray(rawFieldDataBlocks) ? rawFieldDataBlocks : [rawFieldDataBlocks];
+    const mergedFieldData = [];
+
+    for (let b = 0; b < blocks.length; ++b) {
+        const rawFieldData = blocks[b];
+        if (!rawFieldData) continue;
+        const fieldData = Horsti.Utils.parseJson(rawFieldData);
+        if (!fieldData || !Array.isArray(fieldData) || fieldData.length <= 0) {
+            continue;
+        }
+        for (let i = 0; i < fieldData.length; ++i) {
+            mergedFieldData.push(fieldData[i]);
+        }
     }
+
+    if (mergedFieldData.length <= 0) return;
 
     // Keep Adv IDs appended to base IDs by index.
     // Example: base IDs 1..9 and Adv ID 9 => internal/base ID 18.
     $.advFieldStartId = $dataFields.length;
-    $.advFieldCount = fieldData.length;
+    $.advFieldCount = mergedFieldData.length;
 
-    for (let i = 0; i < fieldData.length; ++i) {
-        const data = fieldData[i];
+    for (let i = 0; i < mergedFieldData.length; ++i) {
+        const data = mergedFieldData[i];
         if (!data) {
             $dataFields.push(null);
             continue;
