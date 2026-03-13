@@ -57,16 +57,21 @@
  *   logAsset("audio")          // start logging all audio
  *   logAsset("all", false)     // silence all asset logging at runtime
  *   logAsset("all")            // re-enable all asset logging at runtime
+ * 
+ * ======== If the parameter "Write Console Log to File" is ON, all console output is 
+ * also written into #Logging.txt in the game folder (NW.js only).
+ * **** This is useful for debugging if the Console doesn't show up (usually, for MV game projects)
+ * 
  *
  * ============================================================================
  * Param Declarations
  * ============================================================================
  * @param console
- * @text Show Console?
+ * @text Write Console Log to File + Show Console on Start?
  * @type boolean
  * @on Show
  * @off No
- * @desc Open the development console when the game starts?
+ * @desc Open the development console when the game starts, and write the log output into #Logging.txt in the game folder (NW.js only).
  * @default true
  *
  * @param drawEventsNames
@@ -107,20 +112,107 @@
  * @on Log
  * @off No
  * @desc Sets the initial logging state for all asset types. Can be changed per-type at runtime with logAsset() script call
- * @default false
+ * @default true
  *
  */
 
 (function () {
 
     // ── Parameters ────────────────────────────────────────────────────────────
-    const parameters     = PluginManager.parameters('Debuggings');
+    const parameters     = PluginManager.parameters('JakeMSG_Debuggings');
     const IsShowConsole = eval(parameters.console         || 'true');
     const IsDrawEvNames = eval(parameters.drawEventsNames || 'false');
     const IsNoPlayTest  = eval(parameters.noPlayTest      || 'false');
     const IsSkipTitle   = eval(parameters.skipTitle       || 'false');
     const IsFocusGame   = eval(parameters.focusGame       || 'false');
-    const IsLogAssets   = eval(parameters.logAssets       || 'false');
+    const IsLogAssets   = eval(parameters.logAssets       || 'true');
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // REAL-TIME FILE LOGGING (NW.js)
+    // Writes console output into #Logging.txt in the game root folder.
+    // The file is re-initialized on each game start.
+    // ═════════════════════════════════════════════════════════════════════════
+    (function () {
+        if (!IsShowConsole) return;
+        if (!Utils.isNwjs()) return;
+
+        var fs = null;
+        var path = null;
+        try {
+            fs = require('fs');
+            path = require('path');
+        } catch (e) {
+            return;
+        }
+
+        if (!fs || !path) return;
+
+        // Prevent double-patching if plugin hot-reloads in tooling.
+        if (window.__JakeMSG_FileLogPatched) return;
+        window.__JakeMSG_FileLogPatched = true;
+
+        var gameRoot = '';
+        try {
+            gameRoot = process.cwd();
+        } catch (e) {
+            try {
+                gameRoot = path.dirname(process.mainModule.filename);
+            } catch (e2) {
+                return;
+            }
+        }
+
+        var logFilePath = path.join(gameRoot, '#Logging.txt');
+
+        // Re-initialize on each game start.
+        try {
+            fs.writeFileSync(logFilePath, '');
+        } catch (e) {
+            return;
+        }
+
+        function _timeStamp() {
+            var d = new Date();
+            var hh = String(d.getHours()).padStart(2, '0');
+            var mm = String(d.getMinutes()).padStart(2, '0');
+            var ss = String(d.getSeconds()).padStart(2, '0');
+            var ms = String(d.getMilliseconds()).padStart(3, '0');
+            return hh + ':' + mm + ':' + ss + '.' + ms;
+        }
+
+        function _safeToString(v) {
+            if (v === undefined) return 'undefined';
+            if (v === null) return 'null';
+            if (typeof v === 'string') return v;
+            try {
+                return JSON.stringify(v);
+            } catch (e) {
+                try {
+                    return String(v);
+                } catch (e2) {
+                    return '[Unserializable Value]';
+                }
+            }
+        }
+
+        function _append(level, argsLike) {
+            try {
+                var args = Array.prototype.slice.call(argsLike);
+                var text = args.map(_safeToString).join(' ');
+                var line = '[' + _timeStamp() + '] [' + level + '] ' + text + '\n';
+                fs.appendFile(logFilePath, line, function () {});
+            } catch (e) {}
+        }
+
+        ['log', 'info', 'warn', 'error'].forEach(function (method) {
+            var original = console[method];
+            if (typeof original !== 'function') return;
+            console[method] = function () {
+                _append(method.toUpperCase(), arguments);
+                return original.apply(this, arguments);
+            };
+        });
+    })();
 
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -175,10 +267,67 @@
         };
         //?NEW
         SceneManager.showConsole = function () {
-            if (Utils.isNwjs()) {
-                nw.Window.get().showDevTools();
-                window.focus();
+            if (!Utils.isNwjs()) return;
+
+            function _forceLocalFrontend(devWin) {
+                if (!devWin || !devWin.window || !devWin.window.location) return;
+                try {
+                    var href = String(devWin.window.location.href || '');
+                    if (href.indexOf('chrome-devtools://') === 0 && href.indexOf('remoteBase=') >= 0) {
+                        devWin.window.location.href = 'chrome-devtools://devtools/bundled/inspector.html';
+                    }
+                } catch (e) {}
             }
+
+            // Called once the DevTools window object is available.
+            // The devtools window needs a moment after being created before it
+            // responds to positioning calls, so we retry a few times.
+            function _onDevWinOpened(devWin) {
+                if (!devWin) return;
+                [50, 200, 500].forEach(function (delay) {
+                    setTimeout(function () {
+                        _forceLocalFrontend(devWin);
+                        try { devWin.restore(); }          catch (e) {}
+                        try { devWin.show(); }             catch (e) {}
+                        try { devWin.moveTo(50, 50); }     catch (e) {}
+                        try { devWin.resizeTo(1024, 700); } catch (e) {}
+                        try { devWin.focus(); }            catch (e) {}
+                    }, delay);
+                });
+            }
+
+            function _openDevToolsCompat() {
+                // Modern NW.js (MZ and newer MV builds).
+                // Pass '' as frame ID so the callback is always invoked.
+                try {
+                    if (typeof nw !== 'undefined' && nw.Window && nw.Window.get) {
+                        var win = nw.Window.get();
+                        if (win && win.showDevTools) {
+                            var devWin1 = win.showDevTools('', _onDevWinOpened);
+                            if (devWin1) _onDevWinOpened(devWin1);
+                            return true;
+                        }
+                    }
+                } catch (e1) {}
+
+                // Older NW.js used by some MV builds exposes the API through nw.gui.
+                try {
+                    var gui = require('nw.gui');
+                    if (gui && gui.Window && gui.Window.get) {
+                        var gWin = gui.Window.get();
+                        if (gWin && gWin.showDevTools) {
+                            var devWin2 = gWin.showDevTools('', _onDevWinOpened);
+                            if (devWin2) _onDevWinOpened(devWin2);
+                            return true;
+                        }
+                    }
+                } catch (e2) {}
+
+                return false;
+            }
+
+            // Small delay so the game window is fully shown before DevTools opens.
+            setTimeout(_openDevToolsCompat, 300);
         };
     })();
 
