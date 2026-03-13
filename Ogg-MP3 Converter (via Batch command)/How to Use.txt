@@ -1,0 +1,7 @@
+==== 1. Type: "shell:sendto" into the path of the explorer window
+==== 2. Make a shortcut to the Bat files in this folder
+==== 3. Right-click any folder (even with subfolders!), then click "Send To", and choose the Bat file you want to use
+** Of course, you can also just drag the Files/Folders needed directly onto the Batch files, but the way I described makes the process much easier
+
+
+==== For the "# MP3_to_OGG" conversion, you're first prompted for the quality of the conversion, between 0 and 10 . Default (if you simply press Enter instead of entering a number first) is 4, and a higher value means better quality on the conversion.
