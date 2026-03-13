@@ -21,6 +21,8 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * v1.0
  *
  * ============ Change Log ============
+ * 1.1 - 3.13th.2026
+ * - Patched an issue with damage pop-ups not working in-battle
  * 1.0 - 3.10th.2026
  * - initial release
  * ====================================
@@ -5473,60 +5475,7 @@ BattleManager.checkFieldTransform = function() {
     $.refreshFieldMembers();
 };
 
-Game_Action.prototype.apply = function(target) {
-    const errorMessage = 'Failed to evaluate custom field modification eval:';
-    const fields = BattleManager.fields ? BattleManager.fields() : [];
 
-    for (let i = 0; i < fields.length; ++i) {
-        const field = fields[i];
-        if (!field) continue;
-        if (field.isAllAffected(this._item)) {
-            const gMods = field.getGlobalItemMods(this._item);
-            const code = gMods && gMods.evals ? gMods.evals.beforeEval : '';
-            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);
-        }
-        if (field.isItemAffected(this._item)) {
-            const iMods = field.getItemMods(this._item);
-            const code = iMods && iMods.evals ? iMods.evals.beforeEval : '';
-            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);
-        }
-    }
-
-    // Base RPG Maker MV apply flow so custom field evals are not duplicated.
-    const result = target.result();
-    this.subject().clearResult();
-    result.clear();
-    result.used = this.testApply(target);
-    result.missed = (result.used && Math.random() >= this.itemHit(target));
-    result.evaded = (!result.missed && Math.random() < this.itemEva(target));
-    result.physical = this.isPhysical();
-    result.drain = this.isDrain();
-    if (result.isHit()) {
-        if (this.item().damage.type > 0) {
-            result.critical = (Math.random() < this.itemCri(target));
-            const value = this.makeDamageValue(target, result.critical);
-            this.executeDamage(target, value);
-        }
-        this.item().effects.forEach(function(effect) {
-            this.applyItemEffect(target, effect);
-        }, this);
-        this.applyItemUserEffect(target);
-    }
-    for (let i = 0; i < fields.length; ++i) {
-        const field = fields[i];
-        if (!field) continue;
-        if (field.isAllAffected(this._item)) {
-            const gMods = field.getGlobalItemMods(this._item);
-            const code = gMods && gMods.evals ? gMods.evals.afterEval : '';
-            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);
-        }
-        if (field.isItemAffected(this._item)) {
-            const iMods = field.getItemMods(this._item);
-            const code = iMods && iMods.evals ? iMods.evals.afterEval : '';
-            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);
-        }
-    }
-};
 
 if (Imported.YEP_ElementCore) {
     const Game_Action_getItemElements_Multi = Game_Action.prototype.getItemElements;
@@ -6262,6 +6211,135 @@ Game_Interpreter.prototype.pluginCommand = function(command, args) {
 
     Game_Interpreter_pluginCommand_Multi.call(this, command, args);
 };
+
+
+//=============================================================================
+// ======== PATCHING ORIGINAL PLUGIN'S FUNCTIONS VIA "STRINGIFY" TEMP. CONVERSION!
+//=============================================================================
+
+// Patch HO_FieldEffects.apply via stringify/eval so we preserve the original
+// plugin's method shape while extending it for multi-field before/after evals.
+(function() {
+    const maxAttempts = 100;
+    let patchAttempts = 0;
+
+    function applyPatch() {
+        try {
+            let applyString = Game_Action.prototype.apply.toString();
+
+            // Wait until HO_FieldEffects has installed its apply override.
+            if (applyString.indexOf('Game_Action_apply.call(this, target);') < 0 ||
+                applyString.indexOf('BattleManager.isFieldAffectAll(this._item)') < 0 ||
+                applyString.indexOf('BattleManager.isFieldAffectItem(this._item)') < 0) {
+                if (patchAttempts < maxAttempts) {
+                    patchAttempts += 1;
+                    setTimeout(applyPatch, 0);
+                }
+                return;
+            }
+
+            // Avoid double-patching.
+            if (applyString.indexOf('BattleManager.fields ? BattleManager.fields() : []') >= 0) {
+                return;
+            }
+
+            const beforeBlockRegex = /\/\/ before evals[\s\S]*?Game_Action_apply\.call\(this,\s*target\);/;
+            const beforeBlockReplacement = [
+                '// before evals',
+                "    const errorMessage = 'Failed to evaluate custom field modification eval:';",
+                '    const fields = BattleManager.fields ? BattleManager.fields() : [];',
+                '    for (let i = 0; i < fields.length; ++i) {',
+                '        const field = fields[i];',
+                '        if (!field) continue;',
+                '        if (field.isAllAffected(this._item)) {',
+                '            const gMods = field.getGlobalItemMods(this._item);',
+                "            const code = gMods && gMods.evals ? gMods.evals.beforeEval : '';",
+                '            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);',
+                '        }',
+                '        if (field.isItemAffected(this._item)) {',
+                '            const iMods = field.getItemMods(this._item);',
+                "            const code = iMods && iMods.evals ? iMods.evals.beforeEval : '';",
+                '            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);',
+                '        }',
+                '    }',
+                '',
+                '    // Recreate base apply flow directly so HO single-field evals do not run twice.',
+                '    if (Imported.YEP_BattleEngineCore) {',
+                '        target._result = null;',
+                '        target._result = new Game_ActionResult();',
+                '        this.subject()._result = null;',
+                '        this.subject()._result = new Game_ActionResult();',
+                '    }',
+                '    const result = target.result();',
+                '    this.subject().clearResult();',
+                '    result.clear();',
+                '    result.used = this.testApply(target);',
+                '    result.missed = (result.used && Math.random() >= this.itemHit(target));',
+                '    result.evaded = (!result.missed && Math.random() < this.itemEva(target));',
+                '    result.physical = this.isPhysical();',
+                '    result.drain = this.isDrain();',
+                '    if (result.isHit()) {',
+                '        if (this.item().damage.type > 0) {',
+                '            result.critical = (Math.random() < this.itemCri(target));',
+                '            const value = this.makeDamageValue(target, result.critical);',
+                '            this.executeDamage(target, value);',
+                '        }',
+                '        this.item().effects.forEach(function(effect) {',
+                '            this.applyItemEffect(target, effect);',
+                '        }, this);',
+                '        this.applyItemUserEffect(target);',
+                '    }',
+                '    if ($gameParty.inBattle() && Imported.YEP_BattleEngineCore) {',
+                '        target.startDamagePopup();',
+                '        target.performResultEffects();',
+                '        if (target !== this.subject()) this.subject().startDamagePopup();',
+                '    }'
+            ].join('\n');
+
+            const afterBlockRegex = /\/\/ after evals[\s\S]*$/;
+            const afterBlockReplacement = [
+                '// after evals',
+                '    for (let i = 0; i < fields.length; ++i) {',
+                '        const field = fields[i];',
+                '        if (!field) continue;',
+                '        if (field.isAllAffected(this._item)) {',
+                '            const gMods = field.getGlobalItemMods(this._item);',
+                "            const code = gMods && gMods.evals ? gMods.evals.afterEval : '';",
+                '            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);',
+                '        }',
+                '        if (field.isItemAffected(this._item)) {',
+                '            const iMods = field.getItemMods(this._item);',
+                "            const code = iMods && iMods.evals ? iMods.evals.afterEval : '';",
+                '            BattleManager.evalFieldModEval(code, 0, this._item, this.subject(), target, errorMessage, field);',
+                '        }',
+                '    }',
+                '}'
+            ].join('\n');
+
+            applyString = applyString.replace(beforeBlockRegex, beforeBlockReplacement);
+            applyString = applyString.replace(afterBlockRegex, afterBlockReplacement);
+
+            if (applyString === Game_Action.prototype.apply.toString()) {
+                return;
+            }
+
+            const modifiedApply = eval('(' + applyString + ')');
+            Game_Action.prototype.apply = modifiedApply;
+        } catch (e) {
+            console.error('JakeMSG addon: Failed to patch HO_FieldEffects apply:', e);
+        }
+    }
+
+    setTimeout(applyPatch, 0);
+})();
+
+
+
+
+
+
+
+
 
 })(JakeMSG.HO_FieldEffects);
 
