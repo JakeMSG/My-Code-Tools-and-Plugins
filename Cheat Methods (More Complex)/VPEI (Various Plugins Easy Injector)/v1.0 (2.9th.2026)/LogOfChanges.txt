@@ -1,3 +1,0 @@
-================ v1.0 (2.9th.2026)
-==== Initial Release of the Utility
-== Has "JakeMSG_SkipMovies" plugins, the versions for MV and for MZ
