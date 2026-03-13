@@ -1,0 +1,59 @@
+================================ 0. Goal
+======== Use the TimedAttacks as QTEs outside of Skill Dmg
+==== This can be done first by "extracting" the value of the variable used by the Plugin in calculating dmg in the Skill Damage Formula
+== This value can then be used outside of the Skill dmg, for other outside calculations or conditions (such as a Conditional Branch)
+==== Then, you can manually call skill use by using a forceAction script call
+== You can change the Skill to do no dmg, to not interfere with the rest of the fight
+
+================================ I. General Method
+======== 1. Set the "QTE"-dedicated skill up so that it deals no dmg (HP damage, 1 Enemy)
+======== 2. In said skill, set the Notetags specific to the Time Attack type that you want to use
+==== If you use my (JakeMSG) addition, you can change the Properties of the TimeAttack via a script method, but YOU CANNOT CHANGE THE TIME ATTACK TYPE! 
+== So make sure it's set to the type you wanna use per this skill
+======== 3. In the damage formula of said Skill, delete everything else there and paste this: 
+$gameTemp.qte_acc = $gameTemp.tas_power;0
+---- Explanation of the formula:
+-- This makes the variable "$gameTemp.qte_acc" retain the value of the "$gameTemp.tas_power", which is the variable that is used for the "Time Attack Power"
+- You will use "$gameTemp.qte_acc" when calling the variable outside of the Skill, since the "$gameTemp.tas_power" resets immediately after the Skill is over
+-- In Damage Formulas, you split instructions using ";"
+-- Also, in Damage Formulas, you have to make sure the very last instruction is the value of the "damage" of the skill
+- That's why, in our case, I put ";0" at the very end, so that the skill deals 0 damage
+- You HAVE to set a damage in the damage formula, or else the skill won't work!
+======== 4. Now, to call this skill as a script call (HAS TO BE DURING BATTLE THOUGH), you use this scripts:
+$gameParty.members()[0].forceAction(<SkillID>, 0);
+BattleManager.forceAction($gameParty.members()[0]);
+this.setWaitMode("action");
+==== Replace "<SkillID>" with the ID of the Skill to use as a ForceAction
+==== This will run the skill for the TimeAttack
+======== 5. Below it, you can now call other script calls to check the value of "$gameTemp.qte_acc" and do your own conditions/calculations based on that value
+==== The value, and what it means, will depend on the TimeAttack type. Written below will be the information on this value per each TimeAttack type (and how to use it)
+######## Keep in mind, all TimedAttacks except the Default (Bar) are normally used for the Sideview battles; if you use without Sideview, the visuals will show a bit above the battle window, above the character that used it
+
+
+================================ II. Specific per each TimedAttack
+================ Default (Bar)
+======== "$gameTemp.qte_acc" is a float value between 0 and 1, getting closer to 1 the closer you hit the TimeAttack to "Target Location" property of the TimeAttack
+==== Works like an "accuracy", you can convert it to "percentage accuracy" => 0.75 would be 75% accurate
+================ Clock 
+======== "$gameTemp.qte_acc" is a float value, calculated like this:
+==== The whole (1) is split equally between the number of Targets you've set (max 5)
+== Thus, summing up all values (hitting all Targets), should result in a value of 1.0 (if each Target power is also 1)
+==== The final value of each Target is that split value, times the "power" section of the Target property of that specific Target
+== Thus, hitting all the Targets can result in values higher/lower than 1.0
+==== The value IS SET TO 0 if line reaches the end of it's End Position property with Targets that "weren't hit"
+== You must hit targets equal to the number of targets, but you could hit the same target multiple times to make up for it
+======== Final value of "$gameTemp.qte_acc":
+==== (1 / <Nr_of_Targets) * ( <Target_1_Power_if_hit> + <Target_2_Power_if_hit> + ...)
+######## Caveats of this TimeAttack system
+#### 1. You can hit the same target multiple times
+## You are given a number of "hits" equal to the number of targets. After using them all up (either by hitting or missing targets), the TimeAttack ends
+# If, however, you reach the End Position property with any "hits" remaining, the "$gameTemp.qte_acc" value IS IMMEDIATELY SET TO 0
+#### 2. You can have overlaying Targets. Hitting an area where multiple targets overlay counts as hitting each target, added up! 
+## Keep in mind, this will only use 1 "hit", EVEN IF HITTING MULTIPLE TARGETS AT ONCE, so you'll still have to use your remainder "hits" to not reach the End Position!
+================ Arrows
+######## Keep in mind, to see the Arrow visuals via ForceAction, if no Arrow TimedAttack was manually used from opening the game, you'll have to use it once, via Force Action, when it won't visually show the arrows
+#### My advice: create a Skill that has a "Pre-QTE" (Mock) Arrows TimedAttack, where you set the properties to basically not visually show it, as such:
+Frames: 1
+Flash Rate: 1
+Flash Time: 1
+## Then, you use a ForceAction for this skill before using the actual skill you want to use its TimedAttack of

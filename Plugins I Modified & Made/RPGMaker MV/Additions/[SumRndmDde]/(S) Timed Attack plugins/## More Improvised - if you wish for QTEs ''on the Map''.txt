@@ -1,0 +1,8 @@
+======== The way the Timed Attacks work, you still need the BattleManager to be triggered (to trigger a battle event)
+======== You can make the Battle Transition as seamless as possible, so that you can put one wherever you'd need an on-map QTE (since the way I described it in the previous text file, the variable you created in "$gameTemp" to save the "value" of the TimedAttack also carries over from the Battle itself, too
+==== First, you create a "Mock" battle, via a Troop entry with no Background, and a "Mock" enemy added to it with no pic, hidden hp bar (if it showed before) etc.
+== You can add the "forceAction" script call for triggering the TimedAttack of the skill (as detailed in the previous text file) wherever you wish, although if you want it as fast as possible, I recommend adding it on a page in the Troop entry, with the condition "Turn 0", then finish the entire page with "Abort Battle" (so that battle ends immediately after the TimedAttack has been triggered)
+==== Then, you'd get a plugin capable of toggling off Battle Transitions (to make it as seamless as possible)
+== A plugin for that is here: https://forums.rpgmakerweb.com/index.php?threads/encounter-effect-disabler-battle-on-map-sorta.73084/
+= I modified said plugin, to give it as many functionalities as possible to make this Battle Transition completely seamless (my post is on that Forum thread, one of the last comments)
+== You set the plugin (in this case, via Script calls) to make your previously-made "Mock" battle work as your "QTE" trigger, wherever you need it
