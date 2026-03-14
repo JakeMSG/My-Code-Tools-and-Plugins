@@ -21,6 +21,8 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * v1.0
  *
  * ============ Change Log ============
+ * 1.2 - 3.14th.2026
+ * - Added 2 parameters to set the Window skin of the Field HUD's Field Effects tooltips
  * 1.1 - 3.13th.2026
  * - Patched an issue with damage pop-ups not working in-battle
  * 1.0 - 3.10th.2026
@@ -856,6 +858,23 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * @desc Layout of on-screen active Field icons (battle only).
  * @default horizontal
 
+ * @param fieldHudTooltipWindowSkin
+ * @text Window Skin
+ * @parent fieldHud
+ * @type file
+ * @dir img/system/
+ * @desc Window skin used for the Field HUD tooltip.
+ * @default Window
+
+ * @param fieldHudTooltipSkinOpacity
+ * @text Window Skin Opacity
+ * @parent fieldHudTooltipWindowSkin
+ * @type number
+ * @min 0
+ * @max 255
+ * @desc Opacity of the Field HUD tooltip window skin.
+ * @default 240
+
  * @param fieldHudStacksVisualSettings
  * @text --- Field HUD Stacks visual Settings ---
  * @parent fieldHud
@@ -1412,6 +1431,8 @@ $.fieldEffectsWindowHeight = String(parameters.fieldEffectsWindowHeight || 'Grap
 $.fieldEffectsHudX = String(parameters.fieldEffectsHudX || 'Graphics.boxWidth / 2');
 $.fieldEffectsHudY = String(parameters.fieldEffectsHudY || '0');
 $.fieldEffectsHudLayout = String(parameters.fieldEffectsHudLayout || 'horizontal').toLowerCase();
+$.fieldHudTooltipWindowSkin = String(parameters.fieldHudTooltipWindowSkin || 'Window');
+$.fieldHudTooltipSkinOpacity = Number(parameters.fieldHudTooltipSkinOpacity || 240);
 $.fieldEffectsEmptyIcon = Number(parameters.fieldEffectsEmptyIcon || 127);
 $.fieldEffectsEmptyText = String(parameters.fieldEffectsEmptyText || 'No Active Fields');
 $.fieldEffectsEmptyHelp = String(parameters.fieldEffectsEmptyHelp || 'There are currently no active field effects.');
@@ -3369,6 +3390,53 @@ Scene_Battle.prototype.isAnyInputWindowActive = function() {
 //=============================================================================
 
 if (Imported.Olivia_StateOlivia_StateTooltipDisplay) {
+
+$.isFieldHudTooltipHost = function(host) {
+    return !!(host && host._fieldEffectData);
+};
+
+const Window_StateIconTooltip_loadWindowskin_FieldEffects = Window_StateIconTooltip.prototype.loadWindowskin;
+Window_StateIconTooltip.prototype.loadWindowskin = function() {
+    if ($.isFieldHudTooltipHost(this._targetHost)) {
+        const skinName = String($.fieldHudTooltipWindowSkin || '').trim();
+        if (skinName) {
+            this.windowskin = ImageManager.loadSystem(skinName);
+            return;
+        }
+    }
+    Window_StateIconTooltip_loadWindowskin_FieldEffects.call(this);
+};
+
+const Window_StateIconTooltip_standardBackOpacity_FieldEffects = Window_StateIconTooltip.prototype.standardBackOpacity;
+Window_StateIconTooltip.prototype.standardBackOpacity = function() {
+    if ($.isFieldHudTooltipHost(this._targetHost)) {
+        const opacity = Math.floor(Number($.fieldHudTooltipSkinOpacity));
+        if (Number.isFinite(opacity)) {
+            return Math.max(0, Math.min(255, opacity));
+        }
+    }
+    return Window_StateIconTooltip_standardBackOpacity_FieldEffects.call(this);
+};
+
+Window_StateIconTooltip.prototype.applyFieldHudTooltipAppearance = function() {
+    const skinKey = String($.fieldHudTooltipWindowSkin || '').trim();
+    const opacity = Math.max(0, Math.min(255, Math.floor(Number($.fieldHudTooltipSkinOpacity) || 0)));
+    const mode = $.isFieldHudTooltipHost(this._targetHost) ? 'field' : 'default';
+    const signature = mode + ':' + skinKey + ':' + String(opacity);
+    if (this._fieldHudTooltipAppearanceSignature === signature) return;
+    this._fieldHudTooltipAppearanceSignature = signature;
+
+    this.loadWindowskin();
+    if (this._refreshBack) {
+        this._refreshBack();
+    }
+};
+
+const Window_StateIconTooltip_setTargetHost_FieldEffects = Window_StateIconTooltip.prototype.setTargetHost;
+Window_StateIconTooltip.prototype.setTargetHost = function(host) {
+    Window_StateIconTooltip_setTargetHost_FieldEffects.call(this, host);
+    this.applyFieldHudTooltipAppearance();
+};
 
 const JakeMSG_FieldEffects_TouchInput_onRightButtonDown = TouchInput._onRightButtonDown;
 TouchInput._onRightButtonDown = function(event) {
