@@ -59,16 +59,16 @@ SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.0;
  * == Their defaults come from SRD_BattlePopupCustomizer's parameter defaults for custom popups.
  * ==== The "text" argument supports text codes from vanilla MV and YEP_MessageCore.
  * ==== For the global script call "showPopup", xPos and yPos are screen coordinates.
- * == Their defaults are screenWidth / 2 and screenHeight / 2.
- * == They can be numbers or formula strings using "screenW" and "screenH" as possible variables inside the formulas
+ * == Their defaults are screenWidth (Graphics.boxWidth) / 2 and screenHeight (Graphics.boxHeight) / 2.
+ * == They can be numbers or formula strings using "Graphics.boxWidth" and "Graphics.boxHeight" as possible variables inside the formulas
  * ==== For the battler script call "battlePopup", xPos and yPos still behave like Location parameter (relative to the battler sprite and can be formulas).
  * ==== colorBase and colorOutline behave like Colors parameter
  *
  * ======== Example:
  * showPopup(
  *   'COUNTER',
- *   'screenW * 0.5',
- *   'screenH * 0.25',
+ *   'Graphics.boxWidth * 0.5',
+ *   'Graphics.boxHeight * 0.25',
  *   60,
  *   'float',
  *   '#FFFFFF',
