@@ -8,14 +8,17 @@ Imported.JakeMSG_YEP_EventMiniLabel_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.EML_JakeMSGAdd = Yanfly.EML_JakeMSGAdd || {};
-Yanfly.EML_JakeMSGAdd.version = 1.1;
+Yanfly.EML_JakeMSGAdd.version = 1.2;
 
 //=============================================================================
  /*:
- * @plugindesc v1.1 (Requires YEP_EventMiniLabel.js) Additions to YEP Event Mini Label.
+ * @plugindesc v1.2 (Requires YEP_EventMiniLabel.js) Additions to YEP Event Mini Label.
  * @author JakeMSG
  *
 ============ Change Log ============
+1.2 - 3.15th.2026
+ * Added <Mini Label Angle: x> to rotate mini labels by x degrees.
+ * Default angle is 0 when not set.
 1.1 - 3.15th.2026
  * Added multiline support for Event Mini Labels:
  *   - Supports <br> and \n in <Mini Label: ...>.
@@ -30,19 +33,37 @@ Yanfly.EML_JakeMSGAdd.version = 1.1;
  *
  * This plugin requires YEP_EventMiniLabel.
  * Make sure this plugin is located under YEP_EventMiniLabel in the plugin list.
+ * 
+ * 
+ * ============================================================================
+ * New Features
+ * ============================================================================
  *
- * Added tags:
- *
+ * ================================
+ * Support for Line breaks
+ * ================================
  *   <Mini Label: text>
  *   - Now supports <br> and \n for line breaks.
  *
+ * ================================
+ * New (Comment) Notetags
+ * ================================
+ * ============ Multi-Line Mini Label
  *   <Multi-Line Mini Label>
  *   line 1
  *   line 2
  *   </Multi-Line Mini Label>
+ *   - Works exactly like <Mini Label: text>, but allows for multiple lines of text
  *   - Reads all lines in between as the mini label text.
+ *   - Can be split between multiple consecutive Comments
  *   - Also supports <br> and \n inside those lines.
  *
+ * ============ Mini Label Angle 
+ *   <Mini Label Angle: x>
+ *   - Rotates the mini label by x degrees.
+ *   - Supports positive and negative values.
+ *   - If omitted, angle defaults to 0.
+ * 
  */
 //=============================================================================
 
@@ -83,10 +104,12 @@ Window_EventMiniLabel.prototype.extractNotedata = function(comment) {
     var tag7 = /<(?:MINI WINDOW REQUIRE FACING|MINI LABEL REQUIRE FACING)>/i;
     var tag8 = /<(?:MULTI\-LINE MINI WINDOW|MULTI\-LINE MINI LABEL|ML MINI WINDOW|ML MINI LABEL)>/i;
     var tag9 = /<\/(?:MULTI\-LINE MINI WINDOW|MULTI\-LINE MINI LABEL|ML MINI WINDOW|ML MINI LABEL)>/i;
+    var tag10 = /<(?:MINI WINDOW ANGLE|MINI LABEL ANGLE|MINI WINDOW ROTATION|MINI LABEL ROTATION):[ ]([\+\-]?\d+(?:\.\d+)?)>/i;
     var notedata = comment.split(/\r?\n/);
     var text = '';
     var readMultiLineText = false;
     var multiLineText = [];
+    this._angle = 0;
 
     for (var i = 0; i < notedata.length; ++i) {
         var line = notedata[i];
@@ -117,6 +140,8 @@ Window_EventMiniLabel.prototype.extractNotedata = function(comment) {
             this._bufferX = parseInt(RegExp.$1);
         } else if (line.match(tag7)) {
             this._reqFacing = true;
+        } else if (line.match(tag10)) {
+            this._angle = parseFloat(RegExp.$1);
         }
     }
 
@@ -137,6 +162,11 @@ Window_EventMiniLabel.prototype.extractNotedata = function(comment) {
             this.contentsOpacity = 255;
         }
     }
+};
+
+Window_EventMiniLabel.prototype.miniLabelAngle = function() {
+    if (this._angle === undefined) return 0;
+    return this._angle;
 };
 
 Window_EventMiniLabel.prototype.miniLabelLines = function() {
@@ -200,6 +230,19 @@ Window_EventMiniLabel.prototype.refresh = function() {
         wy += this.miniLabelLineHeight(line);
     }
     if (Imported.YEP_SelfSwVar) $gameTemp.clearSelfSwVarEvent();
+};
+
+//=============================================================================
+// Sprite_Character
+//=============================================================================
+
+Yanfly.EML_JakeMSGAdd.Sprite_Character_positionMiniLabel =
+    Sprite_Character.prototype.positionMiniLabel;
+Sprite_Character.prototype.positionMiniLabel = function() {
+    Yanfly.EML_JakeMSGAdd.Sprite_Character_positionMiniLabel.call(this);
+    if (!this._miniLabel) return;
+    var degrees = this._miniLabel.miniLabelAngle();
+    this._miniLabel.rotation = degrees * Math.PI / 180;
 };
 
 //=============================================================================
