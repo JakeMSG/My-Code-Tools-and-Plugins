@@ -227,6 +227,22 @@ _.ensurePopupQueue = function(battler) {
 	return battler._jakeMsgBattlePopupQueue;
 };
 
+_.ensureYEPBarrierPopupResult = function(battler) {
+	if (!Imported.YEP_AbsorptionBarrier || !Imported.YEP_BattleEngineCore || !battler) {
+		return;
+	}
+	if (!battler._damagePopup) {
+		if (battler.clearDamagePopup) {
+			battler.clearDamagePopup();
+		} else {
+			battler._damagePopup = [];
+		}
+	}
+	if (Array.isArray(battler._damagePopup) && battler._damagePopup.length === 0) {
+		battler._damagePopup.push(_.createEmptyResult());
+	}
+};
+
 _.buildCustom4Popup = function(text, xPos, yPos, duration, animation, colorBase, colorOutline, flash) {
 	var defaults = _.defaultCustom4;
 	var popup = {
@@ -284,7 +300,11 @@ _.spawnGlobalPopup = function(text, xPos, yPos, duration, animation, colorBase, 
 
 var _Game_Battler_isDamagePopupRequested = Game_Battler.prototype.isDamagePopupRequested;
 Game_Battler.prototype.isDamagePopupRequested = function() {
-	return _Game_Battler_isDamagePopupRequested.call(this) || _.ensurePopupQueue(this).length > 0;
+	var hasManualPopup = _.ensurePopupQueue(this).length > 0;
+	if (hasManualPopup) {
+		_.ensureYEPBarrierPopupResult(this);
+	}
+	return _Game_Battler_isDamagePopupRequested.call(this) || hasManualPopup;
 	};
 
 Game_Battler.prototype.shiftJakeMSGCustomBattlePopup = function() {
@@ -297,6 +317,7 @@ Game_Battler.prototype.battlePopup = function(text, xPos, yPos, duration, animat
 	}
 	var popup = _.buildCustom4Popup(text, xPos, yPos, duration, animation, colorBase, colorOutline, flash);
 	_.ensurePopupQueue(this).push(popup);
+	_.ensureYEPBarrierPopupResult(this);
 	return popup;
 	};
 
