@@ -16,9 +16,19 @@ Yanfly.BuffsStates_JakeMSGAdd.version = 1.2;
  * BuffsStates Core yanfly Plugin, such as multiple counters per state and new AuxVal value
  * (for background logic, not shown on screen)
  * @author JakeMSG
- * v1.1
+ * v1.2
  * 
 ============ Change Log ============
+1.2 - 3.15th.2026
+ * Added new locals for <Custom React Effect> and <Custom Respond Effect>:
+skillType and damagedStat.
+ * Added TSR_Popups-aware locals for those same timings:
+TSR_TPexists, TSR_MPexists, TSR_TPtype, TSR_MPtype, TSR_TPval, TSR_MPval.
+ * Added TSR_Popups support to the addon's Hit Taken / Heal Taken eval timings
+so they also react to TSR MP/TP damage/recover/drain notetags.
+ * Added compatibility note: if TSR_Popups is used, it should be loaded above
+YEP_BuffsStatesCore so <Custom React Effect> and <Custom Respond Effect>
+timings are not skipped.
 1.1 - 3.13th.2026
  * Added a new State notetag, <Reapply Rule: X>, that can be used to override the global 
 Reapply Rules plugin parameter for specific states, with the same options possible (0/1/2 / Ignore/Reset/Add)
@@ -64,6 +74,12 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  *   NextTurn preview states appear in enemy in-battle status state list.
  * ======== Compatible with Olivia_StateTooltipDisplay.js:
  *   NextTurn preview states appear in state tooltip text.
+ * ======== Compatible with TSR_Popups.js:
+ *   <Custom React Effect> and <Custom Respond Effect> can use addon-provided
+ *   TSR locals to read TSR MP/TP extra damage/recover/drain notetags.
+ *   IMPORTANT: If TSR_Popups.js is used, load it ABOVE
+ *   YEP_BuffsStatesCore.js (this applies even without this addon) so those
+ *   two YEP timings are not ignored.
  * 
  * 
  * ============================================================================
@@ -83,6 +99,38 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  *   currently on that battler.
  * - If multiple owned states share the same name, the highest State ID is used.
  * 
+ * ================================
+ * React/Respond Effect Locals
+ * ================================
+ *
+ * The following locals are now available inside these two notetag pairs:
+ *   <Custom React Effect> ... </Custom React Effect>
+ *   <Custom Respond Effect> ... </Custom Respond Effect>
+ *
+ * Base damage locals:
+ *   skillType
+ *   - String based on the skill's core damage type:
+ *     "None", "Damage", "Recover", "Drain"
+ *   - Keep in mind, for "Recover" the value of the "value" will show as a negative number in the React/Respond eval
+ *
+ *   damagedStat
+ *   - String based on the skill's core damaged stat:
+ *     "HP", "MP", or "None"
+ *
+ * TSR_Popups compatibility locals (when TSR_Popups is installed):
+ *   TSR_TPexists / TSR_MPexists
+ *   - Boolean. True if the corresponding TSR notetag family exists on the
+ *     current skill/item:
+ *     TP: TSR_TPdamage / TSR_TPrecover / TSR_TPdrain
+ *     MP: TSR_MPdamage / TSR_MPrecover / TSR_MPdrain
+ *
+ *   TSR_TPtype / TSR_MPtype
+ *   - String. "None", "Damage", "Recover", or "Drain"
+ *
+ *   TSR_TPval / TSR_MPval
+ *   - Number. The resolved added value used by TSR for that category and type.
+ *   - Returns 0 when not applicable.
+ *
  * 
  * ================================
  * State Turn Script Calls
@@ -350,6 +398,10 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  * - Hit/Heal Taken timings are triggered by skill-use intent and can trigger
  *   even if the target stat is capped (ex: HP full for heal, HP 0 for hit).
  * - HP/MP Drain count as Hit Taken for the target and Heal Taken for the user.
+ * - If TSR_Popups is installed, TSR MP/TP Damage/Recover/Drain notetags are
+ *   also considered for Hit Taken / Heal Taken category checks.
+ * - TSR MP/TP Drain counts as Hit Taken for the target and Heal Taken for the
+ *   user, matching the base HP/MP drain behavior.
  * - Missed or evaded skills do not trigger Hit/Heal Taken timings, but defended damage (0 damage) still trigger them.
  * - Hit/Heal Taken timings are triggered each time a Hit/Heal is taken, not just once per state per turn
  *
@@ -1897,6 +1949,191 @@ Game_Battler.prototype.regenerateAll = function() {
 // Game_Action
 //=============================================================================
 
+Game_Action.prototype._jakeDamageTypeLocals = function() {
+    var data = { skillType: 'None', damagedStat: 'None' };
+    var item = this.item ? this.item() : null;
+    var damage = item && item.damage ? item.damage : null;
+    var type = damage ? Number(damage.type || 0) : 0;
+
+    if (type === 1) {
+        data.skillType = 'Damage'; //HP Damage
+        data.damagedStat = 'HP';
+    } else if (type === 2) {
+        data.skillType = 'Damage'; //MP Damage
+        data.damagedStat = 'MP';
+    } else if (type === 3) {
+        data.skillType = 'Recover'; //HP Recover
+        data.damagedStat = 'HP';
+    } else if (type === 4) {
+        data.skillType = 'Recover'; //MP Recover
+        data.damagedStat = 'MP';
+    } else if (type === 5) {
+        data.skillType = 'Drain'; //HP Drain
+        data.damagedStat = 'HP';
+    } else if (type === 6) {
+        data.skillType = 'Drain'; //MP Drain
+        data.damagedStat = 'MP';
+    }
+
+    return data;
+};
+
+Game_Action.prototype._jakeResolveTSRType = function(statKey) {
+    var item = this.item ? this.item() : null;
+    if (!item) return 'None';
+
+    if (statKey === 'TP') {
+        if (item.TSR_TPdamage) return 'Damage';
+        if (item.TSR_TPrecover) return 'Recover';
+        if (item.TSR_TPdrain) return 'Drain';
+        return 'None';
+    }
+
+    if (statKey === 'MP') {
+        if (item.TSR_MPdamage) return 'Damage';
+        if (item.TSR_MPrecover) return 'Recover';
+        if (item.TSR_MPdrain) return 'Drain';
+        return 'None';
+    }
+
+    return 'None';
+};
+
+Game_Action.prototype._jakeResolveTSRValue = function(target, statKey, tsrType) {
+    if (!target) return 0;
+    if (tsrType === 'None') return 0;
+
+    var item = this.item ? this.item() : null;
+    if (!item) return 0;
+
+    var val = 0;
+
+    if (statKey === 'TP') {
+        if (tsrType === 'Damage') {
+            if (item.TSR_TPdamageValue !== undefined) {
+                val = Number(item.TSR_TPdamageValue);
+            } else if (item.TSR_TPdamageRatioValue !== undefined) {
+                val = Math.floor(target.tp * Number(item.TSR_TPdamageRatioValue || 0));
+            } else if (item.TSR_customTPdamage && this.evalTPformula) {
+                val = Number(this.evalTPformula(target) || 0);
+            }
+        } else if (tsrType === 'Recover') {
+            if (item.TSR_TPrecoverValue !== undefined) {
+                val = Number(item.TSR_TPrecoverValue);
+            } else if (item.TSR_TPrecoverRatioValue !== undefined) {
+                val = Math.floor(target.tp * Number(item.TSR_TPrecoverRatioValue || 0));
+            } else if (item.TSR_customTPdamage && this.evalTPformula) {
+                val = Number(this.evalTPformula(target) || 0);
+            }
+        } else if (tsrType === 'Drain') {
+            if (item.TSR_TPdrainValue !== undefined) {
+                val = Number(item.TSR_TPdrainValue);
+            } else if (item.TSR_TPdrainRatioValue !== undefined) {
+                val = Math.floor(target.tp * Number(item.TSR_TPdrainRatioValue || 0));
+            } else if (item.TSR_customTPdamage && this.evalTPformula) {
+                val = Number(this.evalTPformula(target) || 0);
+            }
+        }
+    } else if (statKey === 'MP') {
+        if (tsrType === 'Damage') {
+            if (item.TSR_MPdamageValue !== undefined) {
+                val = Number(item.TSR_MPdamageValue);
+            } else if (item.TSR_MPdamageRatioValue !== undefined) {
+                val = Math.floor(target.mp * Number(item.TSR_MPdamageRatioValue || 0));
+            } else if (item.TSR_customMPdamage && this.evalMPformula) {
+                val = Number(this.evalMPformula(target) || 0);
+            }
+        } else if (tsrType === 'Recover') {
+            if (item.TSR_MPrecoverValue !== undefined) {
+                val = Number(item.TSR_MPrecoverValue);
+            } else if (item.TSR_MPrecoverRatioValue !== undefined) {
+                val = Math.floor(target.mp * Number(item.TSR_MPrecoverRatioValue || 0));
+            } else if (item.TSR_customMPdamage && this.evalMPformula) {
+                val = Number(this.evalMPformula(target) || 0);
+            }
+        } else if (tsrType === 'Drain') {
+            if (item.TSR_MPdrainValue !== undefined) {
+                val = Number(item.TSR_MPdrainValue);
+            } else if (item.TSR_MPdrainRatioValue !== undefined) {
+                val = Math.floor(target.mp * Number(item.TSR_MPdrainRatioValue || 0));
+            } else if (item.TSR_customMPdamage && this.evalMPformula) {
+                val = Number(this.evalMPformula(target) || 0);
+            }
+        }
+    }
+
+    if (isNaN(val) || !isFinite(val)) val = 0;
+    return Math.max(0, Math.floor(val));
+};
+
+Game_Action.prototype._jakeReactRespondLocals = function(target) {
+    var item = this.item ? this.item() : null;
+    var base = this._jakeDamageTypeLocals();
+    var tsrTPType = this._jakeResolveTSRType('TP');
+    var tsrMPType = this._jakeResolveTSRType('MP');
+    var tsrTPExists = !!(item && (item.TSR_TPdamage || item.TSR_TPrecover || item.TSR_TPdrain));
+    var tsrMPExists = !!(item && (item.TSR_MPdamage || item.TSR_MPrecover || item.TSR_MPdrain));
+
+    return {
+        skillType: base.skillType,
+        damagedStat: base.damagedStat,
+        TSR_TPexists: tsrTPExists,
+        TSR_MPexists: tsrMPExists,
+        TSR_TPtype: tsrTPType,
+        TSR_MPtype: tsrMPType,
+        TSR_TPval: tsrTPExists ? this._jakeResolveTSRValue(target, 'TP', tsrTPType) : 0,
+        TSR_MPval: tsrMPExists ? this._jakeResolveTSRValue(target, 'MP', tsrMPType) : 0
+    };
+};
+
+Game_Action.prototype._jakeIntentSignFromTSRType = function(tsrType) {
+    if (tsrType === 'Damage' || tsrType === 'Drain') return -1;
+    if (tsrType === 'Recover') return 1;
+    return 0;
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.Game_Action_customEffectEval =
+    Game_Action.prototype.customEffectEval;
+Game_Action.prototype.customEffectEval = function(target, stateId, type, side, value) {
+    if (type !== 'reactState' && type !== 'respondState') {
+        return Yanfly.BuffsStates_JakeMSGAdd.Game_Action_customEffectEval.call(
+            this, target, stateId, type, side, value
+        );
+    }
+
+    var state = $dataStates[stateId];
+    if (!state) return value;
+    if (state.customEffectEval[type] === '') return value;
+
+    var attacker = this.subject();
+    var defender = target;
+    var a = this.subject();
+    var b = target;
+    var user = this.subject();
+    var origin = side && side.stateOrigin ? side.stateOrigin(stateId) : undefined;
+    var s = $gameSwitches._data;
+    var v = $gameVariables._data;
+
+    var jakeLocals = this._jakeReactRespondLocals(target);
+    var skillType = jakeLocals.skillType;
+    var damagedStat = jakeLocals.damagedStat;
+    var TSR_TPexists = jakeLocals.TSR_TPexists;
+    var TSR_MPexists = jakeLocals.TSR_MPexists;
+    var TSR_TPtype = jakeLocals.TSR_TPtype;
+    var TSR_MPtype = jakeLocals.TSR_MPtype;
+    var TSR_TPval = jakeLocals.TSR_TPval;
+    var TSR_MPval = jakeLocals.TSR_MPval;
+
+    var code = state.customEffectEval[type];
+    try {
+        eval(code);
+    } catch (e) {
+        Yanfly.Util.displayError(e, code,
+            'CUSTOM STATE ' + stateId + ' CODE ERROR');
+    }
+    return value;
+};
+
 Yanfly.BuffsStates_JakeMSGAdd.Game_Action_executeDamage =
     Game_Action.prototype.executeDamage;
 Game_Action.prototype.executeDamage = function(target, value) {
@@ -1918,18 +2155,23 @@ Game_Action.prototype.executeDamage = function(target, value) {
         var intent = this._skillDamageIntent();
         var hpIntent = intent.hp;
         var mpIntent = intent.mp;
-        target._runSkillTakenStateEffects(hpIntent, mpIntent, 0);
+        var tpIntent = intent.tp;
+        target._runSkillTakenStateEffects(hpIntent, mpIntent, tpIntent);
 
         var subject = this.subject ? this.subject() : null;
         if (subject && subject._runSkillTakenStateEffects) {
             var drainIntent = this._skillDrainUserIntent();
-            subject._runSkillTakenStateEffects(drainIntent.hp, drainIntent.mp, 0);
+            subject._runSkillTakenStateEffects(
+                drainIntent.hp,
+                drainIntent.mp,
+                drainIntent.tp
+            );
         }
     }
 };
 
 Game_Action.prototype._skillDamageIntent = function() {
-    var intent = { hp: 0, mp: 0 };
+    var intent = { hp: 0, mp: 0, tp: 0 };
     var item = this.item ? this.item() : null;
     var dmg = item && item.damage ? item.damage : null;
     var type = dmg ? Number(dmg.type || 0) : 0;
@@ -1944,11 +2186,18 @@ Game_Action.prototype._skillDamageIntent = function() {
         intent.mp = 1;
     }
 
+    var tsrMpType = this._jakeResolveTSRType('MP');
+    var tsrTpType = this._jakeResolveTSRType('TP');
+    var tsrMpIntent = this._jakeIntentSignFromTSRType(tsrMpType);
+    var tsrTpIntent = this._jakeIntentSignFromTSRType(tsrTpType);
+    if (tsrMpIntent !== 0) intent.mp = tsrMpIntent;
+    if (tsrTpIntent !== 0) intent.tp = tsrTpIntent;
+
     return intent;
 };
 
 Game_Action.prototype._skillDrainUserIntent = function() {
-    var intent = { hp: 0, mp: 0 };
+    var intent = { hp: 0, mp: 0, tp: 0 };
     var item = this.item ? this.item() : null;
     var dmg = item && item.damage ? item.damage : null;
     var type = dmg ? Number(dmg.type || 0) : 0;
@@ -1958,6 +2207,9 @@ Game_Action.prototype._skillDrainUserIntent = function() {
     } else if (type === 6) {
         intent.mp = 1;
     }
+
+    if (item && item.TSR_MPdrain) intent.mp = 1;
+    if (item && item.TSR_TPdrain) intent.tp = 1;
 
     return intent;
 };
