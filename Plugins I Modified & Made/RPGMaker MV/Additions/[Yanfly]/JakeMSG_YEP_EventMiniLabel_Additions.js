@@ -8,7 +8,7 @@ Imported.JakeMSG_YEP_EventMiniLabel_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.EML_JakeMSGAdd = Yanfly.EML_JakeMSGAdd || {};
-Yanfly.EML_JakeMSGAdd.version = 1.2;
+Yanfly.EML_JakeMSGAdd.version = 1.0;
 
 //=============================================================================
  /*:
@@ -16,13 +16,6 @@ Yanfly.EML_JakeMSGAdd.version = 1.2;
  * @author JakeMSG
  *
 ============ Change Log ============
-1.2 - 3.15th.2026
- * Added <Mini Label Angle: x> to rotate mini labels by x degrees.
- * Default angle is 0 when not set.
-1.1 - 3.15th.2026
- * Added multiline support for Event Mini Labels:
- *   - Supports <br> and \n in <Mini Label: ...>.
- *   - Added <Multi-Line Mini Label> ... </Multi-Line Mini Label> tags.
 1.0 - 3.15th.2026
  * initial release
 ====================================
