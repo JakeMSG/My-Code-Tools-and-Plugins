@@ -15,13 +15,16 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * (can set the key used by this in the Parameters)
  * @author JakeMSG
  * v1.0
-
-============ Change Log ============
-1.0 - 3.6th.2026
- * initial release
-================================
- 
  *
+============ Change Log ============
+1.1 - 3.16th.2026
+ * Enemy target help now shows HP/MP gauges (per-parameter and per-enemy notetags; supports YEP_AbsorptionBarrier overlay)
+ * Enemy expanded help (fullscreen) now displays enemy <Extended Description> with <Condition>/<Resume>
+ * Added new parameter to set the number of lines in the enemy-targeting help window, and if should show the HP/MP gauges
+1.0 - 3.10th.2026
+ * initial release
+====================================
+ * 
  * @help
  * ======================================
  * Compatibilities
@@ -35,7 +38,8 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * one, too (like with "YEP_MessageCore")
  * ==== You can now use the <Condition: > and <Resume> tags in the "<Help Description>" pair of tags in State notes
  * ==== The <Help Description> tags work exactly like my <Extended Description> tags, including how you 
- * can use them multiple times in the same State notes, or how you use the <Condition: > and <Resume> tags with them  
+ * can use them multiple times in the same State notes, or how you use the <Condition: > and <Resume> tags with them
+ * ======== Enemy help gauges keep compatibility with "YEP_AbsorptionBarrier" (barrier fill and colors)
  * 
  * 
  * 
@@ -85,7 +89,20 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * ======== This feature is also compatible with "Olivia_StateTooltipDisplay" plugin, adding the Condition subfeature of the Extended Description to Olivia's State Descriptions!
  * ==== You can now use the <Condition: > and <Resume> tags in the "<Help Description>" pair of tags in State notes
  * ==== Her <Help Description> tags work exactly like my <Extended Description> tags, including how you 
- * can use them multiple times in the same State notes, or how you use the <Condition: > and <Resume> tags with them  
+ * can use them multiple times in the same State notes, or how you use the <Condition: > and <Resume> tags with them
+ * 
+ * 
+ * 
+ * 
+ * ================ Enemy Targeting Description Gauges
+ * ======== When targeting an enemy, the help window now shows that enemy's HP/MP gauges under the name and state icons
+ * ======== Plugin params (below) toggle HP/MP globally; per-enemy notetags override them: <Show Description HP>, <Hide Description HP>, <Show Description MP>, <Hide Description MP>
+ * ======== If using YEP_AbsorptionBarrier, the barrier overlay and colors still draw on the HP gauge
+ * ======== You can also set how many lines tall the targeting help window is via the "Number of Lines" enemy-targeting parameter
+ * 
+ * ================ Enemy Expanded Description (Extended Description for enemies)
+ * ======== Enemy notes can now use <Extended Description>... </Extended Description> with <Condition: js> and <Resume>
+ * ======== This only appears in the fullscreen/expanded help (press the configured key while an enemy help window is visible); the normal targeting help stays unchanged
  * 
  * 
  * 
@@ -106,7 +123,27 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * ==== If you use "YEP_X_InBattleStatus", you'll also have to set the "Window Y" parameter
  * (the inside of the "this.fittingHeight()" function) to be equal to this parameter, to 
  * show properly
+ * ======== Enemy targeting Description
+ * ==== Show Enemy HP (Default: true) — show the enemy HP gauge in the targeting help
+ * ==== Show Enemy MP (Default: true) — show the enemy MP gauge in the targeting help
+ * ==== Number of Lines (Default: 2) — number of visible lines in the targeting help window
+ * ==== Per-enemy overrides via notetags: <Show Description HP>, <Hide Description HP>, <Show Description MP>, <Hide Description MP>
  * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * ======================================
+ * JavaScript - Lunatic
+ * ======================================
+ * ================ Running Script calls in Descriptions
+ * ======== In the Description text (including Extended Description), using the "<Condition ...>" notetag, you can actually run JavaScript code, such as using script calls
+ * ==== Just be sure that the last instruction of the javascript code returns True/False, for the Condition (if you need it)
+ * ==== This will make the javascript code run each time the description is shown
+ * == This includes loading each time you use the key to expand the description to fullscreen, as it re-evaluates the javascript upon showing the full description
  * 
  * 
  * 
@@ -139,17 +176,115 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * @desc Key to press to Expand/Collapse a Description Window (Needs to be the Keycode number for it) (Default = 219 ( "[" sign))
  * 
  * 
+ * @param ---Enemy targeting Description---
+ * @default
  * 
+ * @param Show Enemy HP
+ * @parent ---Enemy targeting Description---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @default true
+ * @desc Show the enemy HP gauge in the enemy targeting description window.
  * 
+ * @param Show Enemy MP
+ * @parent ---Enemy targeting Description---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @default true
+ * @desc Show the enemy MP gauge in the enemy targeting description window.
+ * 
+ * @param Number of Lines
+ * @parent ---Enemy targeting Description---
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 2
+ * @desc Number of visible lines in the enemy targeting help window.
  * 
  */
 //=============================================================================
-
 
 // ================================ Adds the Expand/Collapse of the Description Window (to see it in Fullscreen) via custom Key
 // ==== Cache plugin parameters for convenience
 var JakeMSG_MoreDescriptionsWithConditions_Params = PluginManager.parameters('JakeMSG_MoreDescriptionsWithConditions');
 var JakeMSG_MoreDescriptionsWithConditions_Key = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Key for Expand Description'] || 219);
+var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyHp = eval(String(JakeMSG_MoreDescriptionsWithConditions_Params['Show Enemy HP'] || 'true'));
+var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyMp = eval(String(JakeMSG_MoreDescriptionsWithConditions_Params['Show Enemy MP'] || 'true'));
+var JakeMSG_MoreDescriptionsWithConditions_DefaultLines = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Description Window number of Lines'] || 2);
+var JakeMSG_MoreDescriptionsWithConditions_EnemyLines = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Number of Lines'] || 2);
+
+function JakeMSG_MoreDescriptionsWithConditions_buildExtendedDescription(noteText) {
+    if (!noteText) return '';
+    var extDesc = '';
+    var noteArray = noteText.split(/[\r\n]+/);
+    var noteLine = 'none';
+    var readExtDesc = false;
+    var tempStopExtDesc = false;
+    for (var i = 0; i < noteArray.length; i++) {
+        noteLine = noteArray[i];
+        if (noteLine.match(/<(?:EXTEND|EXTENDED|EXTENDED DESCRIPTION|EXTENDEDDESCRIPTION|EXTEND DESCRIPTION|EXTENDDESCRIPTION|EXTEND DESCRIPT|EXTENDDESCRIPT|EXT DESC|EXTDESC)>/i)) {
+            readExtDesc = true;
+            tempStopExtDesc = false;
+        } else if (noteLine.match(/<(?:COND:|CONDITION:)[ ]?\s*(.*)>/i)) {
+            try {
+                var cond = eval(RegExp.$1);
+                if (!cond) {
+                    tempStopExtDesc = true;
+                }
+            } catch (e) {
+                console.error('JakeMSG_MoreDescriptionWithConditions eval error: ' + e.message);
+                tempStopExtDesc = true;
+            }
+        } else if (noteLine.match(/<(?:RESUME)>/i)) {
+            tempStopExtDesc = false;
+        } else if (noteLine.match(/<\/(?:EXTEND|EXTENDED|EXTENDED DESCRIPTION|EXTENDEDDESCRIPTION|EXTEND DESCRIPTION|EXTENDDESCRIPTION|EXTEND DESCRIPT|EXTENDDESCRIPT|EXT DESC|EXTDESC)>/i)) {
+            readExtDesc = false;
+        } else if (readExtDesc === true && tempStopExtDesc === false) {
+            if (extDesc.length > 0) {
+                extDesc += "\n";
+            }
+            extDesc += noteLine;
+        }
+    }
+    return extDesc;
+}
+
+// ======== Notetag processing for enemy specific description gauges
+var JakeMSG_MoreDescriptionsWithConditions_NotetagsProcessed = false;
+var JakeMSG_MoreDescriptionsWithConditions_DataManager_isDatabaseLoaded = DataManager.isDatabaseLoaded;
+DataManager.isDatabaseLoaded = function() {
+    if (!JakeMSG_MoreDescriptionsWithConditions_DataManager_isDatabaseLoaded.call(this)) return false;
+    if (!JakeMSG_MoreDescriptionsWithConditions_NotetagsProcessed) {
+        this.processJakeMSGMoreDescEnemyNotetags($dataEnemies);
+        JakeMSG_MoreDescriptionsWithConditions_NotetagsProcessed = true;
+    }
+    return true;
+};
+
+DataManager.processJakeMSGMoreDescEnemyNotetags = function(group) {
+    if (!group) return;
+    for (var n = 1; n < group.length; n++) {
+        var obj = group[n];
+        if (!obj) continue;
+        obj.showDescHp = JakeMSG_MoreDescriptionsWithConditions_ShowEnemyHp;
+        obj.showDescMp = JakeMSG_MoreDescriptionsWithConditions_ShowEnemyMp;
+        var notedata = obj.note.split(/[\r\n]+/);
+        for (var i = 0; i < notedata.length; i++) {
+            var line = notedata[i];
+            if (line.match(/<(?:SHOW DESCRIPTION HP)>/i)) {
+                obj.showDescHp = true;
+            } else if (line.match(/<(?:HIDE DESCRIPTION HP)>/i)) {
+                obj.showDescHp = false;
+            } else if (line.match(/<(?:SHOW DESCRIPTION MP)>/i)) {
+                obj.showDescMp = true;
+            } else if (line.match(/<(?:HIDE DESCRIPTION MP)>/i)) {
+                obj.showDescMp = false;
+            }
+        }
+    }
+};
 
 // ======== Method Alias-ing
 JakeMSG_MoreDescriptionsWithConditions_Graphics_onKeyDown = Graphics._onKeyDown;
@@ -168,7 +303,7 @@ Graphics._onKeyDown = function(event) {
                 }
                 scene._helpWindowExpanded = null;
             } else {
-                var text = scene._helpWindow._text || '';
+                var text = scene._helpWindow.jakeMSGExpandedText ? scene._helpWindow.jakeMSGExpandedText() : (scene._helpWindow._text || '');
                 var exp = new Window_Help_Expanded();
                 exp.setText(text);
                 // add directly to scene root so it is always topmost (important for
@@ -226,6 +361,25 @@ Window_Help.prototype.hide = function() {
     }
 };
 
+// Track battler that was rendered into the help window (for enemy expanded text)
+if (Window_Help.prototype.setBattler) {
+    JakeMSG_MoreDescriptionsWithConditions_Window_Help_setBattler = Window_Help.prototype.setBattler;
+    Window_Help.prototype.setBattler = function(battler) {
+        this._jakeMSGEnemyForDesc = (battler && battler.isEnemy && $gameParty && $gameParty.inBattle()) ? battler : null;
+        this.jakeMSGApplyHelpLinesForBattler(this._jakeMSGEnemyForDesc);
+        JakeMSG_MoreDescriptionsWithConditions_Window_Help_setBattler.call(this, battler);
+    };
+}
+
+Window_Help.prototype.jakeMSGApplyHelpLinesForBattler = function(enemyBattler) {
+    var targetLines = enemyBattler ? JakeMSG_MoreDescriptionsWithConditions_EnemyLines : JakeMSG_MoreDescriptionsWithConditions_DefaultLines;
+    var targetHeight = this.fittingHeight(targetLines);
+    if (this.height !== targetHeight) {
+        this.height = targetHeight;
+        this.createContents();
+    }
+};
+
 
 
 
@@ -233,8 +387,7 @@ Window_Help.prototype.hide = function() {
 // ======== Method Re-initialization
 Window_Help.prototype.initialize = function(numLines) {
     var width = Graphics.boxWidth;
-    //var height = this.fittingHeight(numLines || 2);
-    var height = this.fittingHeight(Number(PluginManager.parameters("JakeMSG_MoreDescriptionsWithConditions")["Description Window number of Lines"]) || 2); // ==== Changed the inside of this
+    var height = this.fittingHeight(JakeMSG_MoreDescriptionsWithConditions_DefaultLines);
     Window_Base.prototype.initialize.call(this, 0, 0, width, height);
     this._text = '';
 };
@@ -248,6 +401,85 @@ Window_Help.prototype.setText = function(text) {
     if (scene && scene._helpWindowExpanded && scene._helpWindowExpanded.visible && this !== scene._helpWindowExpanded) {
         scene._helpWindowExpanded.setText(text);
     }
+};
+
+Window_Help.prototype.jakeMSGExpandedText = function() {
+    if (this._jakeMSGEnemyForDesc && this._jakeMSGEnemyForDesc.enemy) {
+        var enemyData = this._jakeMSGEnemyForDesc.enemy();
+        var baseText = this._jakeMSGEnemyForDesc.name();
+        var extDesc = JakeMSG_MoreDescriptionsWithConditions_buildExtendedDescription(enemyData.note);
+        if (extDesc.length > 0) {
+            baseText += "\n" + extDesc;
+        }
+        return baseText;
+    }
+    return this._text || '';
+};
+
+// ======== Enemy target description: add HP/MP gauges under name + state icons
+JakeMSG_MoreDescriptionsWithConditions_Window_Help_drawBattler = Window_Help.prototype.drawBattler || function(battler) {
+    if (battler && battler.name) {
+        var wy = (this.contents.height - this.lineHeight()) / 2;
+        this.drawText(battler.name(), 0, wy, this.contents.width, 'center');
+    }
+};
+Window_Help.prototype.drawBattler = function(battler) {
+    if (battler && battler.isEnemy && $gameParty && $gameParty.inBattle()) {
+        this.drawJakeMSGEnemyDescription(battler);
+    } else {
+        JakeMSG_MoreDescriptionsWithConditions_Window_Help_drawBattler.call(this, battler);
+    }
+};
+
+Window_Help.prototype.drawJakeMSGEnemyDescription = function(battler) {
+    this.resetFontSettings();
+    var y = 0;
+    var w = this.contents.width;
+    this.drawText(battler.name(), 0, y, w, 'center');
+    y += this.lineHeight();
+    var icons = battler.allIcons ? battler.allIcons() : [];
+    if (icons.length > 0) {
+        var ww = Math.min(icons.length * Window_Base._iconWidth, w);
+        var wx = (w - ww) / 2;
+        this.drawActorIcons(battler, wx, y, ww);
+        y += this.lineHeight();
+    }
+    this.drawJakeMSGEnemyGauges(battler, y);
+};
+
+Window_Help.prototype.drawJakeMSGEnemyGauges = function(battler, startY) {
+    var enemyData = battler.enemy ? battler.enemy() : null;
+    if (!enemyData) return;
+    var x = this.textPadding();
+    var w = this.contents.width - this.textPadding() * 2;
+    var y = startY;
+    if (enemyData.showDescHp) {
+        this.drawJakeMSGEnemyHp(battler, x, y, w);
+        y += this.lineHeight();
+    }
+    if (enemyData.showDescMp) {
+        this.drawJakeMSGEnemyMp(battler, x, y, w);
+    }
+};
+
+Window_Help.prototype.drawJakeMSGEnemyHp = function(enemy, x, y, width) {
+    var canDrawBarrier = Imported.YEP_AbsorptionBarrier && typeof this.drawBarrierGauge === 'function' && typeof enemy.barrierPoints === 'function' && enemy.barrierPoints() > 0;
+    if (canDrawBarrier) {
+        width = this.drawBarrierGauge(enemy, x, y, width);
+    } else {
+        this.drawGauge(x, y, width, enemy.hpRate ? enemy.hpRate() : (enemy.mhp > 0 ? enemy.hp / enemy.mhp : 0), this.hpGaugeColor1(), this.hpGaugeColor2());
+    }
+    this.changeTextColor(this.systemColor());
+    this.drawText(TextManager.hpA, x, y, 44);
+    this.drawCurrentAndMax(enemy.hp, enemy.mhp, x, y, width, this.hpColor(enemy), this.normalColor());
+};
+
+Window_Help.prototype.drawJakeMSGEnemyMp = function(enemy, x, y, width) {
+    var rate = enemy.mpRate ? enemy.mpRate() : (enemy.mmp > 0 ? enemy.mp / enemy.mmp : 0);
+    this.drawGauge(x, y, width, rate, this.mpGaugeColor1(), this.mpGaugeColor2());
+    this.changeTextColor(this.systemColor());
+    this.drawText(TextManager.mpA, x, y, 44);
+    this.drawCurrentAndMax(enemy.mp, enemy.mmp, x, y, width, this.mpColor(enemy), this.normalColor());
 };
 
 
