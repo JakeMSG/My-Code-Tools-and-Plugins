@@ -17,6 +17,14 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * @author JakeMSG
  * v1.0
  * 
+============ Change Log ============
+1.1 - 3.16th.2026
+ * Added compatibility for YEP_AbsorptionBarrier.
+ * Added parameters to show/hide enemy HP and MP gauges.
+ * Added notetags to show/hide enemy HP and MP gauges for specific enemies.
+1.0 - 2.27th.2026
+ * initial release
+====================================
  * @param ---General Enemy Status---
  * @default
  *
@@ -83,6 +91,27 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * @desc Text displayed in help window when enemy is selected as healthy.
  * @default Enemy is currently unaffected by status effects.
  *
+ * @param ---Enemy Status Window---
+ * @default
+ *
+ * @param Show Enemy HP
+ * @parent ---Enemy Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the enemy's HP in the status window by default?
+ * NO - false     YES - true
+ * @default true
+ *
+ * @param Show Enemy MP
+ * @parent ---Enemy Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the enemy's MP in the status window by default?
+ * NO - false     YES - true
+ * @default true
+ *
  * @help
  * ============================================================================
  * Introduction
@@ -95,6 +124,33 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * Window. This allows players to view the status of each enemy in the troop,
  * including their current parameters, status effects, buffs, and debuffs.
  * The player can switch between enemies and view their effects in a help window.
+ *
+ * ============================================================================
+ * Compatibility
+ * ============================================================================
+ *
+ * This plugin has compatibility with YEP_AbsorptionBarrier. If you are using
+ * YEP_AbsorptionBarrier, make sure this plugin is located under it in the
+ * plugin list.
+ *
+ * ============================================================================
+ * Notetags
+ * ============================================================================
+ *
+ * You can use the following notetags to adjust how the in-battle status window
+ * displays information for certain enemies.
+ *
+ * Enemy Notetags:
+ *
+ *   <Show Status HP>
+ *   <Hide Status HP>
+ *   - This will show or hide the HP gauge for the enemy in the in-battle
+ *   status window regardless of the default plugin settings.
+ *
+ *   <Show Status MP>
+ *   <Hide Status MP>
+ *   - This will show or hide the MP gauge for the enemy in the in-battle
+ *   status window regardless of the default plugin settings.
  *
  * ============================================================================
  * Plugin Commands
@@ -110,13 +166,6 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  *
  *   HideEnemyInBattleStatus
  *   - This will cause the 'Enemy Status' command to not show.
- *
- * ============================================================================
- * Changelog
- * ============================================================================
- *
- * Version 1.0:
- * - Finished Plugin!
  */
 //=============================================================================
 
@@ -140,6 +189,47 @@ Yanfly.Param.EnemyIBSStatusListWidth = String(Yanfly.Parameters['Enemy Status Wi
 Yanfly.Param.EnemyIBSHealthyIcon = Number(Yanfly.Parameters['Enemy Healthy Icon']);
 Yanfly.Param.EnemyIBSHealthyText = String(Yanfly.Parameters['Enemy Healthy Text']);
 Yanfly.Param.EnemyIBSHealthyHelp = String(Yanfly.Parameters['Enemy Healthy Help']);
+
+Yanfly.Param.ShowEnemyHP = eval(String(Yanfly.Parameters['Show Enemy HP']));
+Yanfly.Param.ShowEnemyMP = eval(String(Yanfly.Parameters['Show Enemy MP']));
+
+//=============================================================================
+// DataManager
+//=============================================================================
+
+Yanfly.InBattleStatus_JakeMSGAdd.DataManager_isDatabaseLoaded =
+    DataManager.isDatabaseLoaded;
+DataManager.isDatabaseLoaded = function() {
+  if (!Yanfly.InBattleStatus_JakeMSGAdd.DataManager_isDatabaseLoaded.call(this)) return false;
+  if (!Yanfly.InBattleStatus_JakeMSGAdd.ProcesJakeMSGAddEnemyNotetags) {
+    this.processJakeMSGAddEnemyNotetags($dataEnemies);
+    Yanfly.InBattleStatus_JakeMSGAdd.ProcesJakeMSGAddEnemyNotetags = true;
+  }
+	return true;
+};
+
+DataManager.processJakeMSGAddEnemyNotetags = function(group) {
+	for (var n = 1; n < group.length; n++) {
+		var obj = group[n];
+		var notedata = obj.note.split(/[\r\n]+/);
+
+    obj.showIBSHp = Yanfly.Param.ShowEnemyHP;
+    obj.showIBSMp = Yanfly.Param.ShowEnemyMP;
+
+		for (var i = 0; i < notedata.length; i++) {
+			var line = notedata[i];
+			if (line.match(/<(?:SHOW STATUS HP)>/i)) {
+				obj.showIBSHp = true;
+			} else if (line.match(/<(?:HIDE STATUS HP)>/i)) {
+        obj.showIBSHp = false;
+      } else if (line.match(/<(?:SHOW STATUS MP)>/i)) {
+        obj.showIBSMp = true;
+      } else if (line.match(/<(?:HIDE STATUS MP)>/i)) {
+        obj.showIBSMp = false;
+      }
+		}
+	}
+};
 
 //=============================================================================
 // Game_System
@@ -231,10 +321,17 @@ Window_EnemyInBattleStatus.prototype.refresh = function() {
   var x2 = x + this.standardPadding();
   var w = this.contents.width - x2;
   this.drawEnemyName(this._battler, x2, 0, w);
-  this.drawEnemyHp(this._battler, x2, this.lineHeight(), w);
-  this.drawEnemyMp(this._battler, x2, this.lineHeight() * 2, w);
+  var y = this.lineHeight();
+  if (this._battler.enemy().showIBSHp) {
+    this.drawEnemyHp(this._battler, x2, y, w);
+    y += this.lineHeight();
+  }
+  if (this._battler.enemy().showIBSMp) {
+    this.drawEnemyMp(this._battler, x2, y, w);
+    y += this.lineHeight();
+  }
   w = this.contents.width - x;
-  var y = Math.ceil(this.lineHeight() * 4.5);
+  y = Math.ceil(this.lineHeight() * 4.5);
   var h = this.contents.height - y;
   if (h >= this.lineHeight() * 6) {
     for (var i = 2; i < 8; ++i) {
@@ -264,27 +361,28 @@ Window_EnemyInBattleStatus.prototype.drawEnemyName = function(enemy, x, y, width
 };
 
 Window_EnemyInBattleStatus.prototype.drawEnemyHp = function(enemy, x, y, width) {
+  var hpRate = enemy.hpRate ? enemy.hpRate() : (enemy.mhp > 0 ? enemy.hp / enemy.mhp : 0);
+  var canDrawBarrier = Imported.YEP_AbsorptionBarrier &&
+    typeof this.drawBarrierGauge === 'function' &&
+    typeof enemy.barrierPoints === 'function' && enemy.barrierPoints() > 0;
+  if (canDrawBarrier) {
+    width = this.drawBarrierGauge(enemy, x, y, width);
+  } else {
+    this.drawGauge(x, y, width, hpRate, this.hpGaugeColor1(), this.hpGaugeColor2());
+  }
   this.changeTextColor(this.systemColor());
-  this.drawText('HP:', x, y, 80);
-  var gaugeX = x + 80;
-  var gaugeWidth = width - 80;
-  var rate = enemy.mhp > 0 ? enemy.hp / enemy.mhp : 0;
-  this.drawGauge(gaugeX, y, gaugeWidth, rate, this.hpGaugeColor1(), this.hpGaugeColor2());
-  this.changeTextColor(this.normalColor());
-  var text = enemy.hp + '/' + enemy.mhp;
-  this.drawText(text, gaugeX, y, gaugeWidth, 'right');
+  this.drawText(TextManager.hpA, x, y, 44);
+  this.drawCurrentAndMax(enemy.hp, enemy.mhp, x, y, width,
+    this.hpColor(enemy), this.normalColor());
 };
 
 Window_EnemyInBattleStatus.prototype.drawEnemyMp = function(enemy, x, y, width) {
+  var rate = enemy.mpRate();
+  this.drawGauge(x, y, width, rate, this.mpGaugeColor1(), this.mpGaugeColor2());
   this.changeTextColor(this.systemColor());
-  this.drawText('MP:', x, y, 80);
-  var gaugeX = x + 80;
-  var gaugeWidth = width - 80;
-  var rate = enemy.mmp > 0 ? enemy.mp / enemy.mmp : 0;
-  this.drawGauge(gaugeX, y, gaugeWidth, rate, this.mpGaugeColor1(), this.mpGaugeColor2());
-  this.changeTextColor(this.normalColor());
-  var text = enemy.mp + '/' + enemy.mmp;
-  this.drawText(text, gaugeX, y, gaugeWidth, 'right');
+  this.drawText(TextManager.mpA, x, y, 44);
+  this.drawCurrentAndMax(enemy.mp, enemy.mmp, x, y, width,
+    this.mpColor(enemy), this.normalColor());
 };
 
 Window_EnemyInBattleStatus.prototype.drawParam = function(paramId, dx, dy, dw, dh) {
