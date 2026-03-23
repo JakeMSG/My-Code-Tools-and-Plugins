@@ -8,7 +8,7 @@ Imported.JakeMSG_YEP_BuffsStatesCore_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.BuffsStates_JakeMSGAdd = Yanfly.BuffsStates_JakeMSGAdd || {};
-Yanfly.BuffsStates_JakeMSGAdd.version = 1.2;
+Yanfly.BuffsStates_JakeMSGAdd.version = 1.3;
 
 //=============================================================================
 /*:
@@ -16,9 +16,14 @@ Yanfly.BuffsStates_JakeMSGAdd.version = 1.2;
  * BuffsStates Core yanfly Plugin, such as multiple counters per state and new AuxVal value
  * (for background logic, not shown on screen)
  * @author JakeMSG
- * v1.2
+ * v1.3
  * 
 ============ Change Log ============
+1.3 - 3.23th.2026
+ * Fixed regression where the original YEP normal State Counter (counter index 0)
+could fail to render in actor icon displays when this addon was enabled.
+ * Restored draw flow compatibility so original YEP state turn/counter overlays
+continue to render, while keeping this addon's multi-counter support.
 1.2 - 3.15th.2026
  * Added new locals for <Custom React Effect> and <Custom Respond Effect>:
 skillType and damagedStat.
@@ -1055,8 +1060,10 @@ Game_BattlerBase.prototype.getStateIconEntriesWithPreview = function() {
         var state = states[i];
         if (!state || state.iconIndex <= 0) continue;
         entries.push({
+            type: 'state',
             iconIndex: state.iconIndex,
             opacity: 255,
+            state: state,
             stateId: state.id,
             nextTurn: false
         });
@@ -1067,8 +1074,10 @@ Game_BattlerBase.prototype.getStateIconEntriesWithPreview = function() {
         var preview = previewStates[j];
         if (!preview || preview.iconIndex <= 0) continue;
         entries.push({
+            type: 'state',
             iconIndex: preview.iconIndex,
             opacity: previewOpacity,
+            state: preview,
             stateId: preview.id,
             nextTurn: true
         });
@@ -1460,6 +1469,13 @@ Game_BattlerBase.prototype.clearStateXCountersAllAndAuxVals_NexT = function() {
 Yanfly.BuffsStates_JakeMSGAdd.Window_Base_drawStateCounter =
     Window_Base.prototype.drawStateCounter;
 Window_Base.prototype.drawStateCounter = function(actor, state, wx, wy) {
+        if (!actor || !state || !actor.getStateXCounterIndices ||
+            !actor.getStateXCounter) {
+            Yanfly.BuffsStates_JakeMSGAdd.Window_Base_drawStateCounter.call(
+                this, actor, state, wx, wy
+            );
+            return;
+        }
         var indices = actor.getStateXCounterIndices(state.id);
         for (var i = 0; i < indices.length; i++) {
             this.drawStateXCounter(actor, state, wx, wy, indices[i]);
@@ -1527,19 +1543,53 @@ Window_Base.prototype.drawActorIcons = function(actor, x, y, width) {
     var maxIcons = Math.floor(width / Window_Base._iconWidth);
     var entries = actor.getStateIconEntriesWithPreview();
     var buffs = actor.buffIcons();
-    for (var i = 0; i < buffs.length; i++) {
-        entries.push({ iconIndex: buffs[i], opacity: 255, nextTurn: false });
+    var buffParamIds = [];
+    if (actor._buffs) {
+        for (var i = 0; i < actor._buffs.length; i++) {
+            if (actor._buffs[i] !== 0) buffParamIds.push(i);
+        }
+    }
+    for (var j = 0; j < buffs.length; j++) {
+        entries.push({
+            type: 'buff',
+            iconIndex: buffs[j],
+            opacity: 255,
+            nextTurn: false,
+            paramId: buffParamIds[j]
+        });
     }
     entries = entries.slice(0, maxIcons);
 
     var oldOpacity = this.contents.paintOpacity;
-    for (var j = 0; j < entries.length; j++) {
-        var entry = entries[j];
+    for (var k = 0; k < entries.length; k++) {
+        var entry = entries[k];
         if (!entry || entry.iconIndex <= 0) continue;
         this.contents.paintOpacity = Math.max(0, Math.min(255, Number(entry.opacity || 255)));
-        this.drawIcon(entry.iconIndex, x + Window_Base._iconWidth * j, y + 2);
+        this.drawIcon(entry.iconIndex, x + Window_Base._iconWidth * k, y + 2);
     }
     this.contents.paintOpacity = oldOpacity;
+
+    // Keep original YEP overlays (turns/counters/buff turns) on top of icons.
+    for (var n = 0; n < entries.length; n++) {
+        var iconX = x + Window_Base._iconWidth * n;
+        var data = entries[n];
+        if (!data) continue;
+        if (data.type === 'state') {
+            var state = data.state || Yanfly.BuffsStates_JakeMSGAdd.getStateData(data.stateId);
+            if (!state) continue;
+            if (state.autoRemovalTiming > 0 && this.drawStateTurns) {
+                this.drawStateTurns(actor, state, iconX, y);
+            }
+            this.drawStateCounter(actor, state, iconX, y);
+        } else if (data.type === 'buff' && data.paramId !== undefined) {
+            if (this.drawBuffTurns) this.drawBuffTurns(actor, data.paramId, iconX, y);
+            if (Yanfly.Param.BSCShowBuffRate && this.drawBuffRate) {
+                this.drawBuffRate(actor, data.paramId, iconX, y);
+            }
+        }
+    }
+    this.resetFontSettings();
+    this.resetTextColor();
 };
 
 //=============================================================================
