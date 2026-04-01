@@ -16,6 +16,8 @@ $imported["YEA-BaseTroopEvents"] = true
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # 4.1st.2026 - Added the possibility to choose whether to load the Base Troop
 #              Event entry BEFORE or AFTER all the other Troop entries
+#              Also added the possibility to disable the entry by setting it
+#              to 0 or lower
 # 
 #==============================================================================
 # ▼ Introduction
@@ -106,6 +108,7 @@ class RPG::Troop
   #--------------------------------------------------------------------------
   def add_pages
     return if self == $data_troops[YEA::BASE_TROOP_EVENTS::BASE_TROOP_ID]
+    return if YEA::BASE_TROOP_EVENTS::BASE_TROOP_ID < 1
     if ( YEA::BASE_TROOP_EVENTS::LOAD_BEFORE_OR_AFTER == "Before" )
       @pages = $data_troops[YEA::BASE_TROOP_EVENTS::BASE_TROOP_ID].pages.clone + @pages
     else
