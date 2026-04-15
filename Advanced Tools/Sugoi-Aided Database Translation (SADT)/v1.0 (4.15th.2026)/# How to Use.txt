@@ -1,0 +1,21 @@
+================ Warning!!!!
+======== This is NOT a perfect way to translate an MV/MZ game and to have it perfectly function in gameplay!
+==== For a faster-translating, safer method, strictly to MTL games to play, use "MTool" instead
+======== This utility is mostly so that you can much more intuitively edit and mod Japanese games, instead of having to look through japanese-named variables and entries
+======== The tool is liable to not translate text that is employed by plugins separatedly, and it is made to skip renaming assets that are used by plugins (so that it doesn't break compatibility with them)
+==== That being said, compatibility may still be broken in some other niche ways
+
+================ 0. Prerequisites 
+======== You first need Sugoi Translator Toolkit, you can get it from the Dev's Patreon here (latest Toolkit build given for free on every 14-15th of each month, in the About section of the Patreon):
+https://www.patreon.com/c/mingshiba/home
+======== Then, you need to open it, then open "Sugoi Translator Offline Japan", then wait until it's properly loaded, then keep it in the background
+
+================ 1. How to use
+======== 1. Copy the 2 files (the .bat file and the .ps1 file) in the:
+==== MV: "www" folder of your project (next to your project file)
+==== MZ: in the game folder (next to your project file)
+======== 2. Run the .bat file, and select which option do you wish (based on the Engine you're using & if it should translate&rename Assets or not)
+======== 3. Let it run (it takes a while for it to run)
+==== For big enough databases, there is a chance that, after translating for a long while, it will "timeout", showing the Timeout error in the console. Still, you will have translated a number of files up until then (shown in the Console window), so you can move them out of the "data" folder temporarily, and restart the process, which will take care of the remaining files (after which, you can move back in the files you took out of the folder)
+======== 4. After it is done (preferably with no errors), you should be able to open the game in your specific editor, and edit them as needed
+**** I provided 2 project files in here so that you can use them to open your game with any of the 2 editors (they work universally for MV/MZ games, so long as they are decrypted)
