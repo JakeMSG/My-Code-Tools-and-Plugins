@@ -1,0 +1,10 @@
+================ 0. Prerequisites 
+======== You first need Sugoi Translator Toolkit, you can get it from the Dev's Patreon here (latest Toolkit build given for free on every 14-15th of each month, in the About section of the Patreon):
+https://www.patreon.com/c/mingshiba/home
+======== Then, you need to open it, then open "Sugoi Translator Offline Japan", then wait until it's properly loaded, then keep it in the background
+
+================ 1. How to use
+==== 1. Type: "shell:sendto" into the path of the explorer window
+==== 2. Make a shortcut to the Bat files in this folder
+==== 3. Right-click any folder (even with subfolders!), then click "Send To", and choose the Bat file you want to use
+** Of course, you can also just drag the Files/Folders needed directly onto the Batch files, but the way I described makes the process much easier
