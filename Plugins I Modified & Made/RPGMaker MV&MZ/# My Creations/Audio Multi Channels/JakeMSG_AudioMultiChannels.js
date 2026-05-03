@@ -17,6 +17,12 @@ Imported.JakeMSG_AudioMultiChannels = true;
  * @author JakeMSG
  * v1.0
 ============ Change Log ============
+1.1 - 5.3rd.2026
+ * added event-page comment tags for event-local footsteps:
+ *   <Footsteps: ...>
+ *   <Footstep Cycle: ...>
+ * tag-based event footsteps now take priority over plugin/default map-region-
+ * terrain sources for that specific event only (channel 0 / This Event).
 1.0 - 3.17th.2026
  * initial release
 ================================
@@ -89,6 +95,38 @@ Imported.JakeMSG_AudioMultiChannels = true;
  *   - Clears all extra footstep channels except channel 0 for the scope.
  * clearAllFootsteps(scope = "All")
  *   - Clears every footstep channel including channel 0 for the scope.
+ *
+ * ============================================================================
+ * Event Comment Tags (Map Event comments)
+ * ============================================================================
+ * Put these tags inside Comment event commands (same style as plugins like
+ * YEP_EventMiniLabel).
+ *
+ * These tags affect only event that owns comment tag, and target scope
+ * "This Event" on channel 0.
+ *
+ * Comment Tags take the highest priority for footstep SFX for that event (except additional script calls that target the same channel/scope)
+ *
+ * If multiple matching tags exist in active page comments, last matching tag
+ * on that page is the one used.
+ *
+ * <Footsteps: name, volume, pitch, maxPitch, distance>
+ *   - Same parameter behavior/defaults as setXFootstep (for channel 0,
+ *     This Event scope).
+ *   - Defaults: name="", volume=20, pitch=150, maxPitch=0, distance=0.
+ *
+ * <Footstep Cycle: names, volume, pitch, cycleType, maxPitch, distance>
+ *   - Same parameter behavior/defaults as setXFootstepCycle (for channel 0,
+ *     This Event scope).
+ *   - names can be one sound (Step1) or array (["Step1","Step2"]).
+ *   - Defaults: names=[], volume=20, pitch=150, cycleType="Cycle",
+ *     maxPitch=0, distance=0.
+ *
+ * Event Comment Tag Examples:
+ *   <Footsteps: Step_Stone, 30, 120>
+ *   <Footsteps: Step_Grass, 28, 110, 150, 6>
+ *   <Footstep Cycle: ["StepA","StepB"], 22, 130, Random>
+ *   <Footstep Cycle: Step_Sand, 20, 125, Cycle, 145, 4>
  * 
  * Notes:
  *   - Clearing channel 0 via any script call that can clear it or set it to "", will keep it silent
@@ -115,6 +153,8 @@ Imported.JakeMSG_AudioMultiChannels = true;
  *   - scope options: "All" (default, affects everyone); "Player" or -1;
  *     a specific event id number; or keywords "This", "ThisEvent" to target
  *     the calling event. Unrecognized scope falls back to All.
+ *   - Event comment tags (<Footsteps: ...> / <Footstep Cycle: ...>) use
+ *     channel 0 and "This Event" semantics automatically.
  *
  * Examples:
  *   setXFootstep(2, "Step_Grass", 30, 120)              // channel 2, affects All (Player and events)
@@ -879,6 +919,166 @@ Imported.JakeMSG_AudioMultiChannels = true;
             return parseStringArray(names);
         };
 
+        var splitFootstepArgs = function(raw) {
+            var source = String(raw || '');
+            var parts = [];
+            var token = '';
+            var bracketDepth = 0;
+            var quote = null;
+            for (var i = 0; i < source.length; i++) {
+                var ch = source[i];
+                if ((ch === '"' || ch === "'") && source[i - 1] !== '\\') {
+                    if (quote === ch) quote = null;
+                    else if (!quote) quote = ch;
+                }
+                if (!quote) {
+                    if (ch === '[') bracketDepth++;
+                    if (ch === ']') bracketDepth = Math.max(0, bracketDepth - 1);
+                    if (ch === ',' && bracketDepth === 0) {
+                        parts.push(token.trim());
+                        token = '';
+                        continue;
+                    }
+                }
+                token += ch;
+            }
+            if (token.length > 0) parts.push(token.trim());
+            return parts;
+        };
+
+        var stripWrappingQuotes = function(text) {
+            var value = String(text || '').trim();
+            if (value.length >= 2) {
+                var first = value.charAt(0);
+                var last = value.charAt(value.length - 1);
+                if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+                    value = value.substring(1, value.length - 1).trim();
+                }
+            }
+            return value;
+        };
+
+        var argAsNumber = function(parts, index, fallback) {
+            if (!parts || index >= parts.length) return fallback;
+            var token = parts[index];
+            if (token === undefined || token === null) return fallback;
+            if (String(token).trim() === '') return fallback;
+            var num = Number(token);
+            return isNaN(num) ? fallback : num;
+        };
+
+        var parseNamesFromToken = function(token, fallbackNames) {
+            var fallback = fallbackNames ? fallbackNames.slice() : [];
+            if (token === undefined || token === null) return fallback;
+            var t = String(token).trim();
+            if (!t) return fallback;
+            if (t[0] === '[') {
+                var arr = parseStringArray(t);
+                return arr.length > 0 ? arr : fallback;
+            }
+            var single = stripWrappingQuotes(t);
+            return single ? [single] : fallback;
+        };
+
+        var buildEventSingleFootstepConfig = function(rawArgs) {
+            var parts = splitFootstepArgs(rawArgs);
+            var name = stripWrappingQuotes(parts.length > 0 ? parts[0] : '');
+            return {
+                mode: 'Cycle',
+                list: name ? [{ name: name }] : [],
+                slotVolume: argAsNumber(parts, 1, 20),
+                slotPitch: argAsNumber(parts, 2, 150),
+                slotMaxPitch: argAsNumber(parts, 3, 0),
+                slotDistance: Math.max(0, argAsNumber(parts, 4, 0))
+            };
+        };
+
+        var buildEventCycleFootstepConfig = function(rawArgs) {
+            var parts = splitFootstepArgs(rawArgs);
+            var names = parseNamesFromToken(parts.length > 0 ? parts[0] : '', []);
+            return {
+                mode: normalizeCycleMode(parts.length > 3 && String(parts[3]).trim() !== '' ? parts[3] : 'Cycle'),
+                list: names.map(function(name) { return { name: name }; }),
+                slotVolume: argAsNumber(parts, 1, 20),
+                slotPitch: argAsNumber(parts, 2, 150),
+                slotMaxPitch: argAsNumber(parts, 4, 0),
+                slotDistance: Math.max(0, argAsNumber(parts, 5, 0))
+            };
+        };
+
+        var parseEventFootstepCommentConfig = function(commentText) {
+            var text = String(commentText || '');
+            if (!text) return null;
+            var lines = text.split(/[\r\n]+/);
+            var config = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = String(lines[i] || '').trim();
+                if (!line) continue;
+                if (line.match(/<FOOTSTEP[ ]CYCLE:[ ]*(.*)>/i)) {
+                    config = buildEventCycleFootstepConfig(RegExp.$1);
+                } else if (line.match(/<FOOTSTEPS:[ ]*(.*)>/i)) {
+                    config = buildEventSingleFootstepConfig(RegExp.$1);
+                }
+            }
+            return config;
+        };
+
+        var collectEventCommentText = function(list) {
+            if (!Array.isArray(list)) return '';
+            var lines = [];
+            for (var i = 0; i < list.length; i++) {
+                var cmd = list[i];
+                if (!cmd) continue;
+                if ((cmd.code === 108 || cmd.code === 408) && cmd.parameters && cmd.parameters.length > 0) {
+                    lines.push(String(cmd.parameters[0] || ''));
+                }
+            }
+            return lines.join('\n');
+        };
+
+        var getEventFootstepCommentConfig = function(character) {
+            if (!character || typeof character.eventId !== 'function') return null;
+            if (character.eventId() <= 0) return null;
+            if (typeof character.list !== 'function') return null;
+            var pageIndex = toNumberOr(character._pageIndex, -1);
+            if (pageIndex < 0) return null;
+
+            var list = character.list();
+            var cache = character._JakeMSG_AMC_EventFootstepComment;
+            if (cache && cache.pageIndex === pageIndex && cache.listRef === list) {
+                return cache.config;
+            }
+
+            var commentText = collectEventCommentText(list);
+            var config = parseEventFootstepCommentConfig(commentText);
+            character._JakeMSG_AMC_EventFootstepComment = {
+                pageIndex: pageIndex,
+                listRef: list,
+                config: config
+            };
+            return config;
+        };
+
+        var copyFootstepList = function(list) {
+            return (list || []).map(function(entry) {
+                if (!entry || !entry.name) return null;
+                var out = { name: entry.name };
+                if (entry.volume !== undefined) out.volume = entry.volume;
+                if (entry.pitch !== undefined) out.pitch = entry.pitch;
+                return out;
+            }).filter(function(entry) { return !!entry; });
+        };
+
+        var applyBaseConfigToSlot = function(slot, baseConfig) {
+            slot.list = copyFootstepList(baseConfig.list);
+            slot.mode = normalizeCycleMode(baseConfig.mode || 'Cycle');
+            slot.cursor = 0;
+            if (baseConfig.slotVolume !== undefined) slot.volume = toNumberOr(baseConfig.slotVolume, slot.volume);
+            if (baseConfig.slotPitch !== undefined) slot.pitch = toNumberOr(baseConfig.slotPitch, slot.pitch);
+            if (baseConfig.slotMaxPitch !== undefined) slot.maxPitch = toNumberOr(baseConfig.slotMaxPitch, slot.maxPitch);
+            if (baseConfig.slotDistance !== undefined) slot.distance = Math.max(0, toNumberOr(baseConfig.slotDistance, slot.distance));
+        };
+
         var resolvePitchValue = function(slot, basePitch) {
             var minPitch = Math.max(0, toNumberOr(slot.pitch, basePitch));
             var maxPitch = toNumberOr(slot.maxPitch, 0);
@@ -1060,43 +1260,6 @@ Imported.JakeMSG_AudioMultiChannels = true;
                 };
             };
 
-            var splitFootstepArgs = function(raw) {
-                var parts = [];
-                var token = '';
-                var bracketDepth = 0;
-                var quote = null;
-                for (var i = 0; i < raw.length; i++) {
-                    var ch = raw[i];
-                    if ((ch === '"' || ch === "'") && raw[i - 1] !== '\\') {
-                        if (quote === ch) quote = null;
-                        else if (!quote) quote = ch;
-                    }
-                    if (!quote) {
-                        if (ch === '[') bracketDepth++;
-                        if (ch === ']') bracketDepth = Math.max(0, bracketDepth - 1);
-                        if (ch === ',' && bracketDepth === 0) {
-                            parts.push(token.trim());
-                            token = '';
-                            continue;
-                        }
-                    }
-                    token += ch;
-                }
-                if (token.length > 0) parts.push(token.trim());
-                return parts;
-            };
-
-            var parseNamesFromToken = function(token, fallbackNames) {
-                if (!token) return fallbackNames.slice();
-                var t = String(token).trim();
-                if (!t) return fallbackNames.slice();
-                if (t[0] === '[') {
-                    var arr = parseStringArray(t);
-                    return arr.length > 0 ? arr : fallbackNames.slice();
-                }
-                return [t];
-            };
-
             var parseFootstepDefinition = function(raw, defaults) {
                 var parts = splitFootstepArgs(String(raw || ''));
                 var names = parseNamesFromToken(parts[0], defaults.names);
@@ -1192,6 +1355,18 @@ Imported.JakeMSG_AudioMultiChannels = true;
                 return out;
             };
 
+            var toFootstepConfigFromEventComment = function(config) {
+                var list = copyFootstepList(config && config.list ? config.list : []);
+                return {
+                    mode: normalizeCycleMode(config && config.mode ? config.mode : 'Cycle'),
+                    list: list,
+                    slotVolume: config && config.slotVolume !== undefined ? config.slotVolume : 20,
+                    slotPitch: config && config.slotPitch !== undefined ? config.slotPitch : 150,
+                    slotMaxPitch: config && config.slotMaxPitch !== undefined ? config.slotMaxPitch : 0,
+                    slotDistance: config && config.slotDistance !== undefined ? config.slotDistance : 0
+                };
+            };
+
             Game_CharacterBase.prototype.playFootstepSound = function(volume, pitch, pan) {
                 if (volume <= 0) return;
                 if (pitch <= 0) return;
@@ -1215,8 +1390,10 @@ Imported.JakeMSG_AudioMultiChannels = true;
                 if (regionId > 0) footstepData = $dataMap.regionFootstepSounds[regionId];
                 if (!footstepData && terrainTag > 0) footstepData = $gameMap.tileset().terrainTagFootstepSounds[terrainTag];
                 if (!footstepData) footstepData = $dataMap.regionFootstepSounds[0];
-
-                var baseConfig = toFootstepConfigFromMvData(footstepData, volume, pitch);
+                var eventCommentConfig = getEventFootstepCommentConfig(this);
+                var baseConfig = eventCommentConfig
+                    ? toFootstepConfigFromEventComment(eventCommentConfig)
+                    : toFootstepConfigFromMvData(footstepData, volume, pitch);
                 var basePan = pan.clamp(-100, 100);
 
                 var scoped = getSlotsForCharacter(this);
@@ -1226,6 +1403,10 @@ Imported.JakeMSG_AudioMultiChannels = true;
                 var key = [
                     baseConfig.mode,
                     baseConfig.list.map(function(entry) { return [entry.name, entry.volume, entry.pitch].join(':'); }).join('|'),
+                    baseConfig.slotVolume !== undefined ? baseConfig.slotVolume : '',
+                    baseConfig.slotPitch !== undefined ? baseConfig.slotPitch : '',
+                    baseConfig.slotMaxPitch !== undefined ? baseConfig.slotMaxPitch : '',
+                    baseConfig.slotDistance !== undefined ? baseConfig.slotDistance : '',
                     basePan
                 ].join('|');
                 var baseChanged = key !== state.lastKey;
@@ -1234,16 +1415,12 @@ Imported.JakeMSG_AudioMultiChannels = true;
                     if (state.lastKey === null) {
                         state.lastKey = key;
                     } else if (baseChanged) {
-                        baseSlot.list = baseConfig.list.slice();
-                        baseSlot.mode = baseConfig.mode;
-                        baseSlot.cursor = 0;
+                        applyBaseConfigToSlot(baseSlot, baseConfig);
                         state.lastKey = key;
                         state.suppressBase = false;
                     }
                 } else if (baseChanged) {
-                    baseSlot.list = baseConfig.list.slice();
-                    baseSlot.mode = baseConfig.mode;
-                    baseSlot.cursor = 0;
+                    applyBaseConfigToSlot(baseSlot, baseConfig);
                     state.lastKey = key;
                 }
 
@@ -1346,28 +1523,46 @@ Imported.JakeMSG_AudioMultiChannels = true;
                 var state = scoped.state;
                 var baseSlot = ensureFootstepSlot(scoped.key, 0);
                 var basePan = toNumberOr(se.pan, 0);
+                var eventCommentConfig = getEventFootstepCommentConfig(character);
                 var baseEntry = {
                     name: se.name,
                     volume: toNumberOr(se.volume, 90),
                     pitch: toNumberOr(se.pitch, 100)
                 };
-                var baseKey = [baseEntry.name, baseEntry.volume, baseEntry.pitch, basePan].join('|');
+                var baseSource = eventCommentConfig ? {
+                    mode: normalizeCycleMode(eventCommentConfig.mode || 'Cycle'),
+                    list: copyFootstepList(eventCommentConfig.list || []),
+                    slotVolume: eventCommentConfig.slotVolume,
+                    slotPitch: eventCommentConfig.slotPitch,
+                    slotMaxPitch: eventCommentConfig.slotMaxPitch,
+                    slotDistance: eventCommentConfig.slotDistance
+                } : {
+                    mode: 'Cycle',
+                    list: [baseEntry]
+                };
+                var fallbackListForExtra = baseSource.list;
+                var baseKey = [
+                    eventCommentConfig ? 'comment' : 'native',
+                    baseSource.mode,
+                    baseSource.list.map(function(entry) { return [entry.name, entry.volume, entry.pitch].join(':'); }).join('|'),
+                    baseSource.slotVolume !== undefined ? baseSource.slotVolume : '',
+                    baseSource.slotPitch !== undefined ? baseSource.slotPitch : '',
+                    baseSource.slotMaxPitch !== undefined ? baseSource.slotMaxPitch : '',
+                    baseSource.slotDistance !== undefined ? baseSource.slotDistance : '',
+                    basePan
+                ].join('|');
                 var baseChanged = baseKey !== state.lastKey;
 
                 if (state.suppressBase) {
                     if (state.lastKey === null) {
                         state.lastKey = baseKey;
                     } else if (baseChanged) {
-                        baseSlot.list = [baseEntry];
-                        baseSlot.mode = 'Cycle';
-                        baseSlot.cursor = 0;
+                        applyBaseConfigToSlot(baseSlot, baseSource);
                         state.lastKey = baseKey;
                         state.suppressBase = false;
                     }
                 } else if (baseChanged || baseSlot.list.length === 0) {
-                    baseSlot.list = [baseEntry];
-                    baseSlot.mode = 'Cycle';
-                    baseSlot.cursor = 0;
+                    applyBaseConfigToSlot(baseSlot, baseSource);
                     state.lastKey = baseKey;
                 }
 
@@ -1375,7 +1570,7 @@ Imported.JakeMSG_AudioMultiChannels = true;
                 try {
                     for (var i = 1; i < slots.length; i++) {
                         var extraSlot = ensureFootstepSlot(scoped.key, i);
-                        var extraChosen = pickFootstep(extraSlot, [baseEntry]);
+                        var extraChosen = pickFootstep(extraSlot, fallbackListForExtra);
                         if (!extraChosen || !extraChosen.name) continue;
                         var extraOut = buildOutputSe(character, extraSlot, extraChosen, basePan, extraSlot.volume, extraSlot.pitch);
                         if (!extraOut) continue;
@@ -1386,9 +1581,14 @@ Imported.JakeMSG_AudioMultiChannels = true;
                         return { consumeOriginal: true };
                     }
 
-                    var chosen0 = pickFootstep(baseSlot, [baseEntry]);
+                    var chosen0 = pickFootstep(baseSlot, fallbackListForExtra);
                     var out0 = buildOutputSe(character, baseSlot, chosen0, basePan, baseSlot.volume, baseSlot.pitch);
                     if (!out0) {
+                        return { consumeOriginal: true };
+                    }
+
+                    if (eventCommentConfig) {
+                        AudioManager.playSe(out0, 0);
                         return { consumeOriginal: true };
                     }
 
@@ -1432,127 +1632,6 @@ var clearAllFootsteps = window.clearAllFootsteps;
 //=============================================================================
 // ======== GLOBAL ========
 //=============================================================================
-
-// ================================================ Functions
-// ================================ Plugin Commands
-var plugCall = function() {
-    if (arguments[0]){
-        var args = arguments[0].split(" ");
-        var command = args.shift();
-    } else {
-        var args = "";
-        var commands = "";
-    }
-    if ($gameParty.inBattle()) { // In Battle (relevant for choosing which Interpreter to use)
-        $gameTroop._interpreter.pluginCommand(command, args);
-    } else { // On Map (relevant for choosing which Interpreter to use)
-        $gameMap._interpreter.pluginCommand(command, args);
-    }
-}
-
-
-
-
-// ================================================ Visual
-// ================================ Pictures
-// ================ Show (/Remove (by leaving the picName blank) )
-var picChange = function(picName="", picID=1, origin=0, x=0, y=0, scaleX=100, scaleY=100, opacity=255, blendMode=0) {
-    $gameScreen.showPicture(picID, picName, origin, x, y, scaleX, scaleY, opacity, blendMode);
-}
-
-// ================ Move
-var picMove = function(picID=1, origin=0, x=0, y=0, scaleX=100, scaleY=100, opacity=255, blendMode=0, frames=0, easing=0) {
-    if (Utils.RPGMAKER_NAME === 'MZ') {
-        $gameScreen.movePicture(picID, origin, x, y, scaleX, scaleY, opacity, blendMode, frames, easing);
-    } else { // 'MV'
-        $gameScreen.movePicture(picID, origin, x, y, scaleX, scaleY, opacity, blendMode, frames);
-    }
-}
-
-// ================ Rotate (starts moving by speed)
-var picRotate = function(picID=1, speed=0) {
-    $gameScreen.rotatePicture(picID, speed);
-}
-
-// ================ Add Angle (adds to the current angle)
-var picAddAngle = function(picID=1, angle=0) {
-    $gameScreen.picture(picID)._angle += angle;
-}
-
-// ================ Set Angle (sets the angle)
-var picSetAngle = function(picID=1, angle=0) {
-    $gameScreen.picture(picID)._angle = angle;
-}
-
-
-// ================================ Enemy Sprites
-var troopChangePic = function(picName = "", troopID = 0) {
-    thisEnemyID = $gameTroop.members()[troopID].enemyId();
-    $dataEnemies[thisEnemyID].battlerName = picName;
-    $gameTroop.members()[troopID].transform(thisEnemyID);
-    $gameTroop.makeUniqueNames();
-}
-var enemyChangePic = function(picName = "", enemyID = 0) {
-    $dataEnemies[enemyID].battlerName = picName;
-    $gameTroop.makeUniqueNames();
-}
-
-
-
-
-// ================================================ Animated
-// ================================ Animations
-// ================ Show Animation
-var animShow = function(eventOrTroopID = -1, animID = 1, mirror = false, wait = false, delay = 0) {
-    if ($gameParty.inBattle()) { // In Battle (relevant for choosing which Interpreter to use)
-        if (Utils.RPGMAKER_NAME === 'MZ') {
-            $gameTemp.requestAnimation([$gameTroop.members()[eventOrTroopID]], animID, mirror);
-        } else { // 'MV'
-            $gameTroop.members()[eventOrTroopID].startAnimation(animID, mirror, delay);
-        }
-    } else { // On Map (relevant for choosing which Interpreter to use)
-        if (Utils.RPGMAKER_NAME === 'MZ') {
-            $gameTemp.requestAnimation([$gameMap._interpreter.character($gameMap._interpreter._characterId = eventOrTroopID)], animID, mirror);
-        } else { // 'MV'
-            if (eventOrTroopID == -1){
-                $gameMap._interpreter._character = $gamePlayer;
-            } else {
-                $gameMap._interpreter._character = $gameMap.event(eventOrTroopID);
-            }
-            $gameMap._interpreter._character.requestAnimation(animID);
-        }
-        if (wait){
-            $gameMap._interpreter.setWaitMode("animation");
-        }
-    }
-
-
-}
-
-
-
-
-// ================================ Movies
-// ================ Show Movie
-var movieShow = function(movieName = "") {
-    if (Utils.RPGMAKER_NAME === 'MZ') {
-        if ($gameParty.inBattle()) { // In Battle (relevant for choosing which Interpreter to use)
-            $gameTroop._interpreter.command261([movieName]);
-        } else { // On Map (relevant for choosing which Interpreter to use)
-            $gameMap._interpreter.command261([movieName]);
-        }
-    } else { // 'MV'
-        if ($gameParty.inBattle()) { // In Battle (relevant for choosing which Interpreter to use)
-            $gameTroop._interpreter._params = [movieName];
-            $gameTroop._interpreter.command261();
-        } else { // On Map (relevant for choosing which Interpreter to use)
-            $gameMap._interpreter._params = [movieName];
-            $gameMap._interpreter.command261();
-        }
-    }
-
-}
-
 
 
 
