@@ -1,0 +1,21 @@
+================ Explanation
+==== And even yet another quick Batch-powered utility, this time to quickly apply a number of String replacements to a number of files previously-specified, with a simple run of the program (and with the option to restore from backup those modified files)
+==== At its core, it's a batch file that runs commands on the "Xchang32" CMD utility 
+== Link to the Website of the Utility (pack of Utilities): http://bbses.info/mirrors/clayruth.com/index.html
+
+
+================ How to Use
+======== 0. All files of this folder, in the folder location in which the file(s) to modify are, or in the fodler in which there's the subfolder(s) with the file(s)
+
+======== I. Setting up the Settings and Strings
+==== 1. In the "# AMSR Settings" file, you need to specify the names of the file(s), or the path(s) to the file(s), that you want to modify. Each should be in it's own quotes (either on the same line as the first line, or any subsequent lines), and if you specify multiple files, they should have "," signs between them (even if they are already split between different lines)
+== The file(s) should either be in the same folder as the Batch file to run, or in subfolders within the same folder (for which you specify the relative path to them in their name)
+= Eg (of a name with a relative path): "<path_to_the_file_within_this_folder>\<file_name_with_extension>"
+==== 2. In the "# AMSR Strings" file, you need to specify the Strings to search and replace. You have 2 sections, one for Non-RegEx (Regular Expression) replacements, and one with RegEx replacements
+== In each section, a replacement entry is defined by starting with a "========" line (the rest of that line is ignored, so you can use it to number your entries)
+== An entry first has the String to look after, then a "====" line (the rest of that line is also ignored, so you can also label on it if you wish), then the String to replace with
+== Replacements are done from Top to bottom, so you can actually do subsequent replacements to modify the same String in various ways (especially if you also use RegEx replacements)
+== Empty entries are simply ignored
+
+======== II. Use the tool
+==== 1. With the settings file are now set, run the Batch file, and choose your desired option
