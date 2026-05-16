@@ -1,0 +1,143 @@
+'use strict';
+
+const path = require('path');
+const { app, BrowserWindow, dialog } = require('electron');
+
+const {
+  APP_NAME,
+  startServer
+} = require('../src/server');
+
+let mainWindow = null;
+let serverRuntime = null;
+let quitting = false;
+
+function createBridge() {
+  return {
+    async pickDirectory(options) {
+      const result = await dialog.showOpenDialog(mainWindow || undefined, {
+        title: options && options.title ? String(options.title) : 'Select Folder',
+        properties: ['openDirectory']
+      });
+
+      if (result.canceled) return '';
+      if (!Array.isArray(result.filePaths) || result.filePaths.length <= 0) return '';
+      return String(result.filePaths[0] || '').trim();
+    },
+
+    async pickPluginFile(options) {
+      const result = await dialog.showOpenDialog(mainWindow || undefined, {
+        title: options && options.title ? String(options.title) : 'Select Plugin File',
+        defaultPath: options && options.defaultPath ? String(options.defaultPath) : undefined,
+        properties: ['openFile'],
+        filters: [
+          { name: 'JavaScript Plugin', extensions: ['js'] }
+        ]
+      });
+
+      if (result.canceled) return '';
+      if (!Array.isArray(result.filePaths) || result.filePaths.length <= 0) return '';
+      return String(result.filePaths[0] || '').trim();
+    }
+  };
+}
+
+function createMainWindow(serverUrl) {
+  const preloadPath = path.join(__dirname, 'preload.js');
+
+  mainWindow = new BrowserWindow({
+    title: APP_NAME,
+    width: 1600,
+    height: 980,
+    minWidth: 1120,
+    minHeight: 700,
+    backgroundColor: '#12151a',
+    show: false,
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+
+  mainWindow.removeMenu();
+  mainWindow.loadURL(serverUrl);
+
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow) {
+      mainWindow.show();
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  mainWindow.on('close', (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    shutdownAndQuit();
+  });
+}
+
+async function shutdownAndQuit() {
+  if (quitting) return;
+  quitting = true;
+
+  try {
+    if (serverRuntime && typeof serverRuntime.close === 'function') {
+      await serverRuntime.close();
+    }
+  } catch (err) {
+    // no-op: app is exiting
+  } finally {
+    app.quit();
+  }
+}
+
+async function bootstrap() {
+  app.setAppUserModelId('JakeMSG.PluginAndParameterManager');
+
+  await app.whenReady();
+
+  serverRuntime = await startServer({
+    port: 0,
+    electronBridge: createBridge(),
+    autoDetectCandidates: [
+      process.cwd(),
+      path.resolve(process.cwd(), '..'),
+      path.resolve(process.cwd(), '..', '..'),
+      path.resolve(__dirname, '..')
+    ]
+  });
+
+  createMainWindow(serverRuntime.url);
+
+  app.on('activate', () => {
+    if (!mainWindow && serverRuntime) {
+      createMainWindow(serverRuntime.url);
+    }
+  });
+
+  app.on('window-all-closed', () => {
+    shutdownAndQuit();
+  });
+}
+
+bootstrap().catch(async (err) => {
+  const message = err && err.message ? err.message : String(err);
+
+  try {
+    await dialog.showMessageBox({
+      type: 'error',
+      title: APP_NAME,
+      message: 'Failed to start application.',
+      detail: message
+    });
+  } catch (_ignored) {
+    // ignore secondary failure
+  }
+
+  await shutdownAndQuit();
+});
