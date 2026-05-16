@@ -130,6 +130,13 @@ body {
   gap: 8px;
 }
 
+.toolbar-stack-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .project-badge {
   display: inline-block;
   border: 1px solid var(--line-soft);

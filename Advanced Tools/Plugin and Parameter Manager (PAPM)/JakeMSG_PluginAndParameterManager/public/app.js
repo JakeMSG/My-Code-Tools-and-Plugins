@@ -8,7 +8,9 @@
     btnDetect: document.getElementById('btnDetect'),
     btnSelectFolder: document.getElementById('btnSelectFolder'),
     btnReload: document.getElementById('btnReload'),
+    btnExportFoldersLayoutToGame: document.getElementById('btnExportFoldersLayoutToGame'),
     btnResetLayout: document.getElementById('btnResetLayout'),
+    btnResetFolders: document.getElementById('btnResetFolders'),
     btnSavePlugins: document.getElementById('btnSavePlugins'),
     btnBackupPlugins: document.getElementById('btnBackupPlugins'),
     btnSaveState: document.getElementById('btnSaveState'),
@@ -238,6 +240,10 @@
 
   function makePluginKey(plugin) {
     return `${String(plugin.name || '')}::${String(plugin.description || '')}`;
+  }
+
+  function pluginNameToken(value) {
+    return cleanText(value).toLowerCase();
   }
 
   function isPluginSelectionEditableTarget(target) {
@@ -799,6 +805,67 @@
     }
 
     return 'folders';
+  }
+
+  function findListAddButtonFromTarget(target) {
+    const candidates = [];
+
+    if (target instanceof Element) {
+      candidates.push(target);
+    }
+
+    if (document.activeElement instanceof Element && !candidates.includes(document.activeElement)) {
+      candidates.push(document.activeElement);
+    }
+
+    for (let i = 0; i < candidates.length; i += 1) {
+      const listRoot = candidates[i].closest('.typed-list');
+      if (!listRoot) continue;
+
+      const addBtn = listRoot.querySelector('.typed-list-add-btn');
+      if (addBtn instanceof HTMLButtonElement && !addBtn.disabled) {
+        return addBtn;
+      }
+    }
+
+    return null;
+  }
+
+  function triggerAddEntryFromCurrentSelection(target) {
+    const element = target instanceof Element ? target : null;
+
+    if (element && element.closest('#textPromptModal, #textViewModal, #contextMenu, #tagSuggestMenu')) {
+      return false;
+    }
+
+    const listAddBtn = findListAddButtonFromTarget(element);
+    if (listAddBtn) {
+      listAddBtn.click();
+      return true;
+    }
+
+    if (element && element.closest('#structDeveloperDetails')) {
+      dom.btnAddStructSchema.click();
+      return true;
+    }
+
+    if (element && element.closest('#developerDetails')) {
+      dom.btnAddSchemaParam.click();
+      return true;
+    }
+
+    const scope = resolveSelectionScopeFromTarget(element);
+    if (scope === 'folders') {
+      addFolder();
+      return true;
+    }
+
+    if (scope === 'plugins') {
+      addPluginRow();
+      return true;
+    }
+
+    return false;
   }
 
   function selectAllVisiblePlugins() {
@@ -4460,7 +4527,7 @@
 
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
-      addBtn.className = 'typed-mini';
+      addBtn.className = 'typed-mini typed-list-add-btn';
       addBtn.textContent = '+ Add Item';
       addBtn.addEventListener('click', () => {
         rows.push('');
@@ -7625,7 +7692,7 @@
   async function saveLayoutState() {
     if (!state.project) {
       showToast('No project loaded.', 'bad');
-      return;
+      return false;
     }
 
     try {
@@ -7653,8 +7720,10 @@
       clearDirtyLabels();
       showToast('Saved internal folders', 'good');
       renderAll();
+      return true;
     } catch (error) {
       showToast(error.message, 'bad');
+      return false;
     }
   }
 
@@ -7690,6 +7759,299 @@
       clearDirtyLabels();
       showToast('Saved manager layout', 'good');
       renderAll();
+    } catch (error) {
+      showToast(error.message, 'bad');
+    }
+  }
+
+  function captureFoldersLayoutExportBundle() {
+    if (!state.project) return null;
+
+    return {
+      sourcePlugins: state.plugins.map((plugin) => ({
+        key: makePluginKey(plugin),
+        name: String(plugin && plugin.name ? plugin.name : '')
+      })),
+      folders: cloneJson(state.folders),
+      pluginFolderMap: cloneJson(state.pluginFolderMap),
+      pluginTags: cloneJson(state.pluginTags),
+      folderCollapsed: cloneJson(state.folderCollapsed),
+      managerLayout: normalizeManagerLayout(captureManagerLayout())
+    };
+  }
+
+  function buildPluginKeyRemapByName(sourcePlugins, targetPlugins) {
+    const source = Array.isArray(sourcePlugins) ? sourcePlugins : [];
+    const target = Array.isArray(targetPlugins) ? targetPlugins : [];
+
+    const targetQueueByName = new Map();
+    for (let i = 0; i < target.length; i += 1) {
+      const plugin = target[i] && typeof target[i] === 'object' ? target[i] : {};
+      const token = pluginNameToken(plugin.name);
+      if (!token) continue;
+
+      if (!targetQueueByName.has(token)) {
+        targetQueueByName.set(token, []);
+      }
+
+      targetQueueByName.get(token).push(makePluginKey(plugin));
+    }
+
+    const remap = {};
+
+    for (let i = 0; i < source.length; i += 1) {
+      const row = source[i] && typeof source[i] === 'object' ? source[i] : {};
+      const oldKey = cleanText(row.key);
+      if (!oldKey) continue;
+
+      const fallbackName = String(oldKey.split('::')[0] || '');
+      const token = pluginNameToken(row.name || fallbackName);
+      if (!token) continue;
+
+      const queue = targetQueueByName.get(token);
+      if (!queue || queue.length <= 0) continue;
+
+      const nextKey = cleanText(queue.shift());
+      if (!nextKey) continue;
+      remap[oldKey] = nextKey;
+    }
+
+    return remap;
+  }
+
+  function remapTypedTreeOpenStateByPluginMap(sourceState, keyMap, validPluginKeys) {
+    const source = sourceState && typeof sourceState === 'object' ? sourceState : {};
+    const out = {};
+
+    Object.keys(source).forEach((stateKey) => {
+      const raw = String(stateKey || '');
+      const firstSep = raw.indexOf('::');
+      if (firstSep <= 0) return;
+
+      const oldPluginKey = raw.slice(0, firstSep);
+      const newPluginKey = cleanText(keyMap[oldPluginKey] || '');
+      if (!newPluginKey || !validPluginKeys.has(newPluginKey)) return;
+
+      out[`${newPluginKey}${raw.slice(firstSep)}`] = Boolean(source[stateKey]);
+    });
+
+    return out;
+  }
+
+  function remapDevEntryOpenStateByPluginMap(sourceState, keyMap, validPluginKeys) {
+    const source = sourceState && typeof sourceState === 'object' ? sourceState : {};
+    const out = {};
+
+    Object.keys(source).forEach((stateKey) => {
+      const raw = String(stateKey || '');
+      const parts = raw.split('::');
+      if (parts.length < 3) return;
+
+      const oldPluginKey = cleanText(parts[1]);
+      const newPluginKey = cleanText(keyMap[oldPluginKey] || '');
+      if (!newPluginKey || !validPluginKeys.has(newPluginKey)) return;
+
+      parts[1] = newPluginKey;
+      out[parts.join('::')] = Boolean(source[stateKey]);
+    });
+
+    return out;
+  }
+
+  function remapManagerLayoutForProject(layout, keyMap, validPluginKeys) {
+    const normalized = normalizeManagerLayout(layout);
+    if (!normalized) return null;
+
+    const remapPluginKey = (pluginKey) => cleanText(keyMap[cleanText(pluginKey)] || '');
+
+    const openTabs = uniqueStringList(normalized.openTabs)
+      .map((pluginKey) => remapPluginKey(pluginKey))
+      .filter((pluginKey) => validPluginKeys.has(pluginKey));
+
+    let activeTab = remapPluginKey(normalized.activeTab);
+    if (!activeTab || !validPluginKeys.has(activeTab)) {
+      activeTab = openTabs[0] || '';
+    }
+
+    return normalizeManagerLayout({
+      ...normalized,
+      openTabs,
+      activeTab,
+      typedTreeOpenState: remapTypedTreeOpenStateByPluginMap(
+        normalized.typedTreeOpenState,
+        keyMap,
+        validPluginKeys
+      ),
+      devEntryOpenState: remapDevEntryOpenStateByPluginMap(
+        normalized.devEntryOpenState,
+        keyMap,
+        validPluginKeys
+      )
+    });
+  }
+
+  function applyExportedFoldersAndLayoutToCurrentProject(bundle) {
+    const source = bundle && typeof bundle === 'object' ? bundle : {};
+    const sourcePlugins = Array.isArray(source.sourcePlugins) ? source.sourcePlugins : [];
+    const keyRemap = buildPluginKeyRemapByName(sourcePlugins, state.plugins);
+
+    const sourcePluginKeys = new Set(
+      sourcePlugins
+        .map((row) => cleanText(row && row.key))
+        .filter(Boolean)
+    );
+
+    const folders = ensureFolders(source.folders);
+    const folderIds = new Set(folders.map((folder) => folder.id));
+
+    const pluginFolderMap = {};
+    const sourceFolderMap = source.pluginFolderMap && typeof source.pluginFolderMap === 'object'
+      ? source.pluginFolderMap
+      : {};
+
+    Object.keys(sourceFolderMap).forEach((oldKey) => {
+      const newKey = cleanText(keyRemap[oldKey] || '');
+      if (!newKey) return;
+
+      const folderId = cleanText(sourceFolderMap[oldKey]) || 'ungrouped';
+      pluginFolderMap[newKey] = folderIds.has(folderId) ? folderId : 'ungrouped';
+    });
+
+    const pluginTags = {};
+    const sourceTags = source.pluginTags && typeof source.pluginTags === 'object'
+      ? source.pluginTags
+      : {};
+
+    Object.keys(sourceTags).forEach((oldKey) => {
+      const newKey = cleanText(keyRemap[oldKey] || '');
+      if (!newKey) return;
+
+      const tags = toUniqueTags(sourceTags[oldKey]);
+      if (tags.length > 0) {
+        pluginTags[newKey] = tags;
+      }
+    });
+
+    state.plugins.forEach((plugin) => {
+      const key = makePluginKey(plugin);
+      if (!pluginFolderMap[key]) {
+        pluginFolderMap[key] = 'ungrouped';
+      }
+    });
+
+    const folderCollapsed = {};
+    const sourceCollapsed = source.folderCollapsed && typeof source.folderCollapsed === 'object'
+      ? source.folderCollapsed
+      : {};
+
+    Object.keys(sourceCollapsed).forEach((folderId) => {
+      if (!folderIds.has(folderId)) return;
+      folderCollapsed[folderId] = Boolean(sourceCollapsed[folderId]);
+    });
+
+    state.folders = folders;
+    state.pluginFolderMap = pluginFolderMap;
+    state.pluginTags = pluginTags;
+    state.folderCollapsed = folderCollapsed;
+
+    const validPluginKeys = new Set(state.plugins.map((plugin) => makePluginKey(plugin)));
+    const remappedLayout = remapManagerLayoutForProject(source.managerLayout, keyRemap, validPluginKeys);
+
+    if (remappedLayout) {
+      remappedLayout.lastOpenedGameRoot = getCurrentProjectRoot();
+      applyManagerLayout(remappedLayout, validPluginKeys);
+      state.managerLayout = remappedLayout;
+    } else {
+      state.managerLayout = normalizeManagerLayout(captureManagerLayout());
+    }
+
+    const validFolderIds = new Set(['all'].concat(state.folders.map((folder) => folder.id)));
+    state.selectedFolderIds = state.selectedFolderIds.filter((folderId) => validFolderIds.has(folderId));
+    if (state.selectedFolderIds.length <= 0) {
+      state.selectedFolderIds = ['all'];
+    }
+    if (!validFolderIds.has(state.selectedFolderId)) {
+      state.selectedFolderId = state.selectedFolderIds[0] || 'all';
+    }
+    if (!state.selectedFolderIds.includes(state.selectedFolderId)) {
+      state.selectedFolderIds.push(state.selectedFolderId);
+    }
+    if (state.lastFolderSelectionId && !validFolderIds.has(state.lastFolderSelectionId)) {
+      state.lastFolderSelectionId = state.selectedFolderId;
+    }
+
+    markLayoutDirty();
+    requestManagerLayoutDirtyLabelRefresh();
+
+    return {
+      mappedPlugins: Object.keys(keyRemap).length,
+      missingPlugins: Math.max(0, sourcePluginKeys.size - Object.keys(keyRemap).length)
+    };
+  }
+
+  async function resetInternalFoldersForCurrentProject() {
+    if (!state.project) {
+      showToast('No project loaded.', 'bad');
+      return;
+    }
+
+    state.folders = [cloneJson(DEFAULT_FOLDER)];
+    state.pluginFolderMap = {};
+    state.pluginTags = {};
+    state.folderCollapsed = {};
+
+    state.plugins.forEach((plugin) => {
+      state.pluginFolderMap[makePluginKey(plugin)] = 'ungrouped';
+    });
+
+    state.selectedFolderId = 'all';
+    state.selectedFolderIds = ['all'];
+    state.lastFolderSelectionId = 'all';
+    state.folderSearch = '';
+    dom.inputFolderSearch.value = '';
+
+    markLayoutDirty();
+    renderAll();
+    showToast('Current internal folders reset. Save Internal Folders to persist.', 'good');
+  }
+
+  async function exportFoldersAndLayoutToAnotherGame() {
+    if (!state.project) {
+      showToast('No project loaded.', 'bad');
+      return;
+    }
+
+    const exportBundle = captureFoldersLayoutExportBundle();
+    if (!exportBundle) {
+      showToast('Nothing to export yet.', 'bad');
+      return;
+    }
+
+    try {
+      const result = await apiPost('/api/select-game-folder', {});
+      if (!result.selected) {
+        showToast('Folder selection canceled.', 'bad');
+        return;
+      }
+
+      if (!result.detected) {
+        showToast(result.message || 'Folder selected, but project not detected.', 'bad');
+        return;
+      }
+
+      applySnapshot(result);
+
+      const summary = applyExportedFoldersAndLayoutToCurrentProject(exportBundle);
+      renderAll();
+
+      const saved = await saveLayoutState();
+      if (!saved) return;
+
+      if (summary.missingPlugins > 0) {
+        showToast(`Export complete. ${summary.missingPlugins} missing plugin(s) skipped.`, 'good');
+      } else {
+        showToast('Export complete. Internal folders and manager layout copied.', 'good');
+      }
     } catch (error) {
       showToast(error.message, 'bad');
     }
@@ -8089,6 +8451,7 @@
     dom.btnSaveState.addEventListener('click', saveLayoutState);
     dom.btnSaveManagerLayout.addEventListener('click', saveManagerLayoutState);
     dom.btnResetLayout.addEventListener('click', resetManagerLayoutAndReload);
+    dom.btnResetFolders.addEventListener('click', resetInternalFoldersForCurrentProject);
 
     dom.btnAddSchemaParam.addEventListener('click', () => {
       const index = getActivePluginIndex();
@@ -8168,6 +8531,10 @@
       } catch (error) {
         showToast(error.message, 'bad');
       }
+    });
+
+    dom.btnExportFoldersLayoutToGame.addEventListener('click', async () => {
+      await exportFoldersAndLayoutToAnotherGame();
     });
 
     dom.btnReload.addEventListener('click', async () => {
@@ -8359,6 +8726,19 @@
           savePluginsHotkeyTimer = null;
           dom.btnSavePlugins.click();
         }, 180);
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey)
+        && !event.altKey
+        && !event.shiftKey
+        && (hotkey === 'q' || event.code === 'KeyQ')) {
+        event.preventDefault();
+
+        const handled = triggerAddEntryFromCurrentSelection(event.target);
+        if (!handled) {
+          showToast('No add target in current selection.', 'bad');
+        }
         return;
       }
 

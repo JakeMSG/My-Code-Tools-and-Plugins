@@ -18,10 +18,18 @@
       </div>
       <div class="toolbar-group">
         <span id="projectBadge" class="project-badge">No project loaded</span>
-        <button id="btnDetect" type="button">Auto Detect</button>
-        <button id="btnSelectFolder" type="button">Select Folder</button>
-        <button id="btnReload" type="button">Reload</button>
-        <button id="btnResetLayout" type="button">Reset Layout</button>
+        <div class="toolbar-stack">
+          <div class="toolbar-stack-row">
+            <button id="btnDetect" type="button">Auto Detect</button>
+            <button id="btnSelectFolder" type="button">Select Folder</button>
+            <button id="btnReload" type="button">Reload</button>
+          </div>
+          <button id="btnExportFoldersLayoutToGame" type="button">Export Folders&Layout to another Game</button>
+        </div>
+        <div class="toolbar-stack">
+          <button id="btnResetLayout" type="button">Reset Layout</button>
+          <button id="btnResetFolders" type="button">Reset Folders</button>
+        </div>
       </div>
       <div class="toolbar-group">
         <div class="toolbar-stack">
