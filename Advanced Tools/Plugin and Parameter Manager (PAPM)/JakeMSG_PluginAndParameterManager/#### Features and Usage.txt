@@ -133,6 +133,7 @@ D) Manager layout/view state
   - paste param value
 
 Typed controls supported:
+- text and string (basic plain text)
 - boolean (ON/OFF)
 - number and object-id-like numeric types
 - select and combo

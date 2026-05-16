@@ -11,6 +11,7 @@ const {
 let mainWindow = null;
 let serverRuntime = null;
 let quitting = false;
+const SHUTDOWN_TIMEOUT_MS = 2500;
 
 function createBridge() {
   return {
@@ -85,14 +86,40 @@ async function shutdownAndQuit() {
   if (quitting) return;
   quitting = true;
 
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const target = mainWindow;
+    mainWindow = null;
+
+    try {
+      target.removeAllListeners('close');
+      target.destroy();
+    } catch (_ignored) {
+      // no-op
+    }
+  }
+
+  let timedOut = false;
+
   try {
     if (serverRuntime && typeof serverRuntime.close === 'function') {
-      await serverRuntime.close();
+      await Promise.race([
+        serverRuntime.close(),
+        new Promise((resolve) => {
+          setTimeout(() => {
+            timedOut = true;
+            resolve();
+          }, SHUTDOWN_TIMEOUT_MS);
+        })
+      ]);
     }
   } catch (err) {
     // no-op: app is exiting
   } finally {
-    app.quit();
+    if (timedOut) {
+      console.warn(`[${APP_NAME}] shutdown timeout hit; forcing exit.`);
+    }
+
+    app.exit(0);
   }
 }
 

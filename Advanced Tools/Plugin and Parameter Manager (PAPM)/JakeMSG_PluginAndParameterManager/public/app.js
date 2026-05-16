@@ -1618,10 +1618,17 @@
     const config = options && typeof options === 'object' ? options : {};
 
     return new Promise((resolve) => {
+      const previousActive = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
       dom.textPromptTitle.textContent = cleanText(config.title) || 'Enter value';
       dom.textPromptMessage.textContent = cleanText(config.message) || '';
       dom.textPromptInput.placeholder = cleanText(config.placeholder) || '';
       dom.textPromptInput.value = String(config.defaultValue || '');
+      dom.textPromptInput.classList.remove('hidden');
+      dom.textPromptInput.readOnly = false;
+      dom.textPromptCancel.textContent = cleanText(config.cancelLabel) || 'Cancel';
       dom.textPromptConfirm.textContent = cleanText(config.confirmLabel) || 'OK';
 
       dom.textPromptModal.classList.remove('hidden');
@@ -1631,11 +1638,21 @@
       function cleanup(result) {
         dom.textPromptModal.classList.add('hidden');
         dom.textPromptInput.value = '';
+        dom.textPromptInput.classList.remove('hidden');
+        dom.textPromptInput.readOnly = false;
 
         dom.textPromptCancel.removeEventListener('click', onCancel);
         dom.textPromptConfirm.removeEventListener('click', onConfirm);
         dom.textPromptModal.removeEventListener('click', onBackdrop);
         dom.textPromptInput.removeEventListener('keydown', onKeyDown);
+
+        if (previousActive && document.contains(previousActive)) {
+          try {
+            previousActive.focus();
+          } catch (_error) {
+            // no-op
+          }
+        }
 
         resolve(result);
       }
@@ -1671,6 +1688,81 @@
       dom.textPromptConfirm.addEventListener('click', onConfirm);
       dom.textPromptModal.addEventListener('click', onBackdrop);
       dom.textPromptInput.addEventListener('keydown', onKeyDown);
+    });
+  }
+
+  function showConfirmPrompt(options) {
+    const config = options && typeof options === 'object' ? options : {};
+
+    return new Promise((resolve) => {
+      const previousActive = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+      dom.textPromptTitle.textContent = cleanText(config.title) || 'Confirm';
+      dom.textPromptMessage.textContent = cleanText(config.message) || '';
+      dom.textPromptInput.value = '';
+      dom.textPromptInput.placeholder = '';
+      dom.textPromptInput.classList.add('hidden');
+      dom.textPromptInput.readOnly = true;
+      dom.textPromptCancel.textContent = cleanText(config.cancelLabel) || 'Cancel';
+      dom.textPromptConfirm.textContent = cleanText(config.confirmLabel) || 'OK';
+
+      dom.textPromptModal.classList.remove('hidden');
+      dom.textPromptConfirm.focus();
+
+      function cleanup(result) {
+        dom.textPromptModal.classList.add('hidden');
+        dom.textPromptInput.classList.remove('hidden');
+        dom.textPromptInput.readOnly = false;
+
+        dom.textPromptCancel.removeEventListener('click', onCancel);
+        dom.textPromptConfirm.removeEventListener('click', onConfirm);
+        dom.textPromptModal.removeEventListener('click', onBackdrop);
+        dom.textPromptModal.removeEventListener('keydown', onKeyDown);
+
+        if (previousActive && document.contains(previousActive)) {
+          try {
+            previousActive.focus();
+          } catch (_error) {
+            // no-op
+          }
+        }
+
+        resolve(Boolean(result));
+      }
+
+      function onCancel() {
+        cleanup(false);
+      }
+
+      function onConfirm() {
+        cleanup(true);
+      }
+
+      function onBackdrop(event) {
+        if (event.target === dom.textPromptModal) {
+          cleanup(false);
+        }
+      }
+
+      function onKeyDown(event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          cleanup(true);
+          return;
+        }
+
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          cleanup(false);
+        }
+      }
+
+      dom.textPromptCancel.addEventListener('click', onCancel);
+      dom.textPromptConfirm.addEventListener('click', onConfirm);
+      dom.textPromptModal.addEventListener('click', onBackdrop);
+      dom.textPromptModal.addEventListener('keydown', onKeyDown);
     });
   }
 
@@ -7182,7 +7274,7 @@
     renderAll();
   }
 
-  function renameFolder(folderIdOverride) {
+  async function renameFolder(folderIdOverride) {
     const folderId = folderIdOverride || state.selectedFolderId;
     if (!folderId || folderId === 'all' || folderId === 'ungrouped') {
       showToast('Select a non-default folder first.', 'bad');
@@ -7192,8 +7284,15 @@
     const target = getFolderById(folderId);
     if (!target) return;
 
-    const name = prompt('Rename folder:', target.name);
-    if (!name) return;
+    const name = await showTextPrompt({
+      title: 'Rename Internal Folder',
+      message: 'Enter new folder name.',
+      defaultValue: target.name,
+      placeholder: 'Folder name',
+      confirmLabel: 'Rename',
+      cancelLabel: 'Cancel'
+    });
+    if (name === null) return;
 
     const clean = String(name).trim();
     if (!clean) return;
@@ -7203,7 +7302,7 @@
     renderAll();
   }
 
-  function deleteFoldersById(folderIds) {
+  async function deleteFoldersById(folderIds) {
     const ids = uniqueStringList(folderIds).filter((folderId) => {
       return folderId && folderId !== 'all' && folderId !== 'ungrouped' && getFolderById(folderId);
     });
@@ -7220,11 +7319,14 @@
       })
       .filter(Boolean);
 
-    const ok = confirm(
-      ids.length === 1
+    const ok = await showConfirmPrompt({
+      title: ids.length === 1 ? 'Delete Internal Folder' : 'Delete Internal Folders',
+      message: ids.length === 1
         ? `Delete folder '${names[0]}'? Child folders move up one level. Plugins move to Ungrouped.`
-        : `Delete ${ids.length} folders? Child folders move up one level. Plugins move to Ungrouped.`
-    );
+        : `Delete ${ids.length} folders? Child folders move up one level. Plugins move to Ungrouped.`,
+      confirmLabel: ids.length === 1 ? 'Delete Folder' : 'Delete Folders',
+      cancelLabel: 'Cancel'
+    });
     if (!ok) return;
 
     const deletedSet = new Set(ids);
@@ -7267,9 +7369,9 @@
     renderAll();
   }
 
-  function deleteFolder(folderIdOverride) {
+  async function deleteFolder(folderIdOverride) {
     const folderId = folderIdOverride || state.selectedFolderId;
-    deleteFoldersById([folderId]);
+    await deleteFoldersById([folderId]);
   }
 
   function remapPluginStateKey(oldKey, newKey) {
@@ -7322,7 +7424,7 @@
     state.dragPluginKeys = uniqueStringList(state.dragPluginKeys.map((key) => (key === oldKey ? newKey : key)));
   }
 
-  function renamePluginByKey(pluginKey) {
+  async function renamePluginByKey(pluginKey) {
     const index = getPluginIndexByKey(pluginKey);
     if (index < 0) return;
 
@@ -7330,7 +7432,14 @@
     const oldName = String(plugin.name || '');
     const oldKey = makePluginKey(plugin);
 
-    const renamed = prompt('Rename plugin row (name):', oldName);
+    const renamed = await showTextPrompt({
+      title: 'Rename Plugin Row',
+      message: 'Enter new plugin name.',
+      defaultValue: oldName,
+      placeholder: 'Plugin name',
+      confirmLabel: 'Rename',
+      cancelLabel: 'Cancel'
+    });
     if (renamed === null) return;
 
     const nextName = cleanText(renamed);
@@ -7428,7 +7537,7 @@
     }
   }
 
-  function deletePluginsByKey(pluginKeys) {
+  async function deletePluginsByKey(pluginKeys) {
     const keys = uniqueStringList(pluginKeys).filter((key) => getPluginIndexByKey(key) >= 0);
     if (keys.length <= 0) return;
 
@@ -7439,11 +7548,14 @@
       })
       .filter(Boolean);
 
-    const ok = confirm(
-      keys.length === 1
+    const ok = await showConfirmPrompt({
+      title: keys.length === 1 ? 'Remove Plugin Row' : 'Remove Plugin Rows',
+      message: keys.length === 1
         ? `Remove plugin '${names[0]}' from plugins.js list?`
-        : `Remove ${keys.length} plugins from plugins.js list?`
-    );
+        : `Remove ${keys.length} plugins from plugins.js list?`,
+      confirmLabel: keys.length === 1 ? 'Remove Plugin' : 'Remove Plugins',
+      cancelLabel: 'Cancel'
+    });
     if (!ok) return;
 
     const keySet = new Set(keys);
@@ -7475,8 +7587,8 @@
     renderAll();
   }
 
-  function deletePluginByKey(pluginKey) {
-    deletePluginsByKey([pluginKey]);
+  async function deletePluginByKey(pluginKey) {
+    await deletePluginsByKey([pluginKey]);
   }
 
   async function savePluginsFile() {

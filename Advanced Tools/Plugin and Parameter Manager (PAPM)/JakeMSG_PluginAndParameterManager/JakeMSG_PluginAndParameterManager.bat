@@ -29,6 +29,16 @@ if not exist "%~dp0node_modules\electron" (
 )
 
 echo Starting JakeMSG_PluginAndParameterManager desktop app...
+set "ELECTRON_EXE=%~dp0node_modules\electron\dist\electron.exe"
+if exist "%ELECTRON_EXE%" (
+  "%ELECTRON_EXE%" "."
+  set "APP_EXIT=%errorlevel%"
+  endlocal & exit /b %APP_EXIT%
+)
+
+echo Electron executable not found at:
+echo   %ELECTRON_EXE%
+echo Falling back to npm start...
 call npm run start
 
 endlocal
