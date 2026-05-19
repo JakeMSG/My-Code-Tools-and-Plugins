@@ -1113,7 +1113,7 @@ button:focus {
   gap: 8px;
 }
 
-.schema-entry > .typed-grab-handle {
+.schema-entry summary > .typed-grab-handle {
   position: absolute;
   left: -1px;
   top: 0;
@@ -1125,6 +1125,10 @@ button:focus {
   z-index: 3;
   border-color: transparent;
   background: transparent;
+}
+
+.schema-entry.selected {
+  box-shadow: 0 0 0 1px rgba(233, 124, 52, 0.84), 0 0 0 3px rgba(233, 124, 52, 0.24);
 }
 
 .schema-gap {
@@ -1175,6 +1179,21 @@ button:focus {
 .schema-directive-row textarea {
   min-height: 46px;
   resize: vertical;
+}
+
+.hover-tooltip {
+  position: fixed;
+  z-index: 200;
+  max-width: 420px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(86, 124, 156, 0.92);
+  background: rgba(18, 29, 40, 0.96);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.36);
+  pointer-events: none;
 }
 
 .toast-stack {

@@ -8,7 +8,8 @@
     btnDetect: document.getElementById('btnDetect'),
     btnSelectFolder: document.getElementById('btnSelectFolder'),
     btnReload: document.getElementById('btnReload'),
-    btnExportFoldersLayoutToGame: document.getElementById('btnExportFoldersLayoutToGame'),
+    btnExportSettings: document.getElementById('btnExportSettings'),
+    btnImportSettings: document.getElementById('btnImportSettings'),
     btnResetLayout: document.getElementById('btnResetLayout'),
     btnResetFolders: document.getElementById('btnResetFolders'),
     btnSavePlugins: document.getElementById('btnSavePlugins'),
@@ -196,6 +197,8 @@
     dragTabKey: null,
     dragSchemaIndex: null,
     dragStructSchemaIndex: null,
+    dragSchemaSelectionUids: [],
+    dragStructSchemaSelectionUids: [],
 
     visibleFolderOrder: [],
     visiblePluginOrder: [],
@@ -217,6 +220,7 @@
 
     typedTreeOpenState: {},
     devEntryOpenState: {},
+    devSelectionByScope: {},
     editorDetailsOpenState: {},
     nextDevUid: 1,
 
@@ -237,6 +241,9 @@
   let managerLayoutLabelRefreshQueued = false;
   let savePluginsHotkeyTimer = null;
   const hotkeyHeldCodes = new Set();
+  const SETTINGS_BUTTON_TOOLTIP_DELAY_MS = 2000;
+  let settingsButtonTooltipTimer = null;
+  let settingsButtonTooltipNode = null;
 
   function makePluginKey(plugin) {
     return `${String(plugin.name || '')}::${String(plugin.description || '')}`;
@@ -635,9 +642,12 @@
     state.pluginEntryClipboard = cloneJson(source.pluginEntryClipboard || null);
     state.schemaParamClipboard = cloneJson(source.schemaParamClipboard || null);
     state.structBlockClipboard = cloneJson(source.structBlockClipboard || null);
+    state.dragSchemaSelectionUids = [];
+    state.dragStructSchemaSelectionUids = [];
 
     state.typedTreeOpenState = cloneJson(source.typedTreeOpenState || {});
     state.devEntryOpenState = cloneJson(source.devEntryOpenState || {});
+    state.devSelectionByScope = {};
     state.editorDetailsOpenState = cloneJson(source.editorDetailsOpenState || {});
     state.nextDevUid = Number(source.nextDevUid) > 0 ? Number(source.nextDevUid) : 1;
 
@@ -985,6 +995,179 @@
 
   function buildDevEntryOpenKey(scope, pluginKey, entryUid) {
     return `${cleanText(scope || 'dev')}::${cleanText(pluginKey || '')}::${cleanText(entryUid || '')}`;
+  }
+
+  function buildDevSelectionScopeKey(scope, pluginKey) {
+    return `${cleanText(scope || 'dev')}::${cleanText(pluginKey || '')}`;
+  }
+
+  function getDevSelectionUids(scope, pluginKey) {
+    const key = buildDevSelectionScopeKey(scope, pluginKey);
+    return uniqueStringList(state.devSelectionByScope[key] || []);
+  }
+
+  function setDevSelectionUids(scope, pluginKey, entryUids) {
+    const key = buildDevSelectionScopeKey(scope, pluginKey);
+    const list = uniqueStringList(entryUids || []);
+
+    if (list.length <= 0) {
+      delete state.devSelectionByScope[key];
+      return [];
+    }
+
+    state.devSelectionByScope[key] = list;
+    return list;
+  }
+
+  function isMetaOrCtrlPressed(event) {
+    return Boolean(event && (event.ctrlKey || event.metaKey));
+  }
+
+  function schemaDraftResolveBranchRootIndicesByUid(entries, depths, entryUids) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length <= 0) return [];
+
+    const depthList = Array.isArray(depths) && depths.length === list.length
+      ? depths
+      : schemaDraftComputeDepths(list);
+
+    const selectedSet = new Set(uniqueStringList(entryUids));
+    const indexes = [];
+
+    for (let i = 0; i < list.length; i += 1) {
+      const uid = ensureDraftEntryUid(list[i]);
+      if (!selectedSet.has(uid)) continue;
+      indexes.push(i);
+    }
+
+    indexes.sort((a, b) => a - b);
+
+    const roots = [];
+    for (let i = 0; i < indexes.length; i += 1) {
+      const index = indexes[i];
+      let nested = false;
+
+      for (let j = 0; j < roots.length; j += 1) {
+        const root = roots[j];
+        const subtreeEnd = schemaDraftFindSubtreeEnd(depthList, root);
+        if (index > root && index <= subtreeEnd) {
+          nested = true;
+          break;
+        }
+      }
+
+      if (!nested) {
+        roots.push(index);
+      }
+    }
+
+    return roots;
+  }
+
+  function schemaDraftMoveEntryBranchesByUid(entries, depths, entryUids, toIndex) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length <= 0) return false;
+
+    const depthList = Array.isArray(depths) && depths.length === list.length
+      ? depths
+      : schemaDraftComputeDepths(list);
+
+    const roots = schemaDraftResolveBranchRootIndicesByUid(list, depthList, entryUids);
+    if (roots.length <= 0) return false;
+
+    const targetRaw = Number(toIndex);
+    const targetIndex = Number.isFinite(targetRaw)
+      ? Math.max(0, Math.min(list.length, targetRaw))
+      : 0;
+
+    const segments = roots.map((start) => {
+      const end = schemaDraftFindSubtreeEnd(depthList, start);
+      return {
+        start,
+        end,
+        size: end - start + 1
+      };
+    });
+
+    for (let i = 0; i < segments.length; i += 1) {
+      const segment = segments[i];
+      if (targetIndex > segment.start && targetIndex <= segment.end + 1) {
+        return false;
+      }
+    }
+
+    const beforeOrder = list.map((entry) => ensureDraftEntryUid(entry)).join('|');
+
+    let insertAfterRemoval = targetIndex;
+    for (let i = 0; i < segments.length; i += 1) {
+      const segment = segments[i];
+      if (segment.start < targetIndex) {
+        insertAfterRemoval -= segment.size;
+      }
+    }
+
+    const chunks = segments.map((segment) => list.slice(segment.start, segment.end + 1));
+
+    for (let i = segments.length - 1; i >= 0; i -= 1) {
+      const segment = segments[i];
+      list.splice(segment.start, segment.size);
+    }
+
+    let insertIndex = Math.max(0, Math.min(list.length, insertAfterRemoval));
+    for (let i = 0; i < chunks.length; i += 1) {
+      const chunk = chunks[i];
+      if (!chunk || chunk.length <= 0) continue;
+      list.splice(insertIndex, 0, ...chunk);
+      insertIndex += chunk.length;
+    }
+
+    const afterOrder = list.map((entry) => ensureDraftEntryUid(entry)).join('|');
+    return beforeOrder !== afterOrder;
+  }
+
+  function schemaDraftMoveItemsByUid(entries, entryUids, toIndex) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length <= 0) return false;
+
+    const selectedSet = new Set(uniqueStringList(entryUids));
+    if (selectedSet.size <= 0) return false;
+
+    const beforeOrder = list.map((entry) => ensureDraftEntryUid(entry)).join('|');
+
+    const selected = [];
+    const remaining = [];
+    for (let i = 0; i < list.length; i += 1) {
+      const entry = list[i];
+      const uid = ensureDraftEntryUid(entry);
+      if (selectedSet.has(uid)) {
+        selected.push(entry);
+      } else {
+        remaining.push(entry);
+      }
+    }
+
+    if (selected.length <= 0) return false;
+
+    const targetRaw = Number(toIndex);
+    const targetIndex = Number.isFinite(targetRaw)
+      ? Math.max(0, Math.min(list.length, targetRaw))
+      : 0;
+
+    let selectedBeforeTarget = 0;
+    for (let i = 0; i < targetIndex && i < list.length; i += 1) {
+      const uid = ensureDraftEntryUid(list[i]);
+      if (selectedSet.has(uid)) {
+        selectedBeforeTarget += 1;
+      }
+    }
+
+    const insertIndex = Math.max(0, Math.min(remaining.length, targetIndex - selectedBeforeTarget));
+    remaining.splice(insertIndex, 0, ...selected);
+
+    list.splice(0, list.length, ...remaining);
+
+    const afterOrder = list.map((entry) => ensureDraftEntryUid(entry)).join('|');
+    return beforeOrder !== afterOrder;
   }
 
   function bindDevEntryOpenState(details, scope, pluginKey, entryUid, fallbackOpen) {
@@ -2463,6 +2646,51 @@
     }, 3200);
   }
 
+  function removeSettingsButtonTooltip() {
+    if (settingsButtonTooltipTimer) {
+      clearTimeout(settingsButtonTooltipTimer);
+      settingsButtonTooltipTimer = null;
+    }
+
+    if (settingsButtonTooltipNode && settingsButtonTooltipNode.parentElement) {
+      settingsButtonTooltipNode.remove();
+    }
+    settingsButtonTooltipNode = null;
+  }
+
+  function showSettingsButtonTooltip(target, message) {
+    if (!target || !message) return;
+
+    removeSettingsButtonTooltip();
+
+    settingsButtonTooltipTimer = setTimeout(() => {
+      settingsButtonTooltipTimer = null;
+
+      const rect = target.getBoundingClientRect();
+      const tooltip = document.createElement('div');
+      tooltip.className = 'hover-tooltip';
+      tooltip.textContent = String(message);
+      tooltip.style.left = `${Math.max(8, Math.round(rect.left + (rect.width / 2)))}px`;
+      tooltip.style.top = `${Math.max(8, Math.round(rect.top - 8))}px`;
+      tooltip.style.transform = 'translate(-50%, -100%)';
+
+      document.body.appendChild(tooltip);
+      settingsButtonTooltipNode = tooltip;
+    }, SETTINGS_BUTTON_TOOLTIP_DELAY_MS);
+  }
+
+  function bindSettingsButtonTooltip(target, message) {
+    if (!target) return;
+
+    target.addEventListener('mouseenter', () => {
+      showSettingsButtonTooltip(target, message);
+    });
+
+    target.addEventListener('mouseleave', removeSettingsButtonTooltip);
+    target.addEventListener('blur', removeSettingsButtonTooltip);
+    target.addEventListener('mousedown', removeSettingsButtonTooltip);
+  }
+
   async function apiGet(url) {
     const response = await fetch(url, { cache: 'no-store' });
     const json = await response.json();
@@ -2523,6 +2751,9 @@
     state.pluginEntryClipboard = null;
     state.schemaParamClipboard = null;
     state.structBlockClipboard = null;
+    state.devSelectionByScope = {};
+    state.dragSchemaSelectionUids = [];
+    state.dragStructSchemaSelectionUids = [];
 
     // Keep tabs that still exist.
     const pluginKeys = new Set(state.plugins.map(makePluginKey));
@@ -6259,6 +6490,54 @@
     container.innerHTML = '';
 
     const depths = schemaDraftComputeDepths(entries);
+    const validEntryUidSet = new Set(entries.map((entry) => ensureDraftEntryUid(entry)));
+    let selectedEntryUids = getDevSelectionUids(scope, pluginKey)
+      .filter((uid) => validEntryUidSet.has(uid));
+    selectedEntryUids = setDevSelectionUids(scope, pluginKey, selectedEntryUids);
+
+    function setSelection(nextUids) {
+      selectedEntryUids = setDevSelectionUids(scope, pluginKey, uniqueStringList(nextUids)
+        .filter((uid) => validEntryUidSet.has(uid)));
+      return selectedEntryUids;
+    }
+
+    function applySelectionClasses() {
+      const selectedSet = new Set(selectedEntryUids);
+      const cards = container.querySelectorAll('.schema-entry');
+      for (let i = 0; i < cards.length; i += 1) {
+        const card = cards[i];
+        const uid = String(card.dataset.entryUid || '');
+        card.classList.toggle('selected', selectedSet.has(uid));
+      }
+    }
+
+    function selectedRootUidsForEntry(entryUid) {
+      const scoped = selectedEntryUids.includes(entryUid)
+        ? selectedEntryUids.slice()
+        : [entryUid];
+      const rootIndexes = schemaDraftResolveBranchRootIndicesByUid(entries, depths, scoped);
+      return rootIndexes.map((index) => ensureDraftEntryUid(entries[index]));
+    }
+
+    function schemaClipboardEntries() {
+      if (!state.schemaParamClipboard || typeof state.schemaParamClipboard !== 'object') {
+        return [];
+      }
+
+      if (Array.isArray(state.schemaParamClipboard.entries)) {
+        return state.schemaParamClipboard.entries;
+      }
+
+      if (state.schemaParamClipboard.entry && typeof state.schemaParamClipboard.entry === 'object') {
+        return [state.schemaParamClipboard.entry];
+      }
+
+      return [];
+    }
+
+    function schemaClipboardCount() {
+      return schemaClipboardEntries().length;
+    }
 
     function hasActiveScopeSearch() {
       if (searchScope === 'schema') {
@@ -6310,43 +6589,78 @@
       onRefresh();
     }
 
-    function copyAt(index, isCut) {
-      const entry = entries[index];
-      if (!entry) return;
+    function copySelection(entryUids, isCut) {
+      const rootIndexes = schemaDraftResolveBranchRootIndicesByUid(entries, depths, entryUids);
+      if (rootIndexes.length <= 0) return;
+
+      const payload = rootIndexes
+        .map((index) => schemaDraftCloneEntry(entries[index], false))
+        .filter(Boolean);
 
       state.schemaParamClipboard = {
         mode: isCut ? 'cut' : 'copy',
-        entry: schemaDraftCloneEntry(entry, false)
+        entries: payload
       };
 
-      if (isCut) {
-        entries.splice(index, 1);
-        onDirty();
-        onRefresh();
-        showToast('Schema parameter cut.', 'good');
+      if (!isCut) {
+        showToast(payload.length > 1 ? 'Schema parameters copied.' : 'Schema parameter copied.', 'good');
         return;
       }
 
-      showToast('Schema parameter copied.', 'good');
+      for (let i = rootIndexes.length - 1; i >= 0; i -= 1) {
+        const index = rootIndexes[i];
+        const subtreeEnd = schemaDraftFindSubtreeEnd(depths, index);
+        entries.splice(index, subtreeEnd - index + 1);
+      }
+
+      setSelection([]);
+      onDirty();
+      onRefresh();
+      showToast(payload.length > 1 ? 'Schema parameters cut.' : 'Schema parameter cut.', 'good');
+    }
+
+    function deleteSelection(entryUids) {
+      const rootIndexes = schemaDraftResolveBranchRootIndicesByUid(entries, depths, entryUids);
+      if (rootIndexes.length <= 0) return;
+
+      for (let i = rootIndexes.length - 1; i >= 0; i -= 1) {
+        const index = rootIndexes[i];
+        const subtreeEnd = schemaDraftFindSubtreeEnd(depths, index);
+        entries.splice(index, subtreeEnd - index + 1);
+      }
+
+      setSelection([]);
+      onDirty();
+      onRefresh();
     }
 
     function pasteAt(insertIndex) {
-      if (!state.schemaParamClipboard || !state.schemaParamClipboard.entry) {
+      const clipboardEntries = schemaClipboardEntries();
+      if (clipboardEntries.length <= 0) {
         showToast('Schema parameter clipboard is empty.', 'bad');
         return;
       }
 
-      const clone = schemaDraftCloneEntry(state.schemaParamClipboard.entry, false);
-      const safeIndex = Math.max(0, Math.min(entries.length, insertIndex));
-      entries.splice(safeIndex, 0, clone);
+      const clones = clipboardEntries
+        .map((entry) => schemaDraftCloneEntry(entry, false))
+        .filter(Boolean);
 
-      if (state.schemaParamClipboard.mode === 'cut') {
+      const safeIndex = Math.max(0, Math.min(entries.length, insertIndex));
+      entries.splice(safeIndex, 0, ...clones);
+
+      if (state.schemaParamClipboard && state.schemaParamClipboard.mode === 'cut') {
         state.schemaParamClipboard = null;
       }
 
       onDirty();
       onRefresh();
-      showToast('Schema parameter pasted.', 'good');
+      showToast(clones.length > 1 ? 'Schema parameters pasted.' : 'Schema parameter pasted.', 'good');
+    }
+
+    function hasDragSelection() {
+      return state.dragSource === dragSourceKey
+        && Array.isArray(state.dragSchemaSelectionUids)
+        && state.dragSchemaSelectionUids.length > 0;
     }
 
     function buildGap(insertIndex) {
@@ -6359,21 +6673,23 @@
       });
 
       gap.addEventListener('contextmenu', (event) => {
+        const clipboardCount = schemaClipboardCount();
+
         showContextMenu(event, [
           {
             label: 'Insert New Parameter Here',
             action: () => insertNewAt(insertIndex)
           },
           {
-            label: 'Paste Parameter Here',
-            disabled: !state.schemaParamClipboard || !state.schemaParamClipboard.entry,
+            label: clipboardCount > 1 ? 'Paste Parameters Here' : 'Paste Parameter Here',
+            disabled: clipboardCount <= 0,
             action: () => pasteAt(insertIndex)
           }
         ]);
       });
 
       gap.addEventListener('dragover', (event) => {
-        if (state.dragSource !== dragSourceKey || state.dragSchemaIndex === null) return;
+        if (!hasDragSelection()) return;
         event.preventDefault();
         autoScrollVerticalOnDrag(event, dom.editorContent);
         gap.classList.add('drop-before');
@@ -6385,11 +6701,18 @@
 
       gap.addEventListener('drop', (event) => {
         gap.classList.remove('drop-before');
-        if (state.dragSource !== dragSourceKey || state.dragSchemaIndex === null) return;
+        if (!hasDragSelection()) return;
         event.preventDefault();
 
-        const moved = schemaDraftMoveEntryBranch(entries, depths, state.dragSchemaIndex, insertIndex);
+        const moved = schemaDraftMoveEntryBranchesByUid(
+          entries,
+          depths,
+          state.dragSchemaSelectionUids,
+          insertIndex
+        );
+
         state.dragSchemaIndex = null;
+        state.dragSchemaSelectionUids = [];
         state.dragSource = '';
 
         if (moved) {
@@ -6435,6 +6758,8 @@
       details.className = 'schema-card schema-entry';
       bindDevEntryOpenState(details, scope, pluginKey, entryUid, true);
       details.dataset.entryUid = entryUid;
+      details.classList.toggle('selected', selectedEntryUids.includes(entryUid));
+
       if (hasChildren) {
         details.classList.add('has-parent-toggle');
       }
@@ -6445,7 +6770,7 @@
       }
 
       details.addEventListener('dragover', (event) => {
-        if (state.dragSource !== dragSourceKey || state.dragSchemaIndex === null) return;
+        if (!hasDragSelection()) return;
         event.preventDefault();
         autoScrollVerticalOnDrag(event, dom.editorContent);
         details.classList.add('drop-before');
@@ -6457,11 +6782,18 @@
 
       details.addEventListener('drop', (event) => {
         details.classList.remove('drop-before');
-        if (state.dragSource !== dragSourceKey || state.dragSchemaIndex === null) return;
+        if (!hasDragSelection()) return;
         event.preventDefault();
 
-        const moved = schemaDraftMoveEntryBranch(entries, depths, state.dragSchemaIndex, entryIndex);
+        const moved = schemaDraftMoveEntryBranchesByUid(
+          entries,
+          depths,
+          state.dragSchemaSelectionUids,
+          entryIndex
+        );
+
         state.dragSchemaIndex = null;
+        state.dragSchemaSelectionUids = [];
         state.dragSource = '';
 
         if (moved) {
@@ -6471,6 +6803,9 @@
       });
 
       details.addEventListener('contextmenu', (event) => {
+        const selectionUids = selectedRootUidsForEntry(entryUid);
+        const selectionCount = selectionUids.length;
+        const clipboardCount = schemaClipboardCount();
         const actions = [];
 
         if (hasActiveScopeSearch()) {
@@ -6494,39 +6829,53 @@
         if (enableClipboard) {
           actions.push(
             {
-              label: 'Copy Parameter',
-              action: () => copyAt(entryIndex, false)
+              label: selectionCount > 1 ? 'Copy Selected Parameters' : 'Copy Parameter',
+              action: () => copySelection(selectionUids, false)
             },
             {
-              label: 'Cut Parameter',
-              action: () => copyAt(entryIndex, true)
+              label: selectionCount > 1 ? 'Cut Selected Parameters' : 'Cut Parameter',
+              action: () => copySelection(selectionUids, true)
             },
             {
-              label: 'Paste Above',
-              disabled: !state.schemaParamClipboard || !state.schemaParamClipboard.entry,
+              label: clipboardCount > 1 ? 'Paste Parameters Above' : 'Paste Above',
+              disabled: clipboardCount <= 0,
               action: () => pasteAt(entryIndex)
             },
             {
-              label: 'Paste Below',
-              disabled: !state.schemaParamClipboard || !state.schemaParamClipboard.entry,
+              label: clipboardCount > 1 ? 'Paste Parameters Below' : 'Paste Below',
+              disabled: clipboardCount <= 0,
               action: () => pasteAt(entryIndex + 1)
             }
           );
         }
 
         actions.push({
-          label: 'Delete Parameter',
-          action: () => {
-            entries.splice(entryIndex, 1);
-            onDirty();
-            onRefresh();
-          }
+          label: selectionCount > 1 ? 'Delete Selected Parameters' : 'Delete Parameter',
+          action: () => deleteSelection(selectionUids)
         });
 
         showContextMenu(event, actions);
       });
 
       const summary = document.createElement('summary');
+
+      summary.addEventListener('click', (event) => {
+        if (isMetaOrCtrlPressed(event)) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (selectedEntryUids.includes(entryUid)) {
+            setSelection(selectedEntryUids.filter((uid) => uid !== entryUid));
+          } else {
+            setSelection(selectedEntryUids.concat(entryUid));
+          }
+          applySelectionClasses();
+          return;
+        }
+
+        setSelection([entryUid]);
+        applySelectionClasses();
+      });
 
       const grabHandle = document.createElement('span');
       grabHandle.className = 'typed-grab-handle';
@@ -6535,6 +6884,8 @@
 
       grabHandle.addEventListener('mousedown', (event) => {
         event.stopPropagation();
+        setSelection(selectedRootUidsForEntry(entryUid));
+        applySelectionClasses();
       });
 
       grabHandle.addEventListener('click', (event) => {
@@ -6545,6 +6896,7 @@
       grabHandle.addEventListener('dragstart', (event) => {
         state.dragSource = dragSourceKey;
         state.dragSchemaIndex = entryIndex;
+        state.dragSchemaSelectionUids = selectedRootUidsForEntry(entryUid);
         details.classList.add('dragging');
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = 'move';
@@ -6556,6 +6908,7 @@
         if (state.dragSource === dragSourceKey) {
           state.dragSource = '';
           state.dragSchemaIndex = null;
+          state.dragSchemaSelectionUids = [];
         }
       });
 
@@ -6575,7 +6928,10 @@
           setParentTreeExpanded(entry, !parentExpanded);
           onRefresh();
         });
+        summary.appendChild(grabHandle);
         summary.appendChild(parentToggle);
+      } else {
+        summary.appendChild(grabHandle);
       }
 
       const actions = document.createElement('div');
@@ -6584,18 +6940,18 @@
       if (enableClipboard) {
         const copyBtn = document.createElement('button');
         copyBtn.type = 'button';
-        copyBtn.textContent = 'Copy';
+        copyBtn.textContent = selectedRootUidsForEntry(entryUid).length > 1 ? 'Copy Selected' : 'Copy';
         copyBtn.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
-          copyAt(entryIndex, false);
+          copySelection(selectedRootUidsForEntry(entryUid), false);
         });
         actions.appendChild(copyBtn);
 
         const pasteBtn = document.createElement('button');
         pasteBtn.type = 'button';
-        pasteBtn.textContent = 'Paste';
-        pasteBtn.disabled = !state.schemaParamClipboard || !state.schemaParamClipboard.entry;
+        pasteBtn.textContent = schemaClipboardCount() > 1 ? 'Paste Many' : 'Paste';
+        pasteBtn.disabled = schemaClipboardCount() <= 0;
         pasteBtn.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -6606,17 +6962,14 @@
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
-      deleteBtn.textContent = 'Delete';
+      deleteBtn.textContent = selectedRootUidsForEntry(entryUid).length > 1 ? 'Delete Selected' : 'Delete';
       deleteBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        entries.splice(entryIndex, 1);
-        onDirty();
-        onRefresh();
+        deleteSelection(selectedRootUidsForEntry(entryUid));
       });
       actions.appendChild(deleteBtn);
 
-      details.appendChild(grabHandle);
       summary.appendChild(title);
       summary.appendChild(actions);
       details.appendChild(summary);
@@ -6784,6 +7137,55 @@
 
     const blocks = ensureStructSchemaDraftForPlugin(pluginKey, metadataResult);
     const dragSourceKey = `struct-block:${pluginKey}`;
+    const selectionScope = 'struct-schema-block';
+
+    const validBlockUidSet = new Set(blocks.map((block) => ensureDraftEntryUid(block)));
+    let selectedBlockUids = getDevSelectionUids(selectionScope, pluginKey)
+      .filter((uid) => validBlockUidSet.has(uid));
+    selectedBlockUids = setDevSelectionUids(selectionScope, pluginKey, selectedBlockUids);
+
+    function setBlockSelection(nextUids) {
+      selectedBlockUids = setDevSelectionUids(selectionScope, pluginKey, uniqueStringList(nextUids)
+        .filter((uid) => validBlockUidSet.has(uid)));
+      return selectedBlockUids;
+    }
+
+    function applyBlockSelectionClasses() {
+      const selectedSet = new Set(selectedBlockUids);
+      const cards = dom.structSchemaEditor.querySelectorAll('.schema-entry');
+      for (let i = 0; i < cards.length; i += 1) {
+        const card = cards[i];
+        const uid = String(card.dataset.entryUid || '');
+        card.classList.toggle('selected', selectedSet.has(uid));
+      }
+    }
+
+    function selectedBlockUidsForBlock(blockUid) {
+      if (selectedBlockUids.includes(blockUid) && selectedBlockUids.length > 0) {
+        return selectedBlockUids.slice();
+      }
+      return [blockUid];
+    }
+
+    function structClipboardBlocks() {
+      if (!state.structBlockClipboard || typeof state.structBlockClipboard !== 'object') {
+        return [];
+      }
+
+      if (Array.isArray(state.structBlockClipboard.blocks)) {
+        return state.structBlockClipboard.blocks;
+      }
+
+      if (state.structBlockClipboard.block && typeof state.structBlockClipboard.block === 'object') {
+        return [state.structBlockClipboard.block];
+      }
+
+      return [];
+    }
+
+    function structClipboardCount() {
+      return structClipboardBlocks().length;
+    }
 
     function refresh() {
       renderStructSchemaEditor(pluginIndex, metadataResult);
@@ -6794,29 +7196,33 @@
     }
 
     function pasteBlockAt(insertIndex) {
-      if (!state.structBlockClipboard || !state.structBlockClipboard.block) {
+      const clipboardBlocks = structClipboardBlocks();
+      if (clipboardBlocks.length <= 0) {
         showToast('Struct block clipboard is empty.', 'bad');
         return;
       }
 
-      const clone = cloneJson(state.structBlockClipboard.block);
-      const block = {
-        name: String(clone && clone.name ? clone.name : '').trim(),
-        params: schemaDraftEnsureList(clone && clone.params)
-      };
-      delete block._uid;
+      const clones = clipboardBlocks.map((source) => {
+        const clone = cloneJson(source || {});
+        const block = {
+          name: String(clone && clone.name ? clone.name : '').trim(),
+          params: schemaDraftEnsureList(clone && clone.params)
+        };
+        delete block._uid;
+        ensureDraftEntryUid(block);
+        return block;
+      });
 
-      ensureDraftEntryUid(block);
       const safeIndex = Math.max(0, Math.min(blocks.length, insertIndex));
-      blocks.splice(safeIndex, 0, block);
+      blocks.splice(safeIndex, 0, ...clones);
 
-      if (state.structBlockClipboard.mode === 'cut') {
+      if (state.structBlockClipboard && state.structBlockClipboard.mode === 'cut') {
         state.structBlockClipboard = null;
       }
 
       markDirty();
       refresh();
-      showToast('Struct block pasted.', 'good');
+      showToast(clones.length > 1 ? 'Struct blocks pasted.' : 'Struct block pasted.', 'good');
     }
 
     function insertBlockAt(insertIndex) {
@@ -6826,27 +7232,67 @@
       refresh();
     }
 
-    function copyBlockAt(index, isCut) {
-      const block = blocks[index];
-      if (!block) return;
+    function copyBlockSelection(blockUids, isCut) {
+      const selectedSet = new Set(uniqueStringList(blockUids));
+      const selectedBlocks = [];
+
+      for (let i = 0; i < blocks.length; i += 1) {
+        const block = blocks[i];
+        const uid = ensureDraftEntryUid(block);
+        if (!selectedSet.has(uid)) continue;
+
+        selectedBlocks.push({
+          name: String(block.name || '').trim(),
+          params: schemaDraftEnsureList(block.params).map((entry) => schemaDraftCloneEntry(entry, false))
+        });
+      }
+
+      if (selectedBlocks.length <= 0) return;
 
       state.structBlockClipboard = {
         mode: isCut ? 'cut' : 'copy',
-        block: {
-          name: String(block.name || '').trim(),
-          params: schemaDraftEnsureList(block.params).map((entry) => schemaDraftCloneEntry(entry, false))
-        }
+        blocks: selectedBlocks
       };
 
       if (!isCut) {
-        showToast('Struct block copied.', 'good');
+        showToast(selectedBlocks.length > 1 ? 'Struct blocks copied.' : 'Struct block copied.', 'good');
         return;
       }
 
-      blocks.splice(index, 1);
+      for (let i = blocks.length - 1; i >= 0; i -= 1) {
+        const uid = ensureDraftEntryUid(blocks[i]);
+        if (!selectedSet.has(uid)) continue;
+        blocks.splice(i, 1);
+      }
+
+      setBlockSelection([]);
       markDirty();
       refresh();
-      showToast('Struct block cut.', 'good');
+      showToast(selectedBlocks.length > 1 ? 'Struct blocks cut.' : 'Struct block cut.', 'good');
+    }
+
+    function deleteBlockSelection(blockUids) {
+      const selectedSet = new Set(uniqueStringList(blockUids));
+      let changed = false;
+
+      for (let i = blocks.length - 1; i >= 0; i -= 1) {
+        const uid = ensureDraftEntryUid(blocks[i]);
+        if (!selectedSet.has(uid)) continue;
+        blocks.splice(i, 1);
+        changed = true;
+      }
+
+      if (!changed) return;
+
+      setBlockSelection([]);
+      markDirty();
+      refresh();
+    }
+
+    function hasBlockDragSelection() {
+      return state.dragSource === dragSourceKey
+        && Array.isArray(state.dragStructSchemaSelectionUids)
+        && state.dragStructSchemaSelectionUids.length > 0;
     }
 
     function buildGap(insertIndex) {
@@ -6859,21 +7305,23 @@
       });
 
       gap.addEventListener('contextmenu', (event) => {
+        const clipboardCount = structClipboardCount();
+
         showContextMenu(event, [
           {
             label: 'Insert New Struct Block Here',
             action: () => insertBlockAt(insertIndex)
           },
           {
-            label: 'Paste Struct Block Here',
-            disabled: !state.structBlockClipboard || !state.structBlockClipboard.block,
+            label: clipboardCount > 1 ? 'Paste Struct Blocks Here' : 'Paste Struct Block Here',
+            disabled: clipboardCount <= 0,
             action: () => pasteBlockAt(insertIndex)
           }
         ]);
       });
 
       gap.addEventListener('dragover', (event) => {
-        if (state.dragSource !== dragSourceKey || state.dragStructSchemaIndex === null) return;
+        if (!hasBlockDragSelection()) return;
         event.preventDefault();
         autoScrollVerticalOnDrag(event, dom.editorContent);
         gap.classList.add('drop-before');
@@ -6885,11 +7333,17 @@
 
       gap.addEventListener('drop', (event) => {
         gap.classList.remove('drop-before');
-        if (state.dragSource !== dragSourceKey || state.dragStructSchemaIndex === null) return;
+        if (!hasBlockDragSelection()) return;
         event.preventDefault();
 
-        const moved = schemaDraftMoveItem(blocks, state.dragStructSchemaIndex, insertIndex);
+        const moved = schemaDraftMoveItemsByUid(
+          blocks,
+          state.dragStructSchemaSelectionUids,
+          insertIndex
+        );
+
         state.dragStructSchemaIndex = null;
+        state.dragStructSchemaSelectionUids = [];
         state.dragSource = '';
 
         if (moved) {
@@ -6928,9 +7382,10 @@
       details.className = 'schema-card schema-entry';
       bindDevEntryOpenState(details, 'struct-schema-block', pluginKey, blockUid, true);
       details.dataset.entryUid = blockUid;
+      details.classList.toggle('selected', selectedBlockUids.includes(blockUid));
 
       details.addEventListener('dragover', (event) => {
-        if (state.dragSource !== dragSourceKey || state.dragStructSchemaIndex === null) return;
+        if (!hasBlockDragSelection()) return;
         event.preventDefault();
         autoScrollVerticalOnDrag(event, dom.editorContent);
         details.classList.add('drop-before');
@@ -6942,11 +7397,17 @@
 
       details.addEventListener('drop', (event) => {
         details.classList.remove('drop-before');
-        if (state.dragSource !== dragSourceKey || state.dragStructSchemaIndex === null) return;
+        if (!hasBlockDragSelection()) return;
         event.preventDefault();
 
-        const moved = schemaDraftMoveItem(blocks, state.dragStructSchemaIndex, blockIndex);
+        const moved = schemaDraftMoveItemsByUid(
+          blocks,
+          state.dragStructSchemaSelectionUids,
+          blockIndex
+        );
+
         state.dragStructSchemaIndex = null;
+        state.dragStructSchemaSelectionUids = [];
         state.dragSource = '';
 
         if (moved) {
@@ -6956,6 +7417,9 @@
       });
 
       details.addEventListener('contextmenu', (event) => {
+        const selectedUids = selectedBlockUidsForBlock(blockUid);
+        const selectedCount = selectedUids.length;
+        const clipboardCount = structClipboardCount();
         const actions = [];
 
         if (state.structSchemaSearch.trim()) {
@@ -6975,30 +7439,26 @@
             action: () => insertBlockAt(blockIndex + 1)
           },
           {
-            label: 'Copy Struct Block',
-            action: () => copyBlockAt(blockIndex, false)
+            label: selectedCount > 1 ? 'Copy Selected Struct Blocks' : 'Copy Struct Block',
+            action: () => copyBlockSelection(selectedUids, false)
           },
           {
-            label: 'Cut Struct Block',
-            action: () => copyBlockAt(blockIndex, true)
+            label: selectedCount > 1 ? 'Cut Selected Struct Blocks' : 'Cut Struct Block',
+            action: () => copyBlockSelection(selectedUids, true)
           },
           {
-            label: 'Paste Above',
-            disabled: !state.structBlockClipboard || !state.structBlockClipboard.block,
+            label: clipboardCount > 1 ? 'Paste Struct Blocks Above' : 'Paste Above',
+            disabled: clipboardCount <= 0,
             action: () => pasteBlockAt(blockIndex)
           },
           {
-            label: 'Paste Below',
-            disabled: !state.structBlockClipboard || !state.structBlockClipboard.block,
+            label: clipboardCount > 1 ? 'Paste Struct Blocks Below' : 'Paste Below',
+            disabled: clipboardCount <= 0,
             action: () => pasteBlockAt(blockIndex + 1)
           },
           {
-            label: 'Delete Struct Block',
-            action: () => {
-              blocks.splice(blockIndex, 1);
-              markDirty();
-              refresh();
-            }
+            label: selectedCount > 1 ? 'Delete Selected Struct Blocks' : 'Delete Struct Block',
+            action: () => deleteBlockSelection(selectedUids)
           }
         );
 
@@ -7007,6 +7467,24 @@
 
       const summary = document.createElement('summary');
 
+      summary.addEventListener('click', (event) => {
+        if (isMetaOrCtrlPressed(event)) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (selectedBlockUids.includes(blockUid)) {
+            setBlockSelection(selectedBlockUids.filter((uid) => uid !== blockUid));
+          } else {
+            setBlockSelection(selectedBlockUids.concat(blockUid));
+          }
+          applyBlockSelectionClasses();
+          return;
+        }
+
+        setBlockSelection([blockUid]);
+        applyBlockSelectionClasses();
+      });
+
       const grabHandle = document.createElement('span');
       grabHandle.className = 'typed-grab-handle';
       grabHandle.title = 'Drag struct block to reorder.';
@@ -7014,6 +7492,8 @@
 
       grabHandle.addEventListener('mousedown', (event) => {
         event.stopPropagation();
+        setBlockSelection(selectedBlockUidsForBlock(blockUid));
+        applyBlockSelectionClasses();
       });
 
       grabHandle.addEventListener('click', (event) => {
@@ -7024,6 +7504,7 @@
       grabHandle.addEventListener('dragstart', (event) => {
         state.dragSource = dragSourceKey;
         state.dragStructSchemaIndex = blockIndex;
+        state.dragStructSchemaSelectionUids = selectedBlockUidsForBlock(blockUid);
         details.classList.add('dragging');
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = 'move';
@@ -7035,6 +7516,7 @@
         if (state.dragSource === dragSourceKey) {
           state.dragSource = '';
           state.dragStructSchemaIndex = null;
+          state.dragStructSchemaSelectionUids = [];
         }
       });
 
@@ -7047,17 +7529,17 @@
 
       const copyBtn = document.createElement('button');
       copyBtn.type = 'button';
-      copyBtn.textContent = 'Copy';
+      copyBtn.textContent = selectedBlockUidsForBlock(blockUid).length > 1 ? 'Copy Selected' : 'Copy';
       copyBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        copyBlockAt(blockIndex, false);
+        copyBlockSelection(selectedBlockUidsForBlock(blockUid), false);
       });
 
       const pasteBtn = document.createElement('button');
       pasteBtn.type = 'button';
-      pasteBtn.textContent = 'Paste';
-      pasteBtn.disabled = !state.structBlockClipboard || !state.structBlockClipboard.block;
+      pasteBtn.textContent = structClipboardCount() > 1 ? 'Paste Many' : 'Paste';
+      pasteBtn.disabled = structClipboardCount() <= 0;
       pasteBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -7066,20 +7548,18 @@
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
-      deleteBtn.textContent = 'Delete';
+      deleteBtn.textContent = selectedBlockUidsForBlock(blockUid).length > 1 ? 'Delete Selected' : 'Delete';
       deleteBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        blocks.splice(blockIndex, 1);
-        markDirty();
-        refresh();
+        deleteBlockSelection(selectedBlockUidsForBlock(blockUid));
       });
 
       actions.appendChild(copyBtn);
       actions.appendChild(pasteBtn);
       actions.appendChild(deleteBtn);
 
-      details.appendChild(grabHandle);
+      summary.appendChild(grabHandle);
       summary.appendChild(title);
       summary.appendChild(actions);
       details.appendChild(summary);
@@ -8015,7 +8495,7 @@
     showToast('Current internal folders reset. Save Internal Folders to persist.', 'good');
   }
 
-  async function exportFoldersAndLayoutToAnotherGame() {
+  async function exportSettingsToProgramFolder() {
     if (!state.project) {
       showToast('No project loaded.', 'bad');
       return;
@@ -8028,29 +8508,45 @@
     }
 
     try {
-      const result = await apiPost('/api/select-game-folder', {});
-      if (!result.selected) {
-        showToast('Folder selection canceled.', 'bad');
+      const result = await apiPost('/api/settings/export', {
+        settings: exportBundle
+      });
+      const filePath = String(result && result.settingsPath ? result.settingsPath : 'Settings.json');
+      showToast(`Settings exported to ${filePath}`, 'good');
+    } catch (error) {
+      showToast(error.message, 'bad');
+    }
+  }
+
+  async function importSettingsFromProgramFolder() {
+    if (!state.project) {
+      showToast('No project loaded.', 'bad');
+      return;
+    }
+
+    try {
+      const result = await apiPost('/api/settings/import', {});
+      const settings = result && typeof result.settings === 'object' ? result.settings : null;
+      if (!settings) {
+        showToast('Settings file is empty or invalid.', 'bad');
         return;
       }
 
-      if (!result.detected) {
-        showToast(result.message || 'Folder selected, but project not detected.', 'bad');
-        return;
-      }
-
-      applySnapshot(result);
-
-      const summary = applyExportedFoldersAndLayoutToCurrentProject(exportBundle);
-      renderAll();
-
+      const summary = applyExportedFoldersAndLayoutToCurrentProject(settings);
       const saved = await saveLayoutState();
       if (!saved) return;
 
+      // Mirror snapshot-load runtime layout apply path for full layout restore.
+      syncSearchInputsFromState();
+      applyUiZoom();
+      if (state.managerLayout) {
+        scheduleManagerLayoutScrollRestore(state.managerLayout);
+      }
+
       if (summary.missingPlugins > 0) {
-        showToast(`Export complete. ${summary.missingPlugins} missing plugin(s) skipped.`, 'good');
+        showToast(`Settings imported. ${summary.missingPlugins} missing plugin(s) skipped.`, 'good');
       } else {
-        showToast('Export complete. Internal folders and manager layout copied.', 'good');
+        showToast('Settings imported from Settings.json', 'good');
       }
     } catch (error) {
       showToast(error.message, 'bad');
@@ -8533,9 +9029,27 @@
       }
     });
 
-    dom.btnExportFoldersLayoutToGame.addEventListener('click', async () => {
-      await exportFoldersAndLayoutToAnotherGame();
-    });
+    if (dom.btnExportSettings) {
+      dom.btnExportSettings.addEventListener('click', async () => {
+        await exportSettingsToProgramFolder();
+      });
+
+      bindSettingsButtonTooltip(
+        dom.btnExportSettings,
+        'Export current Internal Folders + Manager Layout settings (including scrollbars and expanded/collapsed states) to Settings.json in this program folder.'
+      );
+    }
+
+    if (dom.btnImportSettings) {
+      dom.btnImportSettings.addEventListener('click', async () => {
+        await importSettingsFromProgramFolder();
+      });
+
+      bindSettingsButtonTooltip(
+        dom.btnImportSettings,
+        'Import Internal Folders + Manager Layout settings (including scrollbars and expanded/collapsed states) from Settings.json in this program folder.'
+      );
+    }
 
     dom.btnReload.addEventListener('click', async () => {
       try {
@@ -8619,6 +9133,7 @@
 
     document.addEventListener('click', () => {
       hideContextMenu();
+      removeSettingsButtonTooltip();
     });
 
     document.addEventListener('mousedown', (event) => {
@@ -8846,6 +9361,7 @@
     window.addEventListener('blur', () => {
       hideContextMenu();
       hideTagSuggest();
+      removeSettingsButtonTooltip();
       hotkeyHeldCodes.clear();
       if (savePluginsHotkeyTimer) {
         clearTimeout(savePluginsHotkeyTimer);
@@ -8853,7 +9369,10 @@
       }
     });
 
-    window.addEventListener('resize', hideTagSuggest);
+    window.addEventListener('resize', () => {
+      hideTagSuggest();
+      removeSettingsButtonTooltip();
+    });
   }
 
   async function bootstrap() {

@@ -58,14 +58,13 @@ D) Manager layout/view state
   - Clears custom internal folders, folder collapse states, and plugin tags.
   - Reassigns all plugins to Ungrouped.
   - Does NOT save automatically; use Save Internal Folders to persist.
-- Export Folders&Layout to another Game:
-  - Opens folder picker (same detection flow as Select Folder).
-  - Loads selected game project.
-  - Copies current Internal Folders setup + current Manager Layout to selected project.
-  - Missing plugins in target game are automatically skipped from:
-    - internal folder/tag assignments
-    - open tab layout state
-  - Remaining matching plugins keep exported folder/layout state.
+- Export Settings:
+  - Writes current Internal Folders + Manager Layout settings to Settings.json in the program folder.
+  - Includes scrollbar positions and expanded/collapsed UI states.
+- Import Settings:
+  - Reads Settings.json from the program folder.
+  - Applies Internal Folders + Manager Layout settings to current loaded project.
+  - Missing plugins in current project are skipped automatically.
 
 ==================================================
 3) Internal Folders panel features
@@ -176,10 +175,14 @@ List/Struct value editing helpers:
 - Filter schema directives.
 - Add parameter blocks.
 - Insert New above/below/from gap.
+- Ctrl + click multi-select for same-type parameter entries in current schema scope.
 - Drag reorder parameter blocks.
+- Drag edge works while expanded or collapsed.
 - Parent parameter collapse/expand toggle for child parameter groups.
 - Dragging a parent parameter moves full parent subtree (parent + descendants).
+- Dragging selected parameter entries moves the full selected group.
 - Copy/Cut/Paste parameter blocks.
+- Copy/Cut/Delete context actions use selected group and switch labels to plural for grouped actions.
 - Delete parameter blocks.
 - Nested visual handling for parent-child param relationships.
 - Save Plugin Parameter Schema writes @param sequence back to plugin file header.
@@ -192,8 +195,12 @@ List/Struct value editing helpers:
 - Filter struct blocks.
 - Add struct blocks.
 - Insert New above/below/from gap.
+- Ctrl + click multi-select for struct blocks.
 - Drag reorder struct blocks.
+- Drag edge works while expanded or collapsed.
+- Dragging selected struct blocks moves full selected group.
 - Copy/Cut/Paste struct blocks.
+- Copy/Cut/Delete context actions use selected group and switch labels to plural for grouped actions.
 - Delete struct blocks.
 - Edit each block name and nested params using shared schema editor behaviors.
 - Save Struct Schema writes struct definitions back to plugin file header.
@@ -280,4 +287,4 @@ Plugin clipboard shortcuts:
 6) (Optional dev mode) edit @param / ~struct~ schemas, then save schema to plugin files.
 7) Save Internal Folders for organization state.
 8) Save Manager Layout to persist tabs/search/zoom/scroll workspace view.
-9) (Optional) Use Export Folders&Layout to another Game to copy current organization/layout to different project.
+9) (Optional) Use Export Settings / Import Settings to move current organization/layout through Settings.json in the program folder.

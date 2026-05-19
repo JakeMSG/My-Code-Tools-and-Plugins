@@ -36,6 +36,7 @@ const APP_VERSION = '0.1.0';
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const APP_PREFS_PATH = path.join(ROOT_DIR, '.JakeMSG_PluginAndParameterManager.app.json');
+const SETTINGS_FILE_PATH = path.join(ROOT_DIR, 'Settings.json');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -165,6 +166,50 @@ function stateSnapshot() {
     managerLayout: session.state.managerLayout && typeof session.state.managerLayout === 'object'
       ? session.state.managerLayout
       : null
+  };
+}
+
+function sanitizeSettingsSourcePlugins(value) {
+  const list = Array.isArray(value) ? value : [];
+  const out = [];
+  const used = new Set();
+
+  for (let i = 0; i < list.length; i += 1) {
+    const row = list[i] && typeof list[i] === 'object' ? list[i] : {};
+    const key = String(row.key || '').trim();
+    if (!key || used.has(key)) continue;
+
+    const fallbackName = String(key.split('::')[0] || '').trim();
+    const name = String(row.name || '').trim() || fallbackName;
+    if (!name) continue;
+
+    used.add(key);
+    out.push({ key, name });
+  }
+
+  return out;
+}
+
+function sanitizeSettingsBundle(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+
+  const sanitizedState = sanitizeState({
+    version: 2,
+    folders: source.folders,
+    pluginFolderMap: source.pluginFolderMap,
+    pluginTags: source.pluginTags,
+    folderCollapsed: source.folderCollapsed,
+    managerLayout: source.managerLayout
+  });
+
+  return {
+    version: 1,
+    sourcePlugins: sanitizeSettingsSourcePlugins(source.sourcePlugins),
+    folders: sanitizedState.folders,
+    pluginFolderMap: sanitizedState.pluginFolderMap,
+    pluginTags: sanitizedState.pluginTags,
+    folderCollapsed: sanitizedState.folderCollapsed,
+    managerLayout: sanitizedState.managerLayout
   };
 }
 
@@ -832,6 +877,50 @@ async function handleApi(req, res, requestUrl) {
       });
     } catch (err) {
       sendApiError(res, 500, 'Failed saving state', err.message);
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/settings/export') {
+    if (!ensureProjectLoaded(res)) return;
+
+    const body = await readJsonBody(req);
+    const source = body && typeof body.settings === 'object' ? body.settings : body;
+    const settings = sanitizeSettingsBundle(source);
+
+    try {
+      fs.writeFileSync(SETTINGS_FILE_PATH, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
+      sendJson(res, 200, {
+        ok: true,
+        settingsPath: SETTINGS_FILE_PATH,
+        settings
+      });
+    } catch (err) {
+      sendApiError(res, 500, 'Failed writing Settings.json', err.message);
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/settings/import') {
+    if (!ensureProjectLoaded(res)) return;
+
+    try {
+      if (!fs.existsSync(SETTINGS_FILE_PATH)) {
+        sendApiError(res, 404, 'Settings.json not found in program folder');
+        return;
+      }
+
+      const raw = fs.readFileSync(SETTINGS_FILE_PATH, 'utf8');
+      const parsed = JSON.parse(raw);
+      const settings = sanitizeSettingsBundle(parsed);
+
+      sendJson(res, 200, {
+        ok: true,
+        settingsPath: SETTINGS_FILE_PATH,
+        settings
+      });
+    } catch (err) {
+      sendApiError(res, 500, 'Failed reading Settings.json', err.message);
     }
     return;
   }
