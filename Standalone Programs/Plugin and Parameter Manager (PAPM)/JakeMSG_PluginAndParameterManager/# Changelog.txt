@@ -1,0 +1,5 @@
+================ v1.1 - 5.19th.2026
+======== Replaced the "Export Folders&Layout to another Game" with 2 buttons, "Export Settings" and "Import Settings", serving a similar function, but in a more organized fashion (allowing for easier tracking of such settings using an externally-made file)
+======== Added multi-select functionality in the 2 "Dev option" options for their elements, to help with faster editing (for Drag&Drop and Copy&Paste operations)
+================ v1.0 - 5.16th.2026
+======== Initial release!

@@ -1,0 +1,290 @@
+JakeMSG Plugin And Parameter Manager
+Features, Manipulations, Usage, and Hotkeys
+
+==================================================
+1) What this program can manipulate
+==================================================
+
+A) RPG Maker plugins.js content
+- Reads and writes js/plugins.js (MZ) or www/js/plugins.js (MV).
+- Manipulates plugin rows:
+  - name
+  - status (enabled/disabled)
+  - description
+  - parameters object values
+  - plugin order (load order)
+
+B) Internal organization state (separate from plugins.js load order)
+- Internal folders (nested tree): add, rename, delete, drag/move.
+- Plugin to internal folder mapping.
+- Plugin tags.
+- Folder collapsed/expanded states.
+
+C) Plugin header schema inside plugin files (developer options)
+- @param schema editor (plugin parameter header directives).
+- ~struct~ schema editor (struct block directives and nested params).
+- Writes schema back to plugin files in js/plugins.
+
+D) Manager layout/view state
+- Open tabs + active tab.
+- Search/filter fields (folders, plugins, tabs, params, schema, struct schema).
+- Zoom level.
+- Scrollbar positions:
+  - window
+  - workspace layout container
+  - internal folders column
+  - plugins column
+  - editor content column
+  - tabs bar
+
+==================================================
+2) Project detection and loading
+==================================================
+
+- Auto Detect:
+  - Attempts to detect MV/MZ project from current context.
+- Select Folder:
+  - Manual fallback when auto detect fails.
+- Reload:
+  - Reloads project data from disk.
+  - Re-applies saved manager layout (including saved zoom + scroll positions) if one exists.
+- Reset Layout:
+  - Resets only currently displayed runtime layout/view.
+  - Clears current tabs/search/view state in UI and resets zoom/scroll to defaults.
+  - Does NOT overwrite saved manager layout.
+  - Saved layout changes only when Save Manager Layout is used.
+- Reset Folders:
+  - Resets current project's Internal Folders setup to default.
+  - Clears custom internal folders, folder collapse states, and plugin tags.
+  - Reassigns all plugins to Ungrouped.
+  - Does NOT save automatically; use Save Internal Folders to persist.
+- Export Settings:
+  - Writes current Internal Folders + Manager Layout settings to Settings.json in the program folder.
+  - Includes scrollbar positions and expanded/collapsed UI states.
+- Import Settings:
+  - Reads Settings.json from the program folder.
+  - Applies Internal Folders + Manager Layout settings to current loaded project.
+  - Missing plugins in current project are skipped automatically.
+
+==================================================
+3) Internal Folders panel features
+==================================================
+
+- Search folders by text and tags (#tag terms).
+- Add / Rename / Delete folders.
+- Nested folders supported.
+- Drag folders to re-parent.
+- Drag plugins into folders.
+- Multi-select folders (Ctrl/Shift).
+- Context menu actions include:
+  - clear search and locate element (when folder search text is active)
+  - enable plugins inside
+  - disable plugins inside
+  - add child/root folder
+  - rename folder
+  - collapse/expand folder
+  - delete selected folders
+  - move dragged folder to root
+
+==================================================
+4) Plugins panel features
+==================================================
+
+- Search plugins by text and tags (#tag terms).
+- Add / Rename / Remove plugin entries.
+- Multi-select plugins (Ctrl/Shift).
+- Drag and drop for plugin reordering.
+- Drag plugins to folders.
+- Right-click context actions include:
+  - clear search and locate element (when plugin search text is active)
+  - enable / disable / toggle
+  - copy plugin entry or selected entries
+  - cut plugin entry or selected entries
+  - paste plugin entry
+  - open in tab(s)
+  - move to selected folder
+  - remove plugin(s)
+
+==================================================
+5) Tabs features
+==================================================
+
+- Open plugins in tabs from plugin list.
+- Drag tabs to reorder.
+- Tab search filter.
+- Close tab button per tab.
+- Context menu actions:
+  - close tab or close selected tabs
+  - close other tabs
+  - locate plugin in Plugins column
+  - locate plugin in Internal Folders column
+
+==================================================
+6) Active plugin header/actions
+==================================================
+
+- Toggle plugin enabled state.
+- Open [Help] viewer from plugin @help section:
+  - popup window path (read-only)
+  - modal fallback path
+- Assign internal folder from dropdown.
+- Edit tags (comma-separated, press Enter to apply).
+- Move active plugin up/down in load order.
+
+==================================================
+7) Plugin Parameters editor features
+==================================================
+
+- Parameter tree built from plugin metadata + current plugins.js values.
+- Includes parameters present only in plugins.js even if missing from @param list.
+- Parameter search filter.
+- Parent parameters with children support expand/collapse for child parameter trees.
+- Per-parameter context menu:
+  - clear search and locate element (when parameter search text is active)
+  - copy param value
+  - paste param value
+
+Typed controls supported:
+- text and string (basic plain text)
+- boolean (ON/OFF)
+- number and object-id-like numeric types
+- select and combo
+- file selector with folder/category tree browsing
+- note editor
+- list controls
+- struct controls
+- fallback text input
+
+Number field wheel behavior:
+- Wheel increments/decrements number.
+- Shift multiplier: x10
+- Alt multiplier: x100
+- Shift+Alt multiplier: x1000
+- Respects min/max and decimals where defined.
+
+List/Struct value editing helpers:
+- drag reorder entries
+- copy/cut/paste entry values
+- insert at gaps
+- preview raw text
+
+==================================================
+8) Dev Option: Plugin Parameter Editor (@param schema)
+==================================================
+
+- Filter schema directives.
+- Add parameter blocks.
+- Insert New above/below/from gap.
+- Ctrl + click multi-select for same-type parameter entries in current schema scope.
+- Drag reorder parameter blocks.
+- Drag edge works while expanded or collapsed.
+- Parent parameter collapse/expand toggle for child parameter groups.
+- Dragging a parent parameter moves full parent subtree (parent + descendants).
+- Dragging selected parameter entries moves the full selected group.
+- Copy/Cut/Paste parameter blocks.
+- Copy/Cut/Delete context actions use selected group and switch labels to plural for grouped actions.
+- Delete parameter blocks.
+- Nested visual handling for parent-child param relationships.
+- Save Plugin Parameter Schema writes @param sequence back to plugin file header.
+- Context menu includes clear search and locate element when schema search text is active.
+
+==================================================
+9) Dev Option: Struct Editor (~struct~ schema)
+==================================================
+
+- Filter struct blocks.
+- Add struct blocks.
+- Insert New above/below/from gap.
+- Ctrl + click multi-select for struct blocks.
+- Drag reorder struct blocks.
+- Drag edge works while expanded or collapsed.
+- Dragging selected struct blocks moves full selected group.
+- Copy/Cut/Paste struct blocks.
+- Copy/Cut/Delete context actions use selected group and switch labels to plural for grouped actions.
+- Delete struct blocks.
+- Edit each block name and nested params using shared schema editor behaviors.
+- Save Struct Schema writes struct definitions back to plugin file header.
+- Nested struct parameters use same parent collapse + parent-subtree drag behavior as @param schema editor.
+- Context menu includes clear search and locate element when struct schema search text is active.
+
+==================================================
+10) Save commands and what they save
+==================================================
+
+- Save plugins.js
+  - Saves plugin list/order/status/parameters to plugins.js.
+
+- Backup plugins.js
+  - Creates backup copy of current plugins.js before/without saving changes.
+  - Backup file naming order:
+    - plugins.js-bak
+    - plugins.js-bak1
+    - plugins.js-bak2
+    - plugins.js-bak3
+    - ...continues to next free number when earlier backup names already exist.
+
+- Save Internal Folders
+  - Saves folders, plugin-folder mapping, tags, and collapsed states.
+  - Does not capture current visual layout changes; use Save Manager Layout for tabs/search/zoom/scroll.
+  - Modified marker (*) appears when folders/mapping/tags/collapse states changed.
+
+- Save Manager Layout
+  - Captures current manager layout snapshot and saves it:
+    - open tabs and active tab
+    - all search fields
+    - zoom level
+    - scrollbar positions (window + columns/containers)
+    - editor/details open states and typed-tree open states
+  - Also saves folders/mapping/tags/collapsed with same state payload endpoint.
+  - Modified marker (*) appears when layout/view state differs from last saved manager layout.
+
+==================================================
+11) Hotkeys
+==================================================
+
+Global:
+- Ctrl+S: Save plugins.js
+- Ctrl+B: Backup plugins.js
+- Ctrl+Alt+S: Save Internal Folders
+- Ctrl+Shift+S: Save Manager Layout
+- Ctrl+S+A: Save Plugin Parameter Schema + Save Struct Schema
+- Ctrl+Q: Add entry in current selected area
+  - Internal Folders column: Add Folder
+  - Plugins column: Add Plugin row
+  - Editor list-type parameter: Add Item to focused list
+  - Dev Option @param schema area: Add Parameter
+  - Dev Option struct schema area: Add Struct Block
+- F5: Reload
+- F6: Reset Layout
+
+Editor/navigation:
+- Ctrl + Plus / Equal / NumpadAdd: zoom in
+- Ctrl + Minus / NumpadSubtract: zoom out
+- Ctrl + 0: reset zoom to 100
+- Ctrl+A: select all visible items in current scope (folders or plugins)
+
+History:
+- Ctrl+Z: undo
+- Ctrl+Shift+Z: redo
+- Ctrl+Y: redo
+
+Plugin clipboard shortcuts:
+- Ctrl+C: copy selected/active plugin entries
+- Ctrl+X: cut selected/active plugin entries
+- Ctrl+V: paste plugin entries
+
+==================================================
+12) Typical usage flow (Instruction on how to run the Program)
+==================================================
+
+0) Run the batch executable for the first time, to download the "node_modules" required for the program (this only happens on first run of the program)
+1) Load project with Auto Detect or Select Folder.
+2) Organize plugins into internal folders/tags for management.
+3) Open key plugins in tabs.
+4) Edit plugin parameters with typed controls.
+5) Save plugins.js. (Remember to do this AFTER Saving your project in the editor itself, as that can overwrite the "plugins.js" changes done via this Program (until you save again within the program) )
+5.1) Optional: create Backup plugins.js before large changes.
+6) (Optional dev mode) edit @param / ~struct~ schemas, then save schema to plugin files.
+7) Save Internal Folders for organization state.
+8) Save Manager Layout to persist tabs/search/zoom/scroll workspace view.
+9) (Optional) Use Export Settings / Import Settings to move current organization/layout through Settings.json in the program folder.
