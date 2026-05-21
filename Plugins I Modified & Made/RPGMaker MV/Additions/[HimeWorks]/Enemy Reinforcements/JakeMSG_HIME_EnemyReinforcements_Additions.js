@@ -14,6 +14,9 @@ Imported.JakeMSG_HIME_EnemyReinforcements_Additions = true;
  * v1.0
  * 
 ============ Change Log ============
+1.1 - 5.21th.2026
+ * added plugin commands for adding tracking tags when adding reinforcement enemies (for use with the new script call)
+ * added "is_reinforcement_alive("TagName")" script call for checking if any living reinforcement enemy exists with the specified Tag
 1.0 - 5.19th.2026
  * initial release
 ====================================
@@ -37,6 +40,11 @@ Imported.JakeMSG_HIME_EnemyReinforcements_Additions = true;
  * $gameTroop.countEnemyReinforcements()
  *  - Returns total number of currently-living reinforcement enemies only.
  *
+ * is_reinforcement_alive("TagName")
+ *  - Returns true if at least one currently-living reinforcement exists with
+ *    matching tag.
+ *  - Returns false if none exist, tag was never used, or tagged enemy died.
+ *
  * ============================================================================
  * Plugin Commands
  * ============================================================================
@@ -51,10 +59,21 @@ Imported.JakeMSG_HIME_EnemyReinforcements_Additions = true;
  *   add_enemy N from M position (X, Y)
  *   add_enemy N from troop M position (X, Y)
  *
- * N = troop member ID (1-based)
- * M = troop ID
- * X = screen X coordinate
- * Y = screen Y coordinate
+ * Add tagged reinforcement (tracking tag):
+ *   add_enemy_troop N from M tagged <TagName>
+ *   add_enemy_troop N from troop M tagged <TagName>
+ *   add_enemy_troop N from M position (X, Y) tagged <TagName>
+ *   add_enemy_troop N from troop M position (X, Y) tagged <TagName>
+ *   add_enemy N from M tagged <TagName>
+ *   add_enemy N from troop M tagged <TagName>
+ *   add_enemy N from M position (X, Y) tagged <TagName>
+ *   add_enemy N from troop M position (X, Y) tagged <TagName>
+ *
+ * N = troop member ID (from the database)
+ * M = the enemy from the troop ID, in order of appearance (starting from 1)
+ * X = screen X coordinate (in the battle screen)
+ * Y = screen Y coordinate (in the battle screen)
+ * TagName = user-defined reinforcement tag (written between "<>" signs)
  *
  * Example:
  *   add_enemy_troop 2 from 4 position (640, 380)
@@ -98,6 +117,46 @@ if (TH.EnemyReinforcements) {
 		}).length;
 	};
 
+	Game_Troop.prototype.tagNewestReinforcement = function(tagName, oldCount) {
+		var tag = String(tagName);
+		for (var i = this._enemies.length - 1; i >= 0; i--) {
+			var enemy = this._enemies[i];
+			if (!enemy || !enemy._jakeIsReinforcement) {
+				continue;
+			}
+			if (oldCount !== undefined && i < oldCount) {
+				continue;
+			}
+			enemy._jakeReinforcementTag = tag;
+			return enemy;
+		}
+		return null;
+	};
+
+	Game_Troop.prototype.isReinforcementAliveByTag = function(tagName) {
+		if (tagName === undefined || tagName === null) {
+			return false;
+		}
+		var tag = String(tagName);
+		return this.members().some(function(enemy) {
+			return !!(enemy && enemy.isAlive() && enemy._jakeIsReinforcement &&
+				enemy._jakeReinforcementTag === tag);
+		});
+	};
+
+	var isReinforcementAliveScriptCall = function(tagName) {
+		if (!$gameTroop || typeof $gameTroop.isReinforcementAliveByTag !== "function") {
+			return false;
+		}
+		return $gameTroop.isReinforcementAliveByTag(tagName);
+	};
+
+	if (typeof window !== "undefined") {
+		window.is_reinforcement_alive = isReinforcementAliveScriptCall;
+	} else {
+		this.is_reinforcement_alive = isReinforcementAliveScriptCall;
+	}
+
 	Game_Troop.prototype.addEnemyReinforcementAtPosition = function(troopId, memberId, x, y) {
 		var troop = $dataTroops[troopId];
 		if (!troop || !troop.members) {
@@ -127,10 +186,23 @@ if (TH.EnemyReinforcements) {
 		if (cmd === "add_enemy_troop" || cmd === "add_enemy") {
 			var parsed = this.parseJakeEnemyMemberCommandArgs(args);
 			if (parsed) {
+				var troop = $dataTroops[parsed.troopId];
+				if (!troop || !troop.members || !troop.members[parsed.memberId - 1]) {
+					console.warn("JakeMSG_HIME_EnemyReinforcements_Additions: invalid troop/member", command, args);
+					return;
+				}
+
+				var oldCount = $gameTroop.members().length;
+				var added = false;
 				if (parsed.hasPosition) {
-					$gameTroop.addEnemyReinforcementAtPosition(parsed.troopId, parsed.memberId, parsed.x, parsed.y);
+					added = !!$gameTroop.addEnemyReinforcementAtPosition(parsed.troopId, parsed.memberId, parsed.x, parsed.y);
 				} else {
 					$gameTroop.addEnemyReinforcement(parsed.troopId, parsed.memberId);
+					added = true;
+				}
+
+				if (added && parsed.tagName) {
+					$gameTroop.tagNewestReinforcement(parsed.tagName, oldCount);
 				}
 				return;
 			}
@@ -180,32 +252,50 @@ if (TH.EnemyReinforcements) {
 			return null;
 		}
 
-		if (index >= args.length) {
-			return {
-				memberId: memberId,
-				troopId: troopId,
-				hasPosition: false,
-				x: 0,
-				y: 0
-			};
+		var tagIndex = -1;
+		for (var i = index; i < args.length; i++) {
+			if (String(args[i]).toLowerCase() === "tagged") {
+				tagIndex = i;
+				break;
+			}
 		}
+		var tailEnd = tagIndex === -1 ? args.length : tagIndex;
 
-		if (String(args[index++] || "").toLowerCase() !== "position") {
+		var hasPosition = false;
+		var x = 0;
+		var y = 0;
+		if (index < tailEnd && String(args[index]).toLowerCase() === "position") {
+			index++;
+			var coordText = args.slice(index, tailEnd).join(" ").trim();
+			var coordMatch = coordText.match(/^\(?\s*(-?\d+)\s*,\s*(-?\d+)\s*\)?$/);
+			if (!coordMatch) {
+				return null;
+			}
+			hasPosition = true;
+			x = Number(coordMatch[1]);
+			y = Number(coordMatch[2]);
+			index = tailEnd;
+		} else if (index < tailEnd) {
 			return null;
 		}
 
-		var coordText = args.slice(index).join(" ").trim();
-		var coordMatch = coordText.match(/^\(?\s*(-?\d+)\s*,\s*(-?\d+)\s*\)?$/);
-		if (!coordMatch) {
-			return null;
+		var tagName = null;
+		if (tagIndex >= 0) {
+			var tagText = args.slice(tagIndex + 1).join(" ").trim();
+			var tagMatch = tagText.match(/^<\s*(.+?)\s*>$/);
+			if (!tagMatch) {
+				return null;
+			}
+			tagName = tagMatch[1];
 		}
 
 		return {
 			memberId: memberId,
 			troopId: troopId,
-			hasPosition: true,
-			x: Number(coordMatch[1]),
-			y: Number(coordMatch[2])
+			hasPosition: hasPosition,
+			x: x,
+			y: y,
+			tagName: tagName
 		};
 	};
 })();
