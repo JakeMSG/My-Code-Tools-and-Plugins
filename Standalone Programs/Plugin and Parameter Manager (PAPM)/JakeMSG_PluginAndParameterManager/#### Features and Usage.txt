@@ -76,6 +76,8 @@ D) Manager layout/view state
 - Drag folders to re-parent.
 - Drag plugins into folders.
 - Multi-select folders (Ctrl/Shift).
+- Ctrl+E expands selected folders (or visible folder scope when none selected).
+- Ctrl+W collapses selected folders (or visible folder scope when none selected).
 - Context menu actions include:
   - clear search and locate element (when folder search text is active)
   - enable plugins inside
@@ -139,10 +141,16 @@ D) Manager layout/view state
 - Includes parameters present only in plugins.js even if missing from @param list.
 - Parameter search filter.
 - Parent parameters with children support expand/collapse for child parameter trees.
+- Ctrl + click multi-select for parameter entries (for expand/collapse targeting).
+- Shift + click range-select for parameter entries.
+- Ctrl+E expands selected parameter trees (or focused/visible trees when no selection).
+- Ctrl+W collapses selected parameter trees (or focused/visible trees when no selection).
 - Per-parameter context menu:
   - clear search and locate element (when parameter search text is active)
   - copy param value
   - paste param value
+  - expand parameter / expand selected parameters
+  - collapse parameter / collapse selected parameters
 
 Typed controls supported:
 - text and string (basic plain text)
@@ -168,6 +176,15 @@ List/Struct value editing helpers:
 - insert at gaps
 - preview raw text
 
+List-type parameter multi-selection:
+- Ctrl + click multi-select for list elements in current focused list parameter.
+- Shift + click range-select for list elements.
+- Ctrl+A selects all list elements in focused list parameter.
+- Dragging any selected list element drag edge moves full selected list group.
+- Ctrl+C copies selected list element group.
+- Paste Item button, Ctrl+V, and list context menu all paste full copied list group.
+- Ctrl+D removes selected list element group.
+
 ==================================================
 8) Dev Option: Plugin Parameter Editor (@param schema)
 ==================================================
@@ -176,6 +193,11 @@ List/Struct value editing helpers:
 - Add parameter blocks.
 - Insert New above/below/from gap.
 - Ctrl + click multi-select for same-type parameter entries in current schema scope.
+- Shift + click range-select for same-type parameter entries in current schema scope.
+- Ctrl+A selects all visible entries in the current @param schema scope.
+- Ctrl+E expands current selected entries.
+- Ctrl+W collapses current selected entries.
+- Ctrl+D deletes current selected entries.
 - Drag reorder parameter blocks.
 - Drag edge works while expanded or collapsed.
 - Parent parameter collapse/expand toggle for child parameter groups.
@@ -196,6 +218,11 @@ List/Struct value editing helpers:
 - Add struct blocks.
 - Insert New above/below/from gap.
 - Ctrl + click multi-select for struct blocks.
+- Shift + click range-select for struct blocks.
+- Ctrl+A selects all visible entries in the active struct schema scope.
+- Ctrl+E expands current selected entries.
+- Ctrl+W collapses current selected entries.
+- Ctrl+D deletes current selected entries.
 - Drag reorder struct blocks.
 - Drag edge works while expanded or collapsed.
 - Dragging selected struct blocks moves full selected group.
@@ -243,6 +270,10 @@ List/Struct value editing helpers:
 ==================================================
 
 Global:
+- Scrollwheel: scrolls the currently-selected context's vertical scrollbar
+- Scroolwheel+Shift: scroll horizontally instead
+- LeftClick+Ctrl: Add to the current multi-selection
+- LeftClick+Shift: multi-select all entries between the previously-selected one and the current one
 - Ctrl+S: Save plugins.js
 - Ctrl+B: Backup plugins.js
 - Ctrl+Alt+S: Save Internal Folders
@@ -261,7 +292,10 @@ Editor/navigation:
 - Ctrl + Plus / Equal / NumpadAdd: zoom in
 - Ctrl + Minus / NumpadSubtract: zoom out
 - Ctrl + 0: reset zoom to 100
-- Ctrl+A: select all visible items in current scope (folders or plugins)
+- Ctrl+A: select all visible items in current scope (folders, plugins, active Dev Option schema scope, or focused list-type parameter)
+- Ctrl+E: expand current scope (Dev selected entries, Plugin Parameters selected/focused trees, or selected folders)
+- Ctrl+W: collapse current scope (Dev selected entries, Plugin Parameters selected/focused trees, or selected folders)
+- Ctrl+D: delete/remove current multi-selection (folders, plugins, Dev Option entries, or selected list-type elements)
 
 History:
 - Ctrl+Z: undo
@@ -269,9 +303,9 @@ History:
 - Ctrl+Y: redo
 
 Plugin clipboard shortcuts:
-- Ctrl+C: copy selected/active plugin entries
+- Ctrl+C: copy selected/active plugin entries, or selected list-type elements in focused list editor
 - Ctrl+X: cut selected/active plugin entries
-- Ctrl+V: paste plugin entries
+- Ctrl+V: paste plugin entries, or paste selected list-type element group in focused list editor
 
 ==================================================
 12) Typical usage flow (Instruction on how to run the Program)

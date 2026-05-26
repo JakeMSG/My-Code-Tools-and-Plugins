@@ -651,6 +651,13 @@ button:focus {
   min-width: 820px;
 }
 
+.param-node.selected {
+  border-color: rgba(233, 124, 52, 0.9);
+  background: rgba(233, 124, 52, 0.12);
+  outline: 1px solid rgba(233, 124, 52, 0.46);
+  outline-offset: 1px;
+}
+
 .param-node.param-list {
   border-color: var(--blue-branch);
 }
@@ -665,6 +672,7 @@ button:focus {
   align-items: baseline;
   gap: 8px;
   margin-bottom: 7px;
+  cursor: pointer;
 }
 
 .param-title {
@@ -927,6 +935,13 @@ button:focus {
   border-left: 2px dashed rgba(78, 146, 215, 0.72);
 }
 
+.typed-list-row.selected {
+  border-left-color: rgba(233, 124, 52, 0.9);
+  background: rgba(233, 124, 52, 0.12);
+  outline: 1px solid rgba(233, 124, 52, 0.46);
+  outline-offset: 1px;
+}
+
 .typed-list-row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -984,6 +999,10 @@ button:focus {
 
 .typed-list-gap:hover {
   border-top-color: rgba(78, 146, 215, 0.72);
+}
+
+.typed-list-gap.drop-before {
+  border-top-color: rgba(233, 124, 52, 0.9);
 }
 
 .typed-list-row.dragging,

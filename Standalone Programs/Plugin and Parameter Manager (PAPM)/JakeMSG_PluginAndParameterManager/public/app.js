@@ -205,6 +205,7 @@
 
     paramClipboard: '',
     listItemClipboard: '',
+    listItemClipboardItems: [],
     structEntryClipboard: null,
     pluginEntryClipboard: null,
     schemaParamClipboard: null,
@@ -221,11 +222,14 @@
     typedTreeOpenState: {},
     devEntryOpenState: {},
     devSelectionByScope: {},
+    paramSelectionByPlugin: {},
+    paramSelectionAnchorByPlugin: {},
     editorDetailsOpenState: {},
     nextDevUid: 1,
 
     uiZoomPercent: 100,
     lastSelectionScope: '',
+    lastEditorSelectionContext: null,
 
     undoStack: [],
     redoStack: [],
@@ -241,6 +245,8 @@
   let managerLayoutLabelRefreshQueued = false;
   let savePluginsHotkeyTimer = null;
   const hotkeyHeldCodes = new Set();
+  const listControlRegistry = new Map();
+  let nextListControlId = 1;
   const SETTINGS_BUTTON_TOOLTIP_DELAY_MS = 2000;
   let settingsButtonTooltipTimer = null;
   let settingsButtonTooltipNode = null;
@@ -251,6 +257,28 @@
 
   function pluginNameToken(value) {
     return cleanText(value).toLowerCase();
+  }
+
+  function getListClipboardItems() {
+    if (Array.isArray(state.listItemClipboardItems) && state.listItemClipboardItems.length > 0) {
+      return state.listItemClipboardItems
+        .map((entry) => String(entry === undefined || entry === null ? '' : entry));
+    }
+
+    if (state.listItemClipboard !== '') {
+      return [String(state.listItemClipboard)];
+    }
+
+    return [];
+  }
+
+  function setListClipboardItems(items) {
+    const source = Array.isArray(items) ? items : [];
+    const normalized = source
+      .map((entry) => String(entry === undefined || entry === null ? '' : entry));
+
+    state.listItemClipboardItems = normalized;
+    state.listItemClipboard = normalized.length > 0 ? normalized[0] : '';
   }
 
   function isPluginSelectionEditableTarget(target) {
@@ -648,10 +676,13 @@
     state.typedTreeOpenState = cloneJson(source.typedTreeOpenState || {});
     state.devEntryOpenState = cloneJson(source.devEntryOpenState || {});
     state.devSelectionByScope = {};
+    state.paramSelectionByPlugin = {};
+    state.paramSelectionAnchorByPlugin = {};
     state.editorDetailsOpenState = cloneJson(source.editorDetailsOpenState || {});
     state.nextDevUid = Number(source.nextDevUid) > 0 ? Number(source.nextDevUid) : 1;
 
     state.lastSelectionScope = cleanText(source.lastSelectionScope || '');
+    state.lastEditorSelectionContext = null;
     state.uiZoomPercent = Number(source.uiZoomPercent) || 100;
 
     state.metadataCache = {};
@@ -909,6 +940,1002 @@
     state.lastSelectionScope = 'folders';
     renderFolderTree();
     renderPluginList();
+  }
+
+  function cleanupListControlRegistry() {
+    listControlRegistry.forEach((context, id) => {
+      if (!context || !context.wrapper || !context.wrapper.isConnected) {
+        listControlRegistry.delete(id);
+      }
+    });
+  }
+
+  function resolveListControlContextFromTarget(target) {
+    cleanupListControlRegistry();
+
+    const element = target instanceof Element
+      ? target
+      : (document.activeElement instanceof Element ? document.activeElement : null);
+    if (!element) return null;
+
+    const listRoot = element.closest('.typed-list[data-list-control-id]');
+    if (!(listRoot instanceof Element)) return null;
+
+    const listControlId = cleanText(listRoot.dataset.listControlId || '');
+    if (!listControlId) return null;
+
+    const context = listControlRegistry.get(listControlId);
+    if (!context || context.wrapper !== listRoot) {
+      listControlRegistry.delete(listControlId);
+      return null;
+    }
+
+    return context;
+  }
+
+  function resolveLastListSelectionContext() {
+    cleanupListControlRegistry();
+
+    if (state.lastSelectionScope !== 'editor') {
+      return null;
+    }
+
+    const source = state.lastEditorSelectionContext && typeof state.lastEditorSelectionContext === 'object'
+      ? state.lastEditorSelectionContext
+      : null;
+    if (!source || source.kind !== 'list') {
+      return null;
+    }
+
+    const listControlId = cleanText(source.listControlId || '');
+    if (!listControlId) {
+      return null;
+    }
+
+    const context = listControlRegistry.get(listControlId);
+    if (!context || !context.wrapper || !context.wrapper.isConnected) {
+      return null;
+    }
+
+    if (!context.hasSelection || !context.hasSelection()) {
+      return null;
+    }
+
+    return context;
+  }
+
+  function clearVisibleParamSelectionClasses() {
+    if (!dom.paramsTree) return;
+
+    const nodes = dom.paramsTree.querySelectorAll('.param-node.selected');
+    for (let i = 0; i < nodes.length; i += 1) {
+      nodes[i].classList.remove('selected');
+    }
+  }
+
+  function applyVisibleDevSelectionClassesFromState() {
+    const scopeNodes = document.querySelectorAll('[data-dev-scope][data-dev-plugin-key]');
+
+    for (let i = 0; i < scopeNodes.length; i += 1) {
+      const scopeNode = scopeNodes[i];
+      if (!(scopeNode instanceof Element)) continue;
+
+      const scope = cleanText(scopeNode.dataset.devScope || '');
+      const pluginKey = cleanText(scopeNode.dataset.devPluginKey || '');
+      if (!scope || !pluginKey) continue;
+
+      const selectedSet = new Set(getDevSelectionUids(scope, pluginKey));
+      const cards = scopeNode.querySelectorAll('.schema-entry[data-entry-uid]');
+
+      for (let j = 0; j < cards.length; j += 1) {
+        const card = cards[j];
+        if (!(card instanceof Element)) continue;
+        const entryUid = cleanText(card.dataset.entryUid || '');
+        card.classList.toggle('selected', selectedSet.has(entryUid));
+      }
+    }
+  }
+
+  function keepOnlyLatestEditorSelection(context) {
+    const source = context && typeof context === 'object' ? context : null;
+    if (!source) return;
+
+    const kind = cleanText(source.kind || '');
+    if (!kind) return;
+
+    const listControlId = kind === 'list' ? cleanText(source.listControlId || '') : '';
+    const devScope = kind === 'dev' ? cleanText(source.scope || '') : '';
+    const devPluginKey = kind === 'dev' ? cleanText(source.pluginKey || '') : '';
+    const paramPluginKey = kind === 'param' ? cleanText(source.pluginKey || '') : '';
+
+    cleanupListControlRegistry();
+    listControlRegistry.forEach((listContext, id) => {
+      if (kind === 'list' && id === listControlId) {
+        return;
+      }
+
+      if (listContext && typeof listContext.clearSelection === 'function') {
+        listContext.clearSelection();
+      }
+    });
+
+    if (kind === 'dev' && devScope && devPluginKey) {
+      const keepKey = buildDevSelectionScopeKey(devScope, devPluginKey);
+      const keepSelection = uniqueStringList(state.devSelectionByScope[keepKey] || []);
+      state.devSelectionByScope = keepSelection.length > 0
+        ? { [keepKey]: keepSelection }
+        : {};
+    } else {
+      state.devSelectionByScope = {};
+    }
+    applyVisibleDevSelectionClassesFromState();
+
+    if (kind === 'param' && paramPluginKey) {
+      const keepSelection = uniqueStringList(state.paramSelectionByPlugin[paramPluginKey] || []);
+      const keepAnchor = cleanText(state.paramSelectionAnchorByPlugin[paramPluginKey] || '');
+
+      state.paramSelectionByPlugin = keepSelection.length > 0
+        ? { [paramPluginKey]: keepSelection }
+        : {};
+
+      state.paramSelectionAnchorByPlugin = keepAnchor
+        ? { [paramPluginKey]: keepAnchor }
+        : {};
+
+      const selectedSet = new Set(keepSelection);
+      const entries = getVisibleParamNodeEntries();
+      for (let i = 0; i < entries.length; i += 1) {
+        entries[i].node.classList.toggle('selected', selectedSet.has(entries[i].uid));
+      }
+    } else {
+      state.paramSelectionByPlugin = {};
+      state.paramSelectionAnchorByPlugin = {};
+      clearVisibleParamSelectionClasses();
+    }
+  }
+
+  function handleListSelectionHotkey(target, hotkey) {
+    const normalizedHotkey = String(hotkey || '').toLowerCase();
+    if (normalizedHotkey !== 'a'
+      && normalizedHotkey !== 'c'
+      && normalizedHotkey !== 'v'
+      && normalizedHotkey !== 'd'
+      && normalizedHotkey !== 'e'
+      && normalizedHotkey !== 'w') {
+      return false;
+    }
+
+    let context = resolveListControlContextFromTarget(target);
+    if (!context && (normalizedHotkey === 'e' || normalizedHotkey === 'w')) {
+      context = resolveLastListSelectionContext();
+    }
+    if (!context) return false;
+
+    const editingText = isPluginSelectionEditableTarget(target);
+    const hasSelection = Boolean(context.hasSelection && context.hasSelection());
+
+    if (normalizedHotkey === 'a') {
+      return Boolean(context.selectAllRows && context.selectAllRows(target));
+    }
+
+    if (normalizedHotkey === 'c') {
+      if (editingText && !hasSelection) {
+        return false;
+      }
+      return Boolean(context.copySelection && context.copySelection(target));
+    }
+
+    if (normalizedHotkey === 'v') {
+      if (editingText && !hasSelection) {
+        return false;
+      }
+      const clipboard = getListClipboardItems();
+      if (clipboard.length <= 0) {
+        return false;
+      }
+      return Boolean(context.pasteSelection && context.pasteSelection(target));
+    }
+
+    if (normalizedHotkey === 'e' || normalizedHotkey === 'w') {
+      const expand = normalizedHotkey === 'e';
+      return Boolean(context.expandSelection && context.expandSelection(target, expand));
+    }
+
+    return Boolean(context.deleteSelection && context.deleteSelection(target));
+  }
+
+  function setLastEditorSelectionContext(context) {
+    const source = context && typeof context === 'object' ? context : null;
+    if (!source) {
+      state.lastEditorSelectionContext = null;
+      return;
+    }
+
+    const kind = cleanText(source.kind || '');
+    if (kind === 'list') {
+      const listControlId = cleanText(source.listControlId || '');
+      if (!listControlId) {
+        state.lastEditorSelectionContext = null;
+        return;
+      }
+
+      keepOnlyLatestEditorSelection({
+        kind,
+        listControlId
+      });
+
+      state.lastEditorSelectionContext = {
+        kind,
+        listControlId
+      };
+      state.lastSelectionScope = 'editor';
+      return;
+    }
+
+    if (kind === 'dev') {
+      const scope = cleanText(source.scope || '');
+      const pluginKey = cleanText(source.pluginKey || '');
+      if (!scope || !pluginKey) {
+        state.lastEditorSelectionContext = null;
+        return;
+      }
+
+      keepOnlyLatestEditorSelection({
+        kind,
+        scope,
+        pluginKey
+      });
+
+      state.lastEditorSelectionContext = {
+        kind,
+        scope,
+        pluginKey
+      };
+      state.lastSelectionScope = 'editor';
+      return;
+    }
+
+    if (kind === 'param') {
+      const pluginKey = cleanText(source.pluginKey || '');
+      if (!pluginKey) {
+        state.lastEditorSelectionContext = null;
+        return;
+      }
+
+      keepOnlyLatestEditorSelection({
+        kind,
+        pluginKey
+      });
+
+      state.lastEditorSelectionContext = {
+        kind,
+        pluginKey
+      };
+      state.lastSelectionScope = 'editor';
+      return;
+    }
+
+    state.lastEditorSelectionContext = null;
+  }
+
+  function resolveLastEditorDeleteContext() {
+    const source = state.lastEditorSelectionContext && typeof state.lastEditorSelectionContext === 'object'
+      ? state.lastEditorSelectionContext
+      : null;
+    if (!source) return null;
+
+    if (source.kind === 'list') {
+      cleanupListControlRegistry();
+      const listControlId = cleanText(source.listControlId || '');
+      if (!listControlId) return null;
+
+      const listContext = listControlRegistry.get(listControlId);
+      if (!listContext || !listContext.wrapper || !listContext.wrapper.isConnected) {
+        return null;
+      }
+
+      if (!listContext.hasSelection || !listContext.hasSelection()) {
+        return null;
+      }
+
+      return {
+        kind: 'list',
+        listContext
+      };
+    }
+
+    if (source.kind === 'dev') {
+      const scope = cleanText(source.scope || '');
+      const pluginKey = cleanText(source.pluginKey || '');
+      if (!scope || !pluginKey) return null;
+
+      if (getDevSelectionUids(scope, pluginKey).length <= 0) {
+        return null;
+      }
+
+      return {
+        kind: 'dev',
+        devContext: {
+          scope,
+          pluginKey,
+          container: null
+        }
+      };
+    }
+
+    return null;
+  }
+
+  function collectDevScopeCards(container) {
+    if (!(container instanceof Element)) return [];
+
+    const cards = [];
+    const children = container.children;
+    for (let i = 0; i < children.length; i += 1) {
+      const child = children[i];
+      if (!(child instanceof Element)) continue;
+      if (!child.classList.contains('schema-entry')) continue;
+
+      const entryUid = cleanText(child.dataset.entryUid || '');
+      if (!entryUid) continue;
+
+      cards.push({
+        card: child,
+        entryUid
+      });
+    }
+
+    return cards;
+  }
+
+  function resolveDevSelectionContextFromTarget(target) {
+    const activeIndex = getActivePluginIndex();
+    if (activeIndex < 0) return null;
+
+    const plugin = state.plugins[activeIndex];
+    if (!plugin) return null;
+
+    const activePluginKey = makePluginKey(plugin);
+    const element = target instanceof Element
+      ? target
+      : (document.activeElement instanceof Element ? document.activeElement : null);
+
+    if (!element || !element.closest('#developerDetails, #structDeveloperDetails')) {
+      return null;
+    }
+
+    const scopeNode = element.closest('[data-dev-scope]');
+    if (scopeNode) {
+      const scope = cleanText(scopeNode.dataset.devScope || '');
+      if (scope) {
+        const pluginKey = cleanText(scopeNode.dataset.devPluginKey || '') || activePluginKey;
+        return {
+          scope,
+          pluginKey,
+          container: scopeNode
+        };
+      }
+    }
+
+    if (element.closest('#structDeveloperDetails')) {
+      return {
+        scope: 'struct-schema-block',
+        pluginKey: activePluginKey,
+        container: dom.structSchemaEditor
+      };
+    }
+
+    return {
+      scope: 'plugin-schema-param',
+      pluginKey: activePluginKey,
+      container: dom.schemaEditor
+    };
+  }
+
+  function selectAllVisibleDevEntries(scopeContext) {
+    const context = scopeContext && typeof scopeContext === 'object' ? scopeContext : null;
+    if (!context || !context.scope || !context.pluginKey) return false;
+
+    const cards = collectDevScopeCards(context.container);
+    const entryUids = cards.map((entry) => entry.entryUid);
+
+    setDevSelectionUids(context.scope, context.pluginKey, entryUids);
+
+    if (entryUids.length > 0) {
+      setLastEditorSelectionContext({
+        kind: 'dev',
+        scope: context.scope,
+        pluginKey: context.pluginKey
+      });
+    }
+
+    if (cards.length <= 0) {
+      showToast('No visible Dev-option entries to select.', 'bad');
+      return true;
+    }
+
+    for (let i = 0; i < cards.length; i += 1) {
+      cards[i].card.classList.add('selected');
+    }
+
+    return true;
+  }
+
+  function getDevScopeEntries(scope, pluginKey) {
+    const normalizedScope = String(scope || '');
+    const normalizedPluginKey = String(pluginKey || '');
+
+    if (!normalizedScope || !normalizedPluginKey) {
+      return [];
+    }
+
+    if (normalizedScope === 'plugin-schema-param') {
+      return schemaDraftEnsureList(state.schemaDrafts[normalizedPluginKey] || []);
+    }
+
+    if (normalizedScope === 'struct-schema-block') {
+      return structDraftEnsureBlockList(state.structSchemaDrafts[normalizedPluginKey] || []);
+    }
+
+    if (normalizedScope.startsWith('struct-param:')) {
+      const blockUid = normalizedScope.slice('struct-param:'.length);
+      if (!blockUid) return [];
+
+      const blocks = structDraftEnsureBlockList(state.structSchemaDrafts[normalizedPluginKey] || []);
+      for (let i = 0; i < blocks.length; i += 1) {
+        const block = blocks[i];
+        if (ensureDraftEntryUid(block) !== blockUid) continue;
+        return schemaDraftEnsureList(block.params);
+      }
+    }
+
+    return [];
+  }
+
+  function setDevParentTreeExpandedForSelection(scope, pluginKey, selectedUids, expanded) {
+    if (scope === 'struct-schema-block') {
+      return false;
+    }
+
+    const entries = getDevScopeEntries(scope, pluginKey);
+    if (entries.length <= 0) {
+      return false;
+    }
+
+    const selectedSet = new Set(uniqueStringList(selectedUids));
+    if (selectedSet.size <= 0) {
+      return false;
+    }
+
+    const depths = schemaDraftComputeDepths(entries);
+    const nextState = Boolean(expanded);
+    let changed = false;
+
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      const entryUid = ensureDraftEntryUid(entry);
+      if (!selectedSet.has(entryUid)) continue;
+
+      const subtreeEnd = schemaDraftFindSubtreeEnd(depths, i);
+      if (subtreeEnd <= i) continue;
+
+      const key = buildDevEntryOpenKey(`${scope}:parent-tree`, pluginKey, entryUid);
+      if (Boolean(state.devEntryOpenState[key]) === nextState
+        && Object.prototype.hasOwnProperty.call(state.devEntryOpenState, key)) {
+        continue;
+      }
+
+      state.devEntryOpenState[key] = nextState;
+      changed = true;
+    }
+
+    return changed;
+  }
+
+  function setDevSelectionExpanded(scopeContext, expanded) {
+    const context = scopeContext && typeof scopeContext === 'object' ? scopeContext : null;
+    if (!context || !context.scope || !context.pluginKey) return false;
+
+    const selectedUids = getDevSelectionUids(context.scope, context.pluginKey);
+    if (selectedUids.length <= 0) {
+      showToast('No Dev-option entries selected.', 'bad');
+      return true;
+    }
+
+    const selectedSet = new Set(selectedUids);
+    const cards = collectDevScopeCards(context.container);
+    const nextOpen = Boolean(expanded);
+
+    for (let i = 0; i < cards.length; i += 1) {
+      const cardInfo = cards[i];
+      if (!selectedSet.has(cardInfo.entryUid)) continue;
+      if (cardInfo.card instanceof HTMLDetailsElement) {
+        cardInfo.card.open = nextOpen;
+      }
+    }
+
+    for (let i = 0; i < selectedUids.length; i += 1) {
+      const entryUid = selectedUids[i];
+      const key = buildDevEntryOpenKey(context.scope, context.pluginKey, entryUid);
+      state.devEntryOpenState[key] = nextOpen;
+    }
+
+    const parentTreeChanged = setDevParentTreeExpandedForSelection(
+      context.scope,
+      context.pluginKey,
+      selectedUids,
+      nextOpen
+    );
+
+    requestManagerLayoutDirtyLabelRefresh();
+
+    if (parentTreeChanged) {
+      renderActivePluginPanel();
+    }
+
+    return true;
+  }
+
+  function deleteDevSelection(scopeContext) {
+    const context = scopeContext && typeof scopeContext === 'object' ? scopeContext : null;
+    if (!context || !context.scope || !context.pluginKey) return false;
+
+    const selectedUids = getDevSelectionUids(context.scope, context.pluginKey);
+    if (selectedUids.length <= 0) {
+      showToast('No Dev-option entries selected.', 'bad');
+      return true;
+    }
+
+    const selectedSet = new Set(selectedUids);
+    let removedCount = 0;
+
+    if (context.scope === 'struct-schema-block') {
+      const blocks = structDraftEnsureBlockList(state.structSchemaDrafts[context.pluginKey] || []);
+
+      for (let i = blocks.length - 1; i >= 0; i -= 1) {
+        const blockUid = ensureDraftEntryUid(blocks[i]);
+        if (!selectedSet.has(blockUid)) continue;
+        blocks.splice(i, 1);
+        removedCount += 1;
+      }
+
+      if (removedCount > 0) {
+        state.structSchemaDrafts[context.pluginKey] = blocks;
+        markStructSchemaDirty(context.pluginKey);
+      }
+    } else {
+      const entries = getDevScopeEntries(context.scope, context.pluginKey);
+      const depths = schemaDraftComputeDepths(entries);
+      const rootIndexes = schemaDraftResolveBranchRootIndicesByUid(entries, depths, selectedUids);
+
+      for (let i = rootIndexes.length - 1; i >= 0; i -= 1) {
+        const index = rootIndexes[i];
+        const subtreeEnd = schemaDraftFindSubtreeEnd(depths, index);
+        removedCount += Math.max(0, subtreeEnd - index + 1);
+        entries.splice(index, subtreeEnd - index + 1);
+      }
+
+      if (removedCount > 0) {
+        if (context.scope === 'plugin-schema-param') {
+          markSchemaDirty(context.pluginKey);
+        } else {
+          markStructSchemaDirty(context.pluginKey);
+        }
+      }
+    }
+
+    if (removedCount <= 0) {
+      showToast('No Dev-option entries removed.', 'bad');
+      return true;
+    }
+
+    setDevSelectionUids(context.scope, context.pluginKey, []);
+    renderActivePluginPanel();
+    showToast(removedCount > 1 ? 'Selected Dev-option entries removed.' : 'Dev-option entry removed.', 'good');
+    return true;
+  }
+
+  function setFolderSelectionExpanded(expanded) {
+    const childrenMap = getFolderChildrenMap();
+    let targetIds = uniqueStringList(state.selectedFolderIds)
+      .filter((folderId) => folderId !== 'all' && getFolderById(folderId));
+
+    if (targetIds.length <= 0) {
+      const activeFolderId = cleanText(state.selectedFolderId || '');
+      if (activeFolderId && activeFolderId !== 'all' && getFolderById(activeFolderId)) {
+        targetIds = [activeFolderId];
+      }
+    }
+
+    if (targetIds.length <= 0) {
+      targetIds = state.visibleFolderOrder.filter((folderId) => folderId !== 'all' && getFolderById(folderId));
+    }
+
+    if (targetIds.length <= 0) {
+      showToast('No folders to expand/collapse.', 'bad');
+      return true;
+    }
+
+    const nextCollapsed = !Boolean(expanded);
+    let changed = false;
+
+    for (let i = 0; i < targetIds.length; i += 1) {
+      const folderId = targetIds[i];
+      const children = childrenMap.get(folderId) || [];
+      if (children.length <= 0) continue;
+
+      if (Boolean(state.folderCollapsed[folderId]) === nextCollapsed) continue;
+      state.folderCollapsed[folderId] = nextCollapsed;
+      changed = true;
+    }
+
+    if (changed) {
+      markLayoutDirty();
+      renderFolderTree();
+    }
+
+    return true;
+  }
+
+  function getActiveParamSelectionPluginKey() {
+    const activeIndex = getActivePluginIndex();
+    if (activeIndex < 0) return '';
+
+    const plugin = state.plugins[activeIndex];
+    if (!plugin) return '';
+
+    return makePluginKey(plugin);
+  }
+
+  function getVisibleParamNodeEntries() {
+    if (!dom.paramsTree) return [];
+
+    const nodes = dom.paramsTree.querySelectorAll('.param-node[data-param-select-uid]');
+    const entries = [];
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i];
+      if (!(node instanceof Element)) continue;
+
+      const uid = cleanText(node.dataset.paramSelectUid || '');
+      if (!uid) continue;
+
+      const detailsList = [];
+      const seen = new Set();
+
+      function pushDetail(detail) {
+        if (!(detail instanceof HTMLDetailsElement)) return;
+        if (seen.has(detail)) return;
+        seen.add(detail);
+        detailsList.push(detail);
+      }
+
+      const children = node.children;
+      for (let j = 0; j < children.length; j += 1) {
+        const child = children[j];
+        if (!(child instanceof HTMLDetailsElement)) continue;
+        if (!child.classList.contains('param-children-tree')) continue;
+        pushDetail(child);
+      }
+
+      if (node.classList.contains('param-list') || node.classList.contains('param-struct')) {
+        let inputGrid = null;
+        for (let j = 0; j < children.length; j += 1) {
+          const child = children[j];
+          if (!(child instanceof Element)) continue;
+          if (!child.classList.contains('param-input-grid')) continue;
+          inputGrid = child;
+          break;
+        }
+
+        if (inputGrid) {
+          const typedTrees = inputGrid.querySelectorAll('.typed-list-tree');
+          for (let j = 0; j < typedTrees.length; j += 1) {
+            pushDetail(typedTrees[j]);
+          }
+        }
+      }
+
+      entries.push({
+        uid,
+        node,
+        detailsList
+      });
+    }
+
+    return entries;
+  }
+
+  function getParamSelectionUids(pluginKey) {
+    const normalizedPluginKey = cleanText(pluginKey || '');
+    if (!normalizedPluginKey) return [];
+    return uniqueStringList(state.paramSelectionByPlugin[normalizedPluginKey] || []);
+  }
+
+  function setParamSelectionUids(pluginKey, nextUids, options) {
+    const normalizedPluginKey = cleanText(pluginKey || '');
+    if (!normalizedPluginKey) return [];
+
+    const config = options && typeof options === 'object' ? options : {};
+    const entries = getVisibleParamNodeEntries();
+    const validUids = entries.map((entry) => entry.uid);
+    const validUidSet = new Set(validUids);
+
+    const selectedUids = uniqueStringList(nextUids).filter((uid) => validUidSet.has(uid));
+    state.paramSelectionByPlugin[normalizedPluginKey] = selectedUids;
+
+    let anchorUid = cleanText(state.paramSelectionAnchorByPlugin[normalizedPluginKey] || '');
+    if (!config.keepAnchor) {
+      anchorUid = selectedUids.length > 0
+        ? selectedUids[selectedUids.length - 1]
+        : '';
+    } else if (anchorUid && !validUidSet.has(anchorUid)) {
+      anchorUid = selectedUids.length > 0
+        ? selectedUids[selectedUids.length - 1]
+        : '';
+    }
+    state.paramSelectionAnchorByPlugin[normalizedPluginKey] = anchorUid;
+
+    const selectedUidSet = new Set(selectedUids);
+    for (let i = 0; i < entries.length; i += 1) {
+      entries[i].node.classList.toggle('selected', selectedUidSet.has(entries[i].uid));
+    }
+
+    if (selectedUids.length > 0) {
+      setLastEditorSelectionContext({
+        kind: 'param',
+        pluginKey: normalizedPluginKey
+      });
+    }
+
+    return selectedUids.slice();
+  }
+
+  function selectParamRangeTo(pluginKey, targetUid) {
+    const normalizedPluginKey = cleanText(pluginKey || '');
+    const normalizedTargetUid = cleanText(targetUid || '');
+    if (!normalizedPluginKey || !normalizedTargetUid) return [];
+
+    const entries = getVisibleParamNodeEntries();
+    const orderedUids = entries.map((entry) => entry.uid);
+    const targetIndex = orderedUids.indexOf(normalizedTargetUid);
+    if (targetIndex < 0) {
+      return setParamSelectionUids(normalizedPluginKey, [normalizedTargetUid]);
+    }
+
+    const anchorUid = cleanText(state.paramSelectionAnchorByPlugin[normalizedPluginKey] || '');
+    if (!anchorUid) {
+      return setParamSelectionUids(normalizedPluginKey, [normalizedTargetUid]);
+    }
+
+    const anchorIndex = orderedUids.indexOf(anchorUid);
+    if (anchorIndex < 0) {
+      return setParamSelectionUids(normalizedPluginKey, [normalizedTargetUid]);
+    }
+
+    const start = Math.min(anchorIndex, targetIndex);
+    const end = Math.max(anchorIndex, targetIndex);
+    const rangeUids = [];
+
+    for (let i = start; i <= end; i += 1) {
+      rangeUids.push(orderedUids[i]);
+    }
+
+    return setParamSelectionUids(normalizedPluginKey, rangeUids, { keepAnchor: true });
+  }
+
+  function paramSelectionForUid(pluginKey, uid) {
+    const normalizedPluginKey = cleanText(pluginKey || '');
+    const normalizedUid = cleanText(uid || '');
+    if (!normalizedPluginKey || !normalizedUid) return [];
+
+    const selectedUids = getParamSelectionUids(normalizedPluginKey);
+    if (selectedUids.includes(normalizedUid) && selectedUids.length > 0) {
+      return selectedUids.slice();
+    }
+
+    return setParamSelectionUids(normalizedPluginKey, [normalizedUid]);
+  }
+
+  function setParameterSelectionExpanded(pluginKey, targetUids, expanded) {
+    const normalizedPluginKey = cleanText(pluginKey || '');
+    if (!normalizedPluginKey) return false;
+
+    const entries = getVisibleParamNodeEntries();
+    if (entries.length <= 0) {
+      showToast('No parameter entries to expand/collapse.', 'bad');
+      return true;
+    }
+
+    const detailsByUid = new Map();
+    for (let i = 0; i < entries.length; i += 1) {
+      const detailsList = Array.isArray(entries[i].detailsList)
+        ? entries[i].detailsList.filter((detail) => detail instanceof HTMLDetailsElement)
+        : [];
+      if (detailsList.length <= 0) continue;
+      detailsByUid.set(entries[i].uid, detailsList);
+    }
+
+    const targets = uniqueStringList(targetUids).filter((uid) => detailsByUid.has(uid));
+    if (targets.length <= 0) {
+      showToast('Selected parameters have no expandable sections.', 'bad');
+      return true;
+    }
+
+    const nextOpen = Boolean(expanded);
+    let changed = false;
+
+    for (let i = 0; i < targets.length; i += 1) {
+      const detailsList = detailsByUid.get(targets[i]) || [];
+      for (let j = 0; j < detailsList.length; j += 1) {
+        const details = detailsList[j];
+        if (!(details instanceof HTMLDetailsElement)) continue;
+        if (details.open === nextOpen) continue;
+        details.open = nextOpen;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      requestManagerLayoutDirtyLabelRefresh();
+    }
+
+    setParamSelectionUids(normalizedPluginKey, uniqueStringList(targetUids), { keepAnchor: true });
+    return true;
+  }
+
+  function handleParamExpandCollapseHotkey(target, hotkey) {
+    const normalizedHotkey = String(hotkey || '').toLowerCase();
+    if (normalizedHotkey !== 'e' && normalizedHotkey !== 'w') {
+      return false;
+    }
+
+    const pluginKey = getActiveParamSelectionPluginKey();
+    if (!pluginKey) return false;
+
+    const element = target instanceof Element
+      ? target
+      : (document.activeElement instanceof Element ? document.activeElement : null);
+    const insideParams = Boolean(element && element.closest('#paramsDetails'));
+
+    const lastContext = state.lastEditorSelectionContext && typeof state.lastEditorSelectionContext === 'object'
+      ? state.lastEditorSelectionContext
+      : null;
+    const fallbackFromEditor = !insideParams
+      && state.lastSelectionScope === 'editor'
+      && lastContext
+      && lastContext.kind === 'param'
+      && cleanText(lastContext.pluginKey || '') === pluginKey;
+
+    if (!insideParams && !fallbackFromEditor) {
+      return false;
+    }
+
+    const entries = getVisibleParamNodeEntries();
+    if (entries.length <= 0) {
+      showToast('No parameter entries to expand/collapse.', 'bad');
+      return true;
+    }
+
+    const visibleUidSet = new Set(entries.map((entry) => entry.uid));
+    let targetUids = getParamSelectionUids(pluginKey).filter((uid) => visibleUidSet.has(uid));
+
+    if (targetUids.length <= 0 && element) {
+      const targetNode = element.closest('.param-node[data-param-select-uid]');
+      if (targetNode instanceof Element) {
+        const targetUid = cleanText(targetNode.dataset.paramSelectUid || '');
+        if (targetUid) {
+          targetUids = [targetUid];
+          setParamSelectionUids(pluginKey, targetUids);
+        }
+      }
+    }
+
+    if (targetUids.length <= 0) {
+      targetUids = entries.map((entry) => entry.uid);
+    }
+
+    return setParameterSelectionExpanded(pluginKey, targetUids, normalizedHotkey === 'e');
+  }
+
+  function handleExpandCollapseHotkey(target, hotkey) {
+    const normalizedHotkey = String(hotkey || '').toLowerCase();
+    if (normalizedHotkey !== 'e' && normalizedHotkey !== 'w') {
+      return false;
+    }
+
+    if (handleDevSelectionHotkey(target, normalizedHotkey)) {
+      return true;
+    }
+
+    if (handleListSelectionHotkey(target, normalizedHotkey)) {
+      return true;
+    }
+
+    const expand = normalizedHotkey === 'e';
+    const element = target instanceof Element
+      ? target
+      : (document.activeElement instanceof Element ? document.activeElement : null);
+
+    if (handleParamExpandCollapseHotkey(element, normalizedHotkey)) {
+      return true;
+    }
+
+    const scope = resolveSelectionScopeFromTarget(element);
+    if (scope === 'folders') {
+      return setFolderSelectionExpanded(expand);
+    }
+
+    return false;
+  }
+
+  function handleMultiSelectionDeleteHotkey(target) {
+    const listContext = resolveListControlContextFromTarget(target);
+    if (listContext) {
+      if (handleListSelectionHotkey(target, 'd')) {
+        return true;
+      }
+
+      showToast('No list elements selected.', 'bad');
+      return true;
+    }
+
+    const devContext = resolveDevSelectionContextFromTarget(target);
+    if (devContext && deleteDevSelection(devContext)) {
+      return true;
+    }
+
+    if (state.lastSelectionScope === 'editor') {
+      const editorFallback = resolveLastEditorDeleteContext();
+      if (editorFallback) {
+        if (editorFallback.kind === 'list') {
+          return Boolean(editorFallback.listContext.deleteSelection
+            && editorFallback.listContext.deleteSelection(null));
+        }
+
+        if (editorFallback.kind === 'dev') {
+          return deleteDevSelection(editorFallback.devContext);
+        }
+      }
+    }
+
+    const scope = resolveSelectionScopeFromTarget(target);
+    if (scope === 'folders') {
+      const ids = uniqueStringList(state.selectedFolderIds)
+        .filter((folderId) => folderId !== 'all' && getFolderById(folderId));
+      if (ids.length <= 0) {
+        showToast('Select folder(s) first.', 'bad');
+        return true;
+      }
+
+      deleteFoldersById(ids);
+      return true;
+    }
+
+    const keys = getSelectedOrActivePluginKeys();
+    if (keys.length <= 0) {
+      showToast('Select plugin row(s) first.', 'bad');
+      return true;
+    }
+
+    deletePluginsByKey(keys);
+    return true;
+  }
+
+  function handleDevSelectionHotkey(target, hotkey) {
+    const normalizedHotkey = String(hotkey || '').toLowerCase();
+    if (normalizedHotkey !== 'a' && normalizedHotkey !== 'e' && normalizedHotkey !== 'w') {
+      return false;
+    }
+
+    const context = resolveDevSelectionContextFromTarget(target);
+    if (!context) return false;
+
+    if (normalizedHotkey === 'a') {
+      return selectAllVisibleDevEntries(context);
+    }
+
+    return setDevSelectionExpanded(context, normalizedHotkey === 'e');
   }
 
   function buildTypedTreeStateKey(meta, scope) {
@@ -2752,6 +3779,8 @@
     state.schemaParamClipboard = null;
     state.structBlockClipboard = null;
     state.devSelectionByScope = {};
+    state.paramSelectionByPlugin = {};
+    state.paramSelectionAnchorByPlugin = {};
     state.dragSchemaSelectionUids = [];
     state.dragStructSchemaSelectionUids = [];
 
@@ -2794,6 +3823,7 @@
     syncSearchInputsFromState();
     applyUiZoom();
     state.lastSelectionScope = '';
+    state.lastEditorSelectionContext = null;
     resetHistoryBaseline();
     hideTagSuggest();
 
@@ -4535,6 +5565,9 @@
   function createListControl(meta, initialValue, onChanged) {
     const wrapper = document.createElement('div');
     wrapper.className = 'typed-list';
+    const listControlId = `list${nextListControlId}`;
+    nextListControlId += 1;
+    wrapper.dataset.listControlId = listControlId;
 
     const tree = document.createElement('details');
     tree.className = 'typed-list-tree';
@@ -4555,45 +5588,376 @@
     wrapper.appendChild(actions);
 
     let rows = parseListValue(initialValue);
+    let rowUids = [];
+    let selectedRowUids = [];
+    let selectionAnchorUid = '';
+    let dragSelectionUids = [];
     const elementMeta = getListElementMeta(meta);
-    let dragIndex = -1;
+
+    function buildListRowUid() {
+      const uid = `li${state.nextDevUid}`;
+      state.nextDevUid += 1;
+      return uid;
+    }
+
+    function resetRowUids() {
+      rowUids = rows.map(() => buildListRowUid());
+      selectedRowUids = [];
+      selectionAnchorUid = '';
+      dragSelectionUids = [];
+    }
+
+    resetRowUids();
 
     function emit() {
       summary.textContent = `List Elements (${rows.length})`;
       onChanged(JSON.stringify(rows));
     }
 
-    function copyElement(index) {
-      state.listItemClipboard = String(rows[index] === undefined || rows[index] === null ? '' : rows[index]);
-      showToast('List element copied.', 'good');
+    function indexByRowUid(rowUid) {
+      return rowUids.indexOf(String(rowUid || ''));
     }
 
-    function pasteElement(index) {
-      if (state.listItemClipboard === '') return;
-      rows[index] = String(state.listItemClipboard);
-      emit();
-      renderRows();
+    function orderedSelectionUids(uids) {
+      const selectedSet = new Set(uniqueStringList(uids));
+      const out = [];
+
+      for (let i = 0; i < rowUids.length; i += 1) {
+        const uid = rowUids[i];
+        if (!selectedSet.has(uid)) continue;
+        out.push(uid);
+      }
+
+      return out;
     }
 
-    function pasteElementAt(index) {
-      if (state.listItemClipboard === '') return;
+    function setSelectedRows(nextUids, options) {
+      const config = options && typeof options === 'object' ? options : {};
+      const validSet = new Set(rowUids);
+      selectedRowUids = orderedSelectionUids(nextUids).filter((uid) => validSet.has(uid));
+
+      if (!config.keepAnchor) {
+        selectionAnchorUid = selectedRowUids.length > 0
+          ? selectedRowUids[selectedRowUids.length - 1]
+          : '';
+      } else if (selectionAnchorUid && !validSet.has(selectionAnchorUid)) {
+        selectionAnchorUid = selectedRowUids.length > 0
+          ? selectedRowUids[selectedRowUids.length - 1]
+          : '';
+      }
+
+      if (selectedRowUids.length > 0) {
+        setLastEditorSelectionContext({
+          kind: 'list',
+          listControlId
+        });
+      }
+
+      applySelectionClasses();
+      return selectedRowUids.slice();
+    }
+
+    function resolveRowUidFromTarget(target) {
+      const element = target instanceof Element
+        ? target
+        : (document.activeElement instanceof Element ? document.activeElement : null);
+      if (!element) return '';
+
+      const row = element.closest('.typed-list-row');
+      if (!(row instanceof Element)) return '';
+      if (!wrapper.contains(row)) return '';
+
+      return cleanText(row.dataset.listRowUid || '');
+    }
+
+    function selectionForRow(rowUid) {
+      if (selectedRowUids.includes(rowUid) && selectedRowUids.length > 0) {
+        return selectedRowUids.slice();
+      }
+      return rowUid ? [rowUid] : [];
+    }
+
+    function selectionFromTarget(target, preferCurrentSelection) {
+      const rowUid = resolveRowUidFromTarget(target);
+
+      if (selectedRowUids.length > 0) {
+        if (preferCurrentSelection || !rowUid || selectedRowUids.includes(rowUid)) {
+          return selectedRowUids.slice();
+        }
+      }
+
+      return rowUid ? [rowUid] : selectedRowUids.slice();
+    }
+
+    function selectedIndexesFromUids(selectionUids) {
+      const selectedSet = new Set(uniqueStringList(selectionUids));
+      const indexes = [];
+
+      for (let i = 0; i < rowUids.length; i += 1) {
+        if (!selectedSet.has(rowUids[i])) continue;
+        indexes.push(i);
+      }
+
+      return indexes;
+    }
+
+    function selectedIndexes() {
+      return selectedIndexesFromUids(selectedRowUids);
+    }
+
+    function copyRowsByUids(selectionUids) {
+      const selectedSet = new Set(uniqueStringList(selectionUids));
+      const copied = [];
+
+      for (let i = 0; i < rows.length; i += 1) {
+        if (!selectedSet.has(rowUids[i])) continue;
+        copied.push(String(rows[i] === undefined || rows[i] === null ? '' : rows[i]));
+      }
+
+      if (copied.length <= 0) {
+        return false;
+      }
+
+      setListClipboardItems(copied);
+      showToast(copied.length > 1 ? 'List elements copied.' : 'List element copied.', 'good');
+      return true;
+    }
+
+    function pasteRowsAt(index) {
+      const clipboardItems = getListClipboardItems();
+      if (clipboardItems.length <= 0) {
+        return false;
+      }
+
       const safeIndex = Math.max(0, Math.min(rows.length, Number(index) || 0));
-      rows.splice(safeIndex, 0, String(state.listItemClipboard));
+      const insertedValues = clipboardItems.map((entry) => String(entry === undefined || entry === null ? '' : entry));
+      const insertedUids = insertedValues.map(() => buildListRowUid());
+
+      rows.splice(safeIndex, 0, ...insertedValues);
+      rowUids.splice(safeIndex, 0, ...insertedUids);
+
+      setSelectedRows(insertedUids);
       emit();
       renderRows();
+      showToast(insertedValues.length > 1 ? 'List elements pasted.' : 'List element pasted.', 'good');
+      return true;
     }
 
-    function moveElement(fromIndex, toIndex) {
-      if (fromIndex === toIndex) return;
-      if (fromIndex < 0 || fromIndex >= rows.length) return;
-      if (toIndex < 0 || toIndex >= rows.length) return;
+    function deleteRowsByUids(selectionUids) {
+      const selectedSet = new Set(uniqueStringList(selectionUids));
+      if (selectedSet.size <= 0) {
+        return false;
+      }
 
-      const moved = rows.splice(fromIndex, 1);
-      if (moved.length <= 0) return;
-      rows.splice(toIndex, 0, moved[0]);
+      let removed = 0;
+      for (let i = rows.length - 1; i >= 0; i -= 1) {
+        if (!selectedSet.has(rowUids[i])) continue;
+        rows.splice(i, 1);
+        rowUids.splice(i, 1);
+        removed += 1;
+      }
 
+      if (removed <= 0) {
+        return false;
+      }
+
+      setSelectedRows([]);
       emit();
       renderRows();
+      showToast(removed > 1 ? 'Selected list elements removed.' : 'List element removed.', 'good');
+      return true;
+    }
+
+    function moveRowsByUids(selectionUids, toIndex) {
+      const selectedSet = new Set(uniqueStringList(selectionUids));
+      if (selectedSet.size <= 0) return false;
+
+      const beforeOrder = rowUids.join('|');
+      const targetRaw = Number(toIndex);
+      const targetIndex = Number.isFinite(targetRaw)
+        ? Math.max(0, Math.min(rows.length, targetRaw))
+        : 0;
+
+      const selectedRows = [];
+      const selectedIds = [];
+      const remainingRows = [];
+      const remainingIds = [];
+
+      for (let i = 0; i < rows.length; i += 1) {
+        if (selectedSet.has(rowUids[i])) {
+          selectedRows.push(rows[i]);
+          selectedIds.push(rowUids[i]);
+        } else {
+          remainingRows.push(rows[i]);
+          remainingIds.push(rowUids[i]);
+        }
+      }
+
+      if (selectedRows.length <= 0) {
+        return false;
+      }
+
+      let selectedBeforeTarget = 0;
+      for (let i = 0; i < targetIndex && i < rowUids.length; i += 1) {
+        if (selectedSet.has(rowUids[i])) {
+          selectedBeforeTarget += 1;
+        }
+      }
+
+      const insertIndex = Math.max(0, Math.min(remainingRows.length, targetIndex - selectedBeforeTarget));
+
+      remainingRows.splice(insertIndex, 0, ...selectedRows);
+      remainingIds.splice(insertIndex, 0, ...selectedIds);
+
+      rows.splice(0, rows.length, ...remainingRows);
+      rowUids.splice(0, rowUids.length, ...remainingIds);
+
+      if (beforeOrder === rowUids.join('|')) {
+        return false;
+      }
+
+      setSelectedRows(selectedIds, { keepAnchor: true });
+      emit();
+      renderRows();
+      return true;
+    }
+
+    function applySelectionClasses() {
+      const selectedSet = new Set(selectedRowUids);
+      const rowNodes = treePanel.querySelectorAll('.typed-list-row');
+
+      for (let i = 0; i < rowNodes.length; i += 1) {
+        const rowNode = rowNodes[i];
+        const rowUid = cleanText(rowNode.dataset.listRowUid || '');
+        rowNode.classList.toggle('selected', selectedSet.has(rowUid));
+      }
+    }
+
+    function collectExpandableDetailsForRow(rowNode) {
+      if (!(rowNode instanceof Element)) return [];
+
+      const details = [];
+      const seen = new Set();
+
+      function pushDetails(nodeList) {
+        for (let i = 0; i < nodeList.length; i += 1) {
+          const detail = nodeList[i];
+          if (!(detail instanceof HTMLDetailsElement)) continue;
+          if (seen.has(detail)) continue;
+          seen.add(detail);
+          details.push(detail);
+        }
+      }
+
+      const valueWrap = rowNode.querySelector('.typed-list-cell');
+      const scope = valueWrap instanceof Element ? valueWrap : rowNode;
+      pushDetails(scope.querySelectorAll('.typed-list-tree'));
+
+      return details;
+    }
+
+    function countExpandableRows(selectionUids) {
+      const selectedSet = new Set(uniqueStringList(selectionUids));
+      if (selectedSet.size <= 0) return 0;
+
+      const rowNodes = treePanel.querySelectorAll('.typed-list-row');
+      let count = 0;
+
+      for (let i = 0; i < rowNodes.length; i += 1) {
+        const rowNode = rowNodes[i];
+        const rowUid = cleanText(rowNode.dataset.listRowUid || '');
+        if (!selectedSet.has(rowUid)) continue;
+        if (collectExpandableDetailsForRow(rowNode).length <= 0) continue;
+        count += 1;
+      }
+
+      return count;
+    }
+
+    function setRowsExpandedByUids(selectionUids, expanded) {
+      const selected = uniqueStringList(selectionUids);
+      if (selected.length <= 0) {
+        showToast('No list elements selected.', 'bad');
+        return true;
+      }
+
+      const selectedSet = new Set(selected);
+      const rowNodes = treePanel.querySelectorAll('.typed-list-row');
+      const nextOpen = Boolean(expanded);
+
+      let expandableRows = 0;
+      let changed = false;
+
+      for (let i = 0; i < rowNodes.length; i += 1) {
+        const rowNode = rowNodes[i];
+        const rowUid = cleanText(rowNode.dataset.listRowUid || '');
+        if (!selectedSet.has(rowUid)) continue;
+
+        const details = collectExpandableDetailsForRow(rowNode);
+        if (details.length <= 0) continue;
+
+        expandableRows += 1;
+        for (let j = 0; j < details.length; j += 1) {
+          if (details[j].open === nextOpen) continue;
+          details[j].open = nextOpen;
+          changed = true;
+        }
+      }
+
+      if (expandableRows <= 0) {
+        showToast('Selected list elements have no expandable sections.', 'bad');
+        return true;
+      }
+
+      if (changed) {
+        requestManagerLayoutDirtyLabelRefresh();
+      }
+
+      setSelectedRows(selected, { keepAnchor: true });
+      return true;
+    }
+
+    function clearDragClasses() {
+      const rowNodes = treePanel.querySelectorAll('.typed-list-row');
+      for (let i = 0; i < rowNodes.length; i += 1) {
+        rowNodes[i].classList.remove('dragging');
+        rowNodes[i].classList.remove('drop-before');
+      }
+
+      const gapNodes = treePanel.querySelectorAll('.typed-list-gap');
+      for (let i = 0; i < gapNodes.length; i += 1) {
+        gapNodes[i].classList.remove('drop-before');
+      }
+    }
+
+    function hasDragSelection() {
+      return Array.isArray(dragSelectionUids) && dragSelectionUids.length > 0;
+    }
+
+    function selectRangeTo(rowUid) {
+      if (!rowUid) return;
+
+      if (!selectionAnchorUid || indexByRowUid(selectionAnchorUid) < 0) {
+        setSelectedRows([rowUid]);
+        return;
+      }
+
+      const fromIndex = indexByRowUid(selectionAnchorUid);
+      const toIndex = indexByRowUid(rowUid);
+      if (fromIndex < 0 || toIndex < 0) {
+        setSelectedRows([rowUid]);
+        return;
+      }
+
+      const start = Math.min(fromIndex, toIndex);
+      const end = Math.max(fromIndex, toIndex);
+      const rangeUids = [];
+
+      for (let i = start; i <= end; i += 1) {
+        rangeUids.push(rowUids[i]);
+      }
+
+      setSelectedRows(rangeUids, { keepAnchor: true });
     }
 
     async function editElementPlainText(index) {
@@ -4614,15 +5978,43 @@
       const gap = document.createElement('div');
       gap.className = 'typed-list-gap';
 
+      gap.addEventListener('dragover', (event) => {
+        if (!hasDragSelection()) return;
+        event.preventDefault();
+        autoScrollVerticalOnDrag(event, dom.editorContent);
+        gap.classList.add('drop-before');
+      });
+
+      gap.addEventListener('dragleave', () => {
+        gap.classList.remove('drop-before');
+      });
+
+      gap.addEventListener('drop', (event) => {
+        if (!hasDragSelection()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        gap.classList.remove('drop-before');
+
+        const moved = moveRowsByUids(dragSelectionUids, insertIndex);
+        dragSelectionUids = [];
+        clearDragClasses();
+
+        if (!moved) {
+          applySelectionClasses();
+        }
+      });
+
       gap.addEventListener('contextmenu', (event) => {
         event.preventDefault();
         event.stopPropagation();
 
+        const clipboardCount = getListClipboardItems().length;
+
         showContextMenu(event, [
           {
-            label: 'Paste (element) here',
-            disabled: state.listItemClipboard === '',
-            action: () => pasteElementAt(insertIndex)
+            label: clipboardCount > 1 ? 'Paste Items Here' : 'Paste Item Here',
+            disabled: clipboardCount <= 0,
+            action: () => pasteRowsAt(insertIndex)
           }
         ]);
       });
@@ -4635,14 +6027,46 @@
       treePanel.innerHTML = '';
       actions.innerHTML = '';
 
+      const clipboardCount = getListClipboardItems().length;
+      const selectedCount = selectedRowUids.length;
+
       for (let i = 0; i < rows.length; i += 1) {
         appendPasteGap(treePanel, i);
 
+        const rowUid = rowUids[i];
+
         const rowWrap = document.createElement('div');
         rowWrap.className = 'typed-list-row';
+        rowWrap.dataset.listRowUid = rowUid;
+        rowWrap.classList.toggle('selected', selectedRowUids.includes(rowUid));
+
+        rowWrap.addEventListener('click', (event) => {
+          const target = event.target;
+          if (target instanceof Element && target.closest('input, textarea, select, button, [contenteditable="true"]')) {
+            return;
+          }
+
+          if (event.shiftKey) {
+            selectRangeTo(rowUid);
+            return;
+          }
+
+          if (isMetaOrCtrlPressed(event)) {
+            if (selectedRowUids.includes(rowUid)) {
+              setSelectedRows(selectedRowUids.filter((uid) => uid !== rowUid), { keepAnchor: true });
+            } else {
+              const nextSelection = selectedRowUids.concat(rowUid);
+              selectionAnchorUid = rowUid;
+              setSelectedRows(nextSelection, { keepAnchor: true });
+            }
+            return;
+          }
+
+          setSelectedRows([rowUid]);
+        });
 
         rowWrap.addEventListener('dragover', (event) => {
-          if (dragIndex < 0 || dragIndex === i) return;
+          if (!hasDragSelection()) return;
           event.preventDefault();
           autoScrollVerticalOnDrag(event, dom.editorContent);
           rowWrap.classList.add('drop-before');
@@ -4653,34 +6077,59 @@
         });
 
         rowWrap.addEventListener('drop', (event) => {
-          if (dragIndex < 0) return;
+          if (!hasDragSelection()) return;
           event.preventDefault();
           event.stopPropagation();
           rowWrap.classList.remove('drop-before');
 
-          const fromIndex = dragIndex;
-          const toIndex = fromIndex < i ? i - 1 : i;
-          dragIndex = -1;
-          moveElement(fromIndex, toIndex);
+          const moved = moveRowsByUids(dragSelectionUids, i);
+          dragSelectionUids = [];
+          clearDragClasses();
+
+          if (!moved) {
+            applySelectionClasses();
+          }
         });
 
         rowWrap.addEventListener('contextmenu', (event) => {
           event.preventDefault();
           event.stopPropagation();
 
+          const initialSelection = selectionForRow(rowUid);
+          setSelectedRows(initialSelection);
+
+          const scopedSelection = selectionForRow(rowUid);
+          const scopedCount = scopedSelection.length;
+          const expandableCount = countExpandableRows(scopedSelection);
+          const listClipboardCount = getListClipboardItems().length;
+
           showContextMenu(event, [
             {
-              label: 'Copy (element)',
-              action: () => copyElement(i)
+              label: scopedCount > 1 ? 'Copy Selected Items' : 'Copy Item',
+              action: () => copyRowsByUids(scopedSelection)
             },
             {
-              label: 'Paste (element)',
-              disabled: state.listItemClipboard === '',
-              action: () => pasteElement(i)
+              label: listClipboardCount > 1 ? 'Paste Items Below' : 'Paste Item Below',
+              disabled: listClipboardCount <= 0,
+              action: () => pasteRowsAt(i + 1)
+            },
+            {
+              label: scopedCount > 1 ? 'Expand Selected Items' : 'Expand Item',
+              disabled: expandableCount <= 0,
+              action: () => setRowsExpandedByUids(scopedSelection, true)
+            },
+            {
+              label: scopedCount > 1 ? 'Collapse Selected Items' : 'Collapse Item',
+              disabled: expandableCount <= 0,
+              action: () => setRowsExpandedByUids(scopedSelection, false)
             },
             {
               label: 'Preview Raw Text',
               action: () => editElementPlainText(i)
+            },
+            {
+              label: scopedCount > 1 ? 'Delete Selected Items' : 'Delete Item',
+              action: () => deleteRowsByUids(scopedSelection)
             }
           ]);
         });
@@ -4692,20 +6141,33 @@
         dragHandle.title = 'Drag to reorder element';
         dragHandle.setAttribute('aria-label', 'Drag element');
 
+        dragHandle.addEventListener('mousedown', (event) => {
+          event.stopPropagation();
+          setSelectedRows(selectionForRow(rowUid));
+        });
+
+        dragHandle.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+
         dragHandle.addEventListener('dragstart', (event) => {
-          dragIndex = i;
+          const scopedSelection = selectionForRow(rowUid);
+          setSelectedRows(scopedSelection);
+
+          dragSelectionUids = scopedSelection;
           rowWrap.classList.add('dragging');
 
           if (event.dataTransfer) {
             event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', String(i));
+            event.dataTransfer.setData('text/plain', String(rowUid));
           }
         });
 
         dragHandle.addEventListener('dragend', () => {
-          dragIndex = -1;
-          rowWrap.classList.remove('dragging');
-          rowWrap.classList.remove('drop-before');
+          dragSelectionUids = [];
+          clearDragClasses();
+          applySelectionClasses();
         });
 
         const actionWrap = document.createElement('div');
@@ -4731,17 +6193,21 @@
         const copyBtn = document.createElement('button');
         copyBtn.type = 'button';
         copyBtn.className = 'typed-mini';
-        copyBtn.textContent = 'Copy';
-        copyBtn.addEventListener('click', () => copyElement(i));
+        copyBtn.textContent = selectionForRow(rowUid).length > 1 ? 'Copy Sel' : 'Copy';
+        copyBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          copyRowsByUids(selectionForRow(rowUid));
+        });
 
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.className = 'typed-mini';
-        delBtn.textContent = 'X';
-        delBtn.addEventListener('click', () => {
-          rows.splice(i, 1);
-          emit();
-          renderRows();
+        delBtn.textContent = selectionForRow(rowUid).length > 1 ? 'Del Sel' : 'X';
+        delBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          deleteRowsByUids(selectionForRow(rowUid));
         });
 
         actionWrap.appendChild(viewBtn);
@@ -4761,25 +6227,53 @@
       addBtn.className = 'typed-mini typed-list-add-btn';
       addBtn.textContent = '+ Add Item';
       addBtn.addEventListener('click', () => {
+        const newUid = buildListRowUid();
         rows.push('');
+        rowUids.push(newUid);
+        setSelectedRows([newUid]);
         emit();
         renderRows();
+      });
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'typed-mini';
+      copyBtn.textContent = selectedCount > 1 ? 'Copy Selected' : 'Copy Item';
+      copyBtn.disabled = selectedCount <= 0;
+      copyBtn.addEventListener('click', () => {
+        if (selectedRowUids.length <= 0) return;
+        copyRowsByUids(selectedRowUids);
       });
 
       const pasteBtn = document.createElement('button');
       pasteBtn.type = 'button';
       pasteBtn.className = 'typed-mini';
-      pasteBtn.textContent = 'Paste Item';
-      pasteBtn.disabled = state.listItemClipboard === '';
+      pasteBtn.textContent = clipboardCount > 1 ? 'Paste Items' : 'Paste Item';
+      pasteBtn.disabled = clipboardCount <= 0;
       pasteBtn.addEventListener('click', () => {
-        if (state.listItemClipboard === '') return;
-        rows.push(String(state.listItemClipboard));
-        emit();
-        renderRows();
+        const indexes = selectedIndexes();
+        if (indexes.length > 0) {
+          pasteRowsAt(indexes[indexes.length - 1] + 1);
+          return;
+        }
+
+        pasteRowsAt(rows.length);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'typed-mini';
+      deleteBtn.textContent = selectedCount > 1 ? 'Delete Selected' : 'Delete Item';
+      deleteBtn.disabled = selectedCount <= 0;
+      deleteBtn.addEventListener('click', () => {
+        if (selectedRowUids.length <= 0) return;
+        deleteRowsByUids(selectedRowUids);
       });
 
       actions.appendChild(addBtn);
+      actions.appendChild(copyBtn);
       actions.appendChild(pasteBtn);
+      actions.appendChild(deleteBtn);
 
       if (rows.length <= 0) {
         const empty = document.createElement('div');
@@ -4787,7 +6281,67 @@
         empty.textContent = 'No elements in list.';
         treePanel.appendChild(empty);
       }
+
+      applySelectionClasses();
     }
+
+    const listControlContext = {
+      wrapper,
+      hasSelection() {
+        return selectedRowUids.length > 0;
+      },
+      clearSelection() {
+        if (selectedRowUids.length <= 0) return true;
+        setSelectedRows([]);
+        return true;
+      },
+      selectAllRows() {
+        if (rows.length <= 0) {
+          showToast('No list elements to select.', 'bad');
+          return true;
+        }
+
+        setSelectedRows(rowUids.slice());
+        return true;
+      },
+      copySelection(target) {
+        const selectionUids = selectionFromTarget(target, true);
+        if (selectionUids.length <= 0) {
+          return false;
+        }
+        return copyRowsByUids(selectionUids);
+      },
+      pasteSelection(target) {
+        if (getListClipboardItems().length <= 0) {
+          return false;
+        }
+
+        const targetRowUid = resolveRowUidFromTarget(target);
+        if (targetRowUid) {
+          return pasteRowsAt(indexByRowUid(targetRowUid) + 1);
+        }
+
+        const indexes = selectedIndexes();
+        if (indexes.length > 0) {
+          return pasteRowsAt(indexes[indexes.length - 1] + 1);
+        }
+
+        return pasteRowsAt(rows.length);
+      },
+      deleteSelection(target) {
+        const selectionUids = selectionFromTarget(target, true);
+        if (selectionUids.length <= 0) {
+          return false;
+        }
+        return deleteRowsByUids(selectionUids);
+      },
+      expandSelection(target, expanded) {
+        const selectionUids = selectionFromTarget(target, true);
+        return setRowsExpandedByUids(selectionUids, expanded);
+      }
+    };
+
+    listControlRegistry.set(listControlId, listControlContext);
 
     renderRows();
 
@@ -4795,7 +6349,7 @@
       element: wrapper,
       setFromPlain(value) {
         rows = parseListValue(value);
-        dragIndex = -1;
+        resetRowUids();
         renderRows();
       }
     };
@@ -5965,20 +7519,44 @@
     return out;
   }
 
-  function renderParameterNode(node, pluginIndex, container) {
+  function renderParameterNode(node, pluginIndex, container, pathTokens) {
+    const plugin = state.plugins[pluginIndex];
+    const pluginKey = plugin ? makePluginKey(plugin) : '';
+    const tokens = Array.isArray(pathTokens) ? pathTokens : [];
+    const fallbackToken = `0:${encodeURIComponent(String(node && node.name ? node.name : ''))}`;
+    const nodeUid = tokens.length > 0 ? tokens.join('/') : fallbackToken;
+
     const wrapper = document.createElement('div');
     wrapper.className = 'param-node';
     wrapper.dataset.paramName = String(node.name || '');
+    wrapper.dataset.paramSelectUid = nodeUid;
     if (node.isList) wrapper.classList.add('param-list');
     if (node.isStruct) wrapper.classList.add('param-struct');
 
-    wrapper.addEventListener('contextmenu', (event) => {
-      const plugin = state.plugins[pluginIndex];
-      if (!plugin) return;
+    if (pluginKey && getParamSelectionUids(pluginKey).includes(nodeUid)) {
+      wrapper.classList.add('selected');
+    }
 
-      const currentValue = plugin.parameters && plugin.parameters[node.name] !== undefined
-        ? plugin.parameters[node.name]
+    wrapper.addEventListener('contextmenu', (event) => {
+      const activePlugin = state.plugins[pluginIndex];
+      if (!activePlugin) return;
+
+      const activePluginKey = makePluginKey(activePlugin);
+      const currentValue = activePlugin.parameters && activePlugin.parameters[node.name] !== undefined
+        ? activePlugin.parameters[node.name]
         : '';
+
+      const selectedUids = paramSelectionForUid(activePluginKey, nodeUid);
+      const selectedUidSet = new Set(selectedUids);
+      const visibleEntries = getVisibleParamNodeEntries();
+      let expandableCount = 0;
+
+      for (let i = 0; i < visibleEntries.length; i += 1) {
+        const entry = visibleEntries[i];
+        if (!selectedUidSet.has(entry.uid)) continue;
+        if (!Array.isArray(entry.detailsList) || entry.detailsList.length <= 0) continue;
+        expandableCount += 1;
+      }
 
       const actions = [];
 
@@ -6004,6 +7582,16 @@
             updatePluginParameterValue(pluginIndex, node.name, state.paramClipboard);
             renderActivePluginPanel();
           }
+        },
+        {
+          label: selectedUids.length > 1 ? 'Expand Selected Parameters' : 'Expand Parameter',
+          disabled: expandableCount <= 0,
+          action: () => setParameterSelectionExpanded(activePluginKey, selectedUids, true)
+        },
+        {
+          label: selectedUids.length > 1 ? 'Collapse Selected Parameters' : 'Collapse Parameter',
+          disabled: expandableCount <= 0,
+          action: () => setParameterSelectionExpanded(activePluginKey, selectedUids, false)
         }
       );
 
@@ -6020,6 +7608,37 @@
       <span class="param-title">${escapeHtml(displayTitle)}</span>
       <span class="param-type">@type ${escapeHtml(node.type || 'text')}</span>
     `;
+
+    head.addEventListener('click', (event) => {
+      const activePlugin = state.plugins[pluginIndex];
+      if (!activePlugin) return;
+
+      const activePluginKey = makePluginKey(activePlugin);
+
+      if (event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectParamRangeTo(activePluginKey, nodeUid);
+        return;
+      }
+
+      if (isMetaOrCtrlPressed(event)) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const current = getParamSelectionUids(activePluginKey);
+        if (current.includes(nodeUid)) {
+          setParamSelectionUids(activePluginKey, current.filter((uid) => uid !== nodeUid), { keepAnchor: true });
+        } else {
+          state.paramSelectionAnchorByPlugin[activePluginKey] = nodeUid;
+          setParamSelectionUids(activePluginKey, current.concat(nodeUid), { keepAnchor: true });
+        }
+        return;
+      }
+
+      setParamSelectionUids(activePluginKey, [nodeUid]);
+    });
+
     wrapper.appendChild(head);
 
     if (node.desc) {
@@ -6077,6 +7696,7 @@
     if (node.children && node.children.length > 0) {
       const childrenDetails = document.createElement('details');
       childrenDetails.className = 'param-children-tree';
+      childrenDetails.dataset.paramSelectUid = nodeUid;
       bindTypedTreeDetailsState(childrenDetails, node, 'param-children', true);
 
       const childrenSummary = document.createElement('summary');
@@ -6084,7 +7704,15 @@
 
       const childWrap = document.createElement('div');
       childWrap.className = 'param-children';
-      node.children.forEach((child) => renderParameterNode(child, pluginIndex, childWrap));
+      node.children.forEach((child, childIndex) => {
+        const childName = encodeURIComponent(String(child && child.name ? child.name : ''));
+        renderParameterNode(
+          child,
+          pluginIndex,
+          childWrap,
+          tokens.concat(`${childIndex}:${childName}`)
+        );
+      });
 
       childrenDetails.appendChild(childrenSummary);
       childrenDetails.appendChild(childWrap);
@@ -6488,6 +8116,8 @@
 
     if (!container) return;
     container.innerHTML = '';
+    container.dataset.devScope = scope;
+    container.dataset.devPluginKey = pluginKey;
 
     const depths = schemaDraftComputeDepths(entries);
     const validEntryUidSet = new Set(entries.map((entry) => ensureDraftEntryUid(entry)));
@@ -6495,10 +8125,65 @@
       .filter((uid) => validEntryUidSet.has(uid));
     selectedEntryUids = setDevSelectionUids(scope, pluginKey, selectedEntryUids);
 
-    function setSelection(nextUids) {
+    let selectionAnchorUid = selectedEntryUids.length > 0
+      ? selectedEntryUids[selectedEntryUids.length - 1]
+      : '';
+
+    function setSelection(nextUids, options) {
+      const config = options && typeof options === 'object' ? options : {};
       selectedEntryUids = setDevSelectionUids(scope, pluginKey, uniqueStringList(nextUids)
         .filter((uid) => validEntryUidSet.has(uid)));
+
+      if (!config.keepAnchor) {
+        selectionAnchorUid = selectedEntryUids.length > 0
+          ? selectedEntryUids[selectedEntryUids.length - 1]
+          : '';
+      } else if (selectionAnchorUid && !validEntryUidSet.has(selectionAnchorUid)) {
+        selectionAnchorUid = selectedEntryUids.length > 0
+          ? selectedEntryUids[selectedEntryUids.length - 1]
+          : '';
+      }
+
+      if (selectedEntryUids.length > 0) {
+        setLastEditorSelectionContext({
+          kind: 'dev',
+          scope,
+          pluginKey
+        });
+      }
+
       return selectedEntryUids;
+    }
+
+    function selectRangeToEntry(entryUid) {
+      if (!entryUid) return;
+
+      const targetIndex = entries.findIndex((entry) => ensureDraftEntryUid(entry) === entryUid);
+      if (targetIndex < 0) {
+        setSelection([entryUid]);
+        return;
+      }
+
+      if (!selectionAnchorUid || !validEntryUidSet.has(selectionAnchorUid)) {
+        setSelection([entryUid]);
+        return;
+      }
+
+      const anchorIndex = entries.findIndex((entry) => ensureDraftEntryUid(entry) === selectionAnchorUid);
+      if (anchorIndex < 0) {
+        setSelection([entryUid]);
+        return;
+      }
+
+      const start = Math.min(anchorIndex, targetIndex);
+      const end = Math.max(anchorIndex, targetIndex);
+      const rangeUids = [];
+
+      for (let i = start; i <= end; i += 1) {
+        rangeUids.push(ensureDraftEntryUid(entries[i]));
+      }
+
+      setSelection(rangeUids, { keepAnchor: true });
     }
 
     function applySelectionClasses() {
@@ -6860,14 +8545,24 @@
       const summary = document.createElement('summary');
 
       summary.addEventListener('click', (event) => {
+        if (event.shiftKey) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          selectRangeToEntry(entryUid);
+          applySelectionClasses();
+          return;
+        }
+
         if (isMetaOrCtrlPressed(event)) {
           event.preventDefault();
           event.stopPropagation();
 
           if (selectedEntryUids.includes(entryUid)) {
-            setSelection(selectedEntryUids.filter((uid) => uid !== entryUid));
+            setSelection(selectedEntryUids.filter((uid) => uid !== entryUid), { keepAnchor: true });
           } else {
-            setSelection(selectedEntryUids.concat(entryUid));
+            selectionAnchorUid = entryUid;
+            setSelection(selectedEntryUids.concat(entryUid), { keepAnchor: true });
           }
           applySelectionClasses();
           return;
@@ -7125,6 +8820,8 @@
 
     const plugin = state.plugins[pluginIndex];
     const pluginKey = makePluginKey(plugin);
+    dom.structSchemaEditor.dataset.devScope = 'struct-schema-block';
+    dom.structSchemaEditor.dataset.devPluginKey = pluginKey;
     const search = String(state.structSchemaSearch || '').trim().toLowerCase();
 
     if (!metadataResult.found) {
@@ -7144,10 +8841,65 @@
       .filter((uid) => validBlockUidSet.has(uid));
     selectedBlockUids = setDevSelectionUids(selectionScope, pluginKey, selectedBlockUids);
 
-    function setBlockSelection(nextUids) {
+    let blockSelectionAnchorUid = selectedBlockUids.length > 0
+      ? selectedBlockUids[selectedBlockUids.length - 1]
+      : '';
+
+    function setBlockSelection(nextUids, options) {
+      const config = options && typeof options === 'object' ? options : {};
       selectedBlockUids = setDevSelectionUids(selectionScope, pluginKey, uniqueStringList(nextUids)
         .filter((uid) => validBlockUidSet.has(uid)));
+
+      if (!config.keepAnchor) {
+        blockSelectionAnchorUid = selectedBlockUids.length > 0
+          ? selectedBlockUids[selectedBlockUids.length - 1]
+          : '';
+      } else if (blockSelectionAnchorUid && !validBlockUidSet.has(blockSelectionAnchorUid)) {
+        blockSelectionAnchorUid = selectedBlockUids.length > 0
+          ? selectedBlockUids[selectedBlockUids.length - 1]
+          : '';
+      }
+
+      if (selectedBlockUids.length > 0) {
+        setLastEditorSelectionContext({
+          kind: 'dev',
+          scope: selectionScope,
+          pluginKey
+        });
+      }
+
       return selectedBlockUids;
+    }
+
+    function selectBlockRangeTo(blockUid) {
+      if (!blockUid) return;
+
+      const targetIndex = blocks.findIndex((block) => ensureDraftEntryUid(block) === blockUid);
+      if (targetIndex < 0) {
+        setBlockSelection([blockUid]);
+        return;
+      }
+
+      if (!blockSelectionAnchorUid || !validBlockUidSet.has(blockSelectionAnchorUid)) {
+        setBlockSelection([blockUid]);
+        return;
+      }
+
+      const anchorIndex = blocks.findIndex((block) => ensureDraftEntryUid(block) === blockSelectionAnchorUid);
+      if (anchorIndex < 0) {
+        setBlockSelection([blockUid]);
+        return;
+      }
+
+      const start = Math.min(anchorIndex, targetIndex);
+      const end = Math.max(anchorIndex, targetIndex);
+      const rangeUids = [];
+
+      for (let i = start; i <= end; i += 1) {
+        rangeUids.push(ensureDraftEntryUid(blocks[i]));
+      }
+
+      setBlockSelection(rangeUids, { keepAnchor: true });
     }
 
     function applyBlockSelectionClasses() {
@@ -7468,14 +9220,24 @@
       const summary = document.createElement('summary');
 
       summary.addEventListener('click', (event) => {
+        if (event.shiftKey) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          selectBlockRangeTo(blockUid);
+          applyBlockSelectionClasses();
+          return;
+        }
+
         if (isMetaOrCtrlPressed(event)) {
           event.preventDefault();
           event.stopPropagation();
 
           if (selectedBlockUids.includes(blockUid)) {
-            setBlockSelection(selectedBlockUids.filter((uid) => uid !== blockUid));
+            setBlockSelection(selectedBlockUids.filter((uid) => uid !== blockUid), { keepAnchor: true });
           } else {
-            setBlockSelection(selectedBlockUids.concat(blockUid));
+            blockSelectionAnchorUid = blockUid;
+            setBlockSelection(selectedBlockUids.concat(blockUid), { keepAnchor: true });
           }
           applyBlockSelectionClasses();
           return;
@@ -7754,8 +9516,13 @@
         : 'No parameters found.';
       dom.paramsTree.appendChild(empty);
     } else {
-      filteredRoots.forEach((rootNode) => renderParameterNode(rootNode, activeIndex, dom.paramsTree));
+      filteredRoots.forEach((rootNode, rootIndex) => {
+        const rootName = encodeURIComponent(String(rootNode && rootNode.name ? rootNode.name : ''));
+        renderParameterNode(rootNode, activeIndex, dom.paramsTree, [`${rootIndex}:${rootName}`]);
+      });
     }
+
+    setParamSelectionUids(pluginKey, getParamSelectionUids(pluginKey), { keepAnchor: true });
 
     renderSchemaEditor(activeIndex, metadataResult);
     renderStructSchemaEditor(activeIndex, metadataResult);
@@ -7954,6 +9721,16 @@
       delete state.structSchemaDirtyKeys[oldKey];
     }
 
+    if (Object.prototype.hasOwnProperty.call(state.paramSelectionByPlugin, oldKey)) {
+      state.paramSelectionByPlugin[newKey] = state.paramSelectionByPlugin[oldKey];
+      delete state.paramSelectionByPlugin[oldKey];
+    }
+
+    if (Object.prototype.hasOwnProperty.call(state.paramSelectionAnchorByPlugin, oldKey)) {
+      state.paramSelectionAnchorByPlugin[newKey] = state.paramSelectionAnchorByPlugin[oldKey];
+      delete state.paramSelectionAnchorByPlugin[oldKey];
+    }
+
     remapPluginScopedOpenState(oldKey, newKey);
 
     state.openTabs = uniqueStringList(state.openTabs.map((key) => (key === oldKey ? newKey : key)));
@@ -8115,6 +9892,8 @@
       delete state.schemaDirtyKeys[key];
       delete state.structSchemaDrafts[key];
       delete state.structSchemaDirtyKeys[key];
+      delete state.paramSelectionByPlugin[key];
+      delete state.paramSelectionAnchorByPlugin[key];
       clearPluginScopedOpenState(key);
     });
 
@@ -9278,6 +11057,34 @@
         event.preventDefault();
         setUiZoomPercent(100, false);
         return;
+      }
+
+      const expandCollapseHotkey = hotkey === 'e' || event.code === 'KeyE'
+        ? 'e'
+        : (hotkey === 'w' || event.code === 'KeyW' ? 'w' : '');
+
+      if (!event.shiftKey
+        && expandCollapseHotkey
+        && handleExpandCollapseHotkey(event.target, expandCollapseHotkey)) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!event.shiftKey && handleDevSelectionHotkey(event.target, hotkey)) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!event.shiftKey && handleListSelectionHotkey(event.target, hotkey)) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!event.shiftKey && (hotkey === 'd' || event.code === 'KeyD')) {
+        if (handleMultiSelectionDeleteHotkey(event.target)) {
+          event.preventDefault();
+          return;
+        }
       }
 
       if (isPluginSelectionEditableTarget(event.target)) return;

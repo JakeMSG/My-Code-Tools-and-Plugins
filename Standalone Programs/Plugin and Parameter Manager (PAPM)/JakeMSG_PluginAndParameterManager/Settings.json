@@ -1,0 +1,2329 @@
+{
+  "version": 1,
+  "sourcePlugins": [
+    {
+      "key": "============ Core ============::======================================================================================================================",
+      "name": "============ Core ============"
+    },
+    {
+      "key": "-------- Cores --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Cores --------"
+    },
+    {
+      "key": "Community_Basic::Plugin used to set basic parameters.",
+      "name": "Community_Basic"
+    },
+    {
+      "key": "SRD_GameUpgrade::Enables more customization over the core mechanics of one's game while also providing additional functions for future plugins.",
+      "name": "SRD_GameUpgrade"
+    },
+    {
+      "key": "SRD_WindowUpgrade::Upgrades and adds various features to the existing window system within one's game.",
+      "name": "SRD_WindowUpgrade"
+    },
+    {
+      "key": "SRD_SuperToolsEngine::The heart of all maker-style plugins; it adds a playtesting editor that can be opened with F12.",
+      "name": "SRD_SuperToolsEngine"
+    },
+    {
+      "key": "YEP_CoreEngine::v1.32 Needed for the majority of Yanfly Engine Scripts. Also\r\ncontains bug fixes found inherently in RPG Maker.",
+      "name": "YEP_CoreEngine"
+    },
+    {
+      "key": "YEP_BattleEngineCore::v1.51 Have more control over the flow of the battle system\nwith this plugin and alter various aspects to your liking.",
+      "name": "YEP_BattleEngineCore"
+    },
+    {
+      "key": "YEP_SkillCore::v1.13 Skills are now given more functions and the ability\r\nto require different types of costs.",
+      "name": "YEP_SkillCore"
+    },
+    {
+      "key": "TSR_Popups::v1.2.6 Provide multiple options for battle Popups.",
+      "name": "TSR_Popups"
+    },
+    {
+      "key": "YEP_BuffsStatesCore::v1.16 Alter the basic mechanics behind buffs and states\nthat aren't adjustable within the RPG Maker editor.",
+      "name": "YEP_BuffsStatesCore"
+    },
+    {
+      "key": "YEP_DamageCore::v1.08 Expand the control you have over the game's damage\ncalculation with more features and effects.",
+      "name": "YEP_DamageCore"
+    },
+    {
+      "key": "YEP_ElementCore::v1.02 Manage the way elements work in this game from\nabsorbing elements, reflecting elements, and more!",
+      "name": "YEP_ElementCore"
+    },
+    {
+      "key": "YEP_ClassChangeCore::v1.13 This plugin creates a system where your player\ncan change classes through the main menu.",
+      "name": "YEP_ClassChangeCore"
+    },
+    {
+      "key": "YEP_ItemCore::v1.30 Changes the way Items are handled for your game\nand the Item Scene, too.",
+      "name": "YEP_ItemCore"
+    },
+    {
+      "key": "YEP_EquipCore::v1.18 Allows for the equipment system to be more flexible to\nallow for unique equipment slots per class.",
+      "name": "YEP_EquipCore"
+    },
+    {
+      "key": "YEP_MessageCore::v1.19 Adds more features to the Message Window to customized\nthe way your messages appear and functions.",
+      "name": "YEP_MessageCore"
+    },
+    {
+      "key": "YEP_MoveRouteCore::v1.04 Expand the number of movement options for the move\nroute events using this plugin.",
+      "name": "YEP_MoveRouteCore"
+    },
+    {
+      "key": "YEP_ShopMenuCore::v1.05 Revamps the shop menu appearance and provides the\nframework for many new shop options.",
+      "name": "YEP_ShopMenuCore"
+    },
+    {
+      "key": "YEP_StatusMenuCore::v1.04 Changes the Status menu for your characters into\na hub that displays more character information.",
+      "name": "YEP_StatusMenuCore"
+    },
+    {
+      "key": "YEP_SaveCore::v1.06 Alter the save menu for a more aesthetic layout\nand take control over the file system's rules.",
+      "name": "YEP_SaveCore"
+    },
+    {
+      "key": "HIME_EquipSlotsCore::v1.5 - Provides you with tools to set up custom equip slots\r\nfor each actor individually.",
+      "name": "HIME_EquipSlotsCore"
+    },
+    {
+      "key": "HIME_YanflyItemCoreEquipSlotsCore::Patch for Yanfly's ItemCore to support Equip Slots Core",
+      "name": "HIME_YanflyItemCoreEquipSlotsCore"
+    },
+    {
+      "key": "VE_BasicModule::v1.23 - Plugin with base code required for all Victor Engine plugins.",
+      "name": "VE_BasicModule"
+    },
+    {
+      "key": "CGMV_Core::Core CGMV Script.",
+      "name": "CGMV_Core"
+    },
+    {
+      "key": "-------- PreLoad --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- PreLoad --------"
+    },
+    {
+      "key": "SRD_PreloaderCore::Allows developers to preload specific audio and images before running the game through a new pre-title scene.",
+      "name": "SRD_PreloaderCore"
+    },
+    {
+      "key": "-------- HUD --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- HUD --------"
+    },
+    {
+      "key": "SRD_HUDMaker::Allows developers to create their own map-based HUD through an in-game GUI window!",
+      "name": "SRD_HUDMaker"
+    },
+    {
+      "key": "-------- Animations --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Animations --------"
+    },
+    {
+      "key": "PKD_VPlayer::(v.1.7)[PRO] Extended WEBM Video Player",
+      "name": "PKD_VPlayer"
+    },
+    {
+      "key": "Coolie_IndividualAnimDimensions::v1.0 Coolie Individual Anim Dimensions\r\n     Special thanks to caethyril",
+      "name": "Coolie_IndividualAnimDimensions"
+    },
+    {
+      "key": "Tsukimi_AnimationFrameRate::Tsukimi_AnimationFrameRate",
+      "name": "Tsukimi_AnimationFrameRate"
+    },
+    {
+      "key": "GALV_PictureAnims::(v.1.4) Play database animations on pictures made with \"Show Picture\"",
+      "name": "GALV_PictureAnims"
+    },
+    {
+      "key": "Transitions::Replaces the default fade in/out behaviour of scenes with custom transitions.",
+      "name": "Transitions"
+    },
+    {
+      "key": "============ Menus ============::======================================================================================================================",
+      "name": "============ Menus ============"
+    },
+    {
+      "key": "-------- Title-Save-Load-Options-GameOver --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Title-Save-Load-Options-GameOver --------"
+    },
+    {
+      "key": "HIME_PreTitleEvents::Build your own sequence of events that should occur before\r\nthe title screen begins",
+      "name": "HIME_PreTitleEvents"
+    },
+    {
+      "key": "YEP_DynamicTitleImages::v1.00 Change title images depending on how far along your game\nthe player has progressed.",
+      "name": "YEP_DynamicTitleImages"
+    },
+    {
+      "key": "X_SocialMediaButtons::v 1.0.0 Place social media buttons on your title screen\r\n<X_SocialMediaButtons>",
+      "name": "X_SocialMediaButtons"
+    },
+    {
+      "key": "LUX_TitleScreen::v0.6.3 Customize your title screen!",
+      "name": "LUX_TitleScreen"
+    },
+    {
+      "key": "SRD_TitleCommandCustomizer::Allows customization over the Title Command Window.\r\nCan customize size, position, rows, columns, and commands.",
+      "name": "SRD_TitleCommandCustomizer"
+    },
+    {
+      "key": "YEP_MainMenuManager::v1.03 This plugin allows you to manage the various aspects\nof your main menu.",
+      "name": "YEP_MainMenuManager"
+    },
+    {
+      "key": "JakeMSG_XPauseModeMVModification::v1.2.0 (MV Only) - A customizable pause scene, enhancing mobile game-play and increasing accessibility",
+      "name": "JakeMSG_XPauseModeMVModification"
+    },
+    {
+      "key": "YEP_MainMenuVar::v1.02 Adds a new variable window to your main menu.\nYou can use it to display up to 10 different variables!",
+      "name": "YEP_MainMenuVar"
+    },
+    {
+      "key": "YEP_X_MenuActorEvents::v1.00 (Req YEP_MainMenuManager) Allows you to run common events\nstraight from the main menu depending on which actor the player has picked.",
+      "name": "YEP_X_MenuActorEvents"
+    },
+    {
+      "key": "YEP_X_Autosave::v1.00 (Req YEP_SaveCore.js) Adds Autosave functionality to your\nRPG Maker game.",
+      "name": "YEP_X_Autosave"
+    },
+    {
+      "key": "YEP_SaveEventLocations::v1.06 Enable specified maps to memorize the locations of\nevents when leaving and loading them upon reentering map.",
+      "name": "YEP_SaveEventLocations"
+    },
+    {
+      "key": "YEP_OptionsCore::v1.02 Expand the Options Menu into a more elegant looking menu\nwith more customization potential.",
+      "name": "YEP_OptionsCore"
+    },
+    {
+      "key": "HIME_GameOverEvents::v1.2 - Allows you to use events to set up a game over event.",
+      "name": "HIME_GameOverEvents"
+    },
+    {
+      "key": "SRD_QuitConfirmation::Provides a confirmation popup prior to the player leaving the game, confirming whether they wish to leave.",
+      "name": "SRD_QuitConfirmation"
+    },
+    {
+      "key": "SRD_GoldWindowCustomizer::A Plugin that allows you to manipulate the information presented on the Gold Window.",
+      "name": "SRD_GoldWindowCustomizer"
+    },
+    {
+      "key": "-------- Save Compatibility --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Save Compatibility --------"
+    },
+    {
+      "key": "JakeMSG_EventAfterLoadModification::Execute The Event After Successful Load\r\nv1.12",
+      "name": "JakeMSG_EventAfterLoadModification"
+    },
+    {
+      "key": "-------- Shop --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Shop --------"
+    },
+    {
+      "key": "YEP_X_HideShowShopItems::v1.00 (Req YEP_ShopMenuCore) Allows you to hide/show shop menu\nentries using switches and/or variables.",
+      "name": "YEP_X_HideShowShopItems"
+    },
+    {
+      "key": "YEP_X_MoreCurrencies::v1.05 (Requires YEP_ShopMenuCore.js) This plugin adds\nfunctionality for your shops to have multiple currencies.",
+      "name": "YEP_X_MoreCurrencies"
+    },
+    {
+      "key": "YEP_X_CondShopPrices::v1.01 (Req YEP_ShopMenuCore) Allows you to set prices that can\nchange based on various conditions and even variables.",
+      "name": "YEP_X_CondShopPrices"
+    },
+    {
+      "key": "HIME_HiddenShopGoods::Easily hide shop goods when they shouldn't be seen!",
+      "name": "HIME_HiddenShopGoods"
+    },
+    {
+      "key": "-------- New Menus --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- New Menus --------"
+    },
+    {
+      "key": "---- Encyclopedias ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Encyclopedias ----"
+    },
+    {
+      "key": "CGMV_Encyclopedia::CGMV Encyclopedia",
+      "name": "CGMV_Encyclopedia"
+    },
+    {
+      "key": "---- Achievements & PlayStats ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Achievements & PlayStats ----"
+    },
+    {
+      "key": "CGMV_ExtraStats::CGMV Tracking for extra statistics.",
+      "name": "CGMV_ExtraStats"
+    },
+    {
+      "key": "CGMV_Achievements::CGMV Achievement Script",
+      "name": "CGMV_Achievements"
+    },
+    {
+      "key": "HC_Achievements::v1.7.0 Achievements + rewards + browser + stacked acheivement popups",
+      "name": "HC_Achievements"
+    },
+    {
+      "key": "HO_AchievementSystem::v1.5 Achievement System for RPG Maker MV",
+      "name": "HO_AchievementSystem"
+    },
+    {
+      "key": "HO_X_AchievementExt::Achievement System Extension",
+      "name": "HO_X_AchievementExt"
+    },
+    {
+      "key": "---- Jobs ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Jobs ----"
+    },
+    {
+      "key": "CGMV_Professions::CGMV Professions",
+      "name": "CGMV_Professions"
+    },
+    {
+      "key": "---- Crafting ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Crafting ----"
+    },
+    {
+      "key": "CGMV_Crafting::CGMV Crafting",
+      "name": "CGMV_Crafting"
+    },
+    {
+      "key": "YEP_ItemSynthesis::v1.11 Players can now craft their own items in-game\nthrough an item synthesis system.",
+      "name": "YEP_ItemSynthesis"
+    },
+    {
+      "key": "-------- Making Custom Menus --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Making Custom Menus --------"
+    },
+    {
+      "key": "YEP_CommonEventMenu::v1.04 This plugin allows the creation of windows to call\ncommon events with.",
+      "name": "YEP_CommonEventMenu"
+    },
+    {
+      "key": "YEP_X_CEMSetupPack1::v1.00 (Requires YEP_CommonEventMenu.js) Adds more setups\nto use with the Common Event Menu.",
+      "name": "YEP_X_CEMSetupPack1"
+    },
+    {
+      "key": "YEP_X_CEMSetupPack2::v1.01 (Requires YEP_CommonEventMenu.js) Adds more setups\nto use with the Common Event Menu.",
+      "name": "YEP_X_CEMSetupPack2"
+    },
+    {
+      "key": "============ Message&Choices ============::======================================================================================================================",
+      "name": "============ Message&Choices ============"
+    },
+    {
+      "key": "-------- Messages --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Messages --------"
+    },
+    {
+      "key": "JakeMSG_YEP_MessageCore_Additions::v1.0 (Requires YEP_MessageCore.js) Additions to the base\nMessage Core yanfly Plugin",
+      "name": "JakeMSG_YEP_MessageCore_Additions"
+    },
+    {
+      "key": "YEP_LoadCustomFonts::v1.01 Load custom fonts from the /fonts/ folder. This will\nallow you to use custom fonts without installing them.",
+      "name": "YEP_LoadCustomFonts"
+    },
+    {
+      "key": "HIME_PlaceholderMessageFaces::v1.1 - Allows you to use placeholder graphics in your\r\nmessages that will dynamically display faces during the game.",
+      "name": "HIME_PlaceholderMessageFaces"
+    },
+    {
+      "key": "YEP_X_ExtMesPack1::v1.12 (Requires YEP_MessageCore.js) Letter Sounds, NameBox\nBackground Types, Choice Control, and more!",
+      "name": "YEP_X_ExtMesPack1"
+    },
+    {
+      "key": "YEP_X_ExtMesPack2::v1.00 (Requires YEP_MessageCore.js) Adds text codes to display\nvarious game data information for messages.",
+      "name": "YEP_X_ExtMesPack2"
+    },
+    {
+      "key": "YEP_X_MessageBacklog::v1.01 (Requires YEP_MessageCore.js) Add a message backlog\nfunction to your game's message system!",
+      "name": "YEP_X_MessageBacklog"
+    },
+    {
+      "key": "YEP_X_MessageEvalText::v1.00 (Req YEP_MessageCore.js) Adds \\evalText<<code>> to the text\ncode list so that you can run JavaScript code and display it as text.",
+      "name": "YEP_X_MessageEvalText"
+    },
+    {
+      "key": "YEP_X_MessageSpeedOpt::v1.00 (Requires YEP_MessageCore.js) Let your places adjust the\nspeed the message window displays text.",
+      "name": "YEP_X_MessageSpeedOpt"
+    },
+    {
+      "key": "YEP_X_MessageMacros1::v1.01 (Requires YEP_MessageCore.js) Adds macros 1 to 100\nfor your game's message system.",
+      "name": "YEP_X_MessageMacros1"
+    },
+    {
+      "key": "PKD_HelpInMessages::(v.1.1)[PRO] Allows you create mini hint messages for any word or sentence in messages",
+      "name": "PKD_HelpInMessages"
+    },
+    {
+      "key": "JakeMSG_PKDHelpInMessagesAdditions::Adds compatibilities for this plugin with other existing Plugins\r\nAlso adds new features!\r\nREQUIRES: \"PKD_HelpInMessages\" plugin (Basic/Pro)!",
+      "name": "JakeMSG_PKDHelpInMessagesAdditions"
+    },
+    {
+      "key": "CGMV_Toast::CGMV Toast Script",
+      "name": "CGMV_Toast"
+    },
+    {
+      "key": "-------- Choices --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Choices --------"
+    },
+    {
+      "key": "HIME_LargeChoices::v1.2 - Combines multiple show choice commands into a single,\r\nlarge list.",
+      "name": "HIME_LargeChoices"
+    },
+    {
+      "key": "HIME_ConditionalChoiceText::v1.1 - Allows you to dynamically set the text for each choice\r\nin your events.",
+      "name": "HIME_ConditionalChoiceText"
+    },
+    {
+      "key": "HIME_DisabledChoiceConditions::v1.4 Allows you to disable individual choices in a set of options\r\nbased on custom conditions",
+      "name": "HIME_DisabledChoiceConditions"
+    },
+    {
+      "key": "HIME_HiddenChoiceConditions::Allows you to hide choices with a simple event call",
+      "name": "HIME_HiddenChoiceConditions"
+    },
+    {
+      "key": "HIME_TimedChoiceSelection::v1.1 - Set a timer that automatically selects a choice for the\r\nplayer when the timer expires.",
+      "name": "HIME_TimedChoiceSelection"
+    },
+    {
+      "key": "HIME_HMSChoiceDisplayMode::v1.3 - Customize the way choices are displayed",
+      "name": "HIME_HMSChoiceDisplayMode"
+    },
+    {
+      "key": "============ Map ============::======================================================================================================================",
+      "name": "============ Map ============"
+    },
+    {
+      "key": "OrangeMapshot::This plugin will save a picture of the entire map on a Mapshots folder when you press a key. <OrangeMapshot>",
+      "name": "OrangeMapshot"
+    },
+    {
+      "key": "-------- Scene-ing --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Scene-ing --------"
+    },
+    {
+      "key": "TDDP_BindPicturesToMap::1.0.7 Plugin Commands for binding pictures to the map and/or changing what layer they're drawn on.",
+      "name": "TDDP_BindPicturesToMap"
+    },
+    {
+      "key": "YEP_CallEvent::v1.01 A lost utility command from RPG Maker 2000 and\nRPG Maker 2003 has been remade for RPG Maker MV!",
+      "name": "YEP_CallEvent"
+    },
+    {
+      "key": "YEP_EventTimerControl::v1.01 Gain more control over the event timer function\nfor your game.",
+      "name": "YEP_EventTimerControl"
+    },
+    {
+      "key": "YEP_EventClickTrigger::v1.00 Lets the player click on designated notetagged events to\ntrigger them from afar!",
+      "name": "YEP_EventClickTrigger"
+    },
+    {
+      "key": "YEP_PictureCommonEvents::v1.06 Causes common events to run when certain pictures\nare clicked while on the map.",
+      "name": "YEP_PictureCommonEvents"
+    },
+    {
+      "key": "YEP_IconBalloons::v1.02 Allows you to use icons for your on-map balloons\nover your characters and events!",
+      "name": "YEP_IconBalloons"
+    },
+    {
+      "key": "JakeMSG_ScreenAnimationModification::show Animation on screen at x,y coordination and optinal to tweak scale delay mirror fps",
+      "name": "JakeMSG_ScreenAnimationModification"
+    },
+    {
+      "key": "YEP_EventMiniLabel::v1.12 Creates miniature-sized labels over events to allow\nyou to insert whatever text you'd like in them.",
+      "name": "YEP_EventMiniLabel"
+    },
+    {
+      "key": "JakeMSG_YEP_EventMiniLabel_Additions::v1.1 (Requires YEP_EventMiniLabel.js) Additions to YEP Event Mini Label.",
+      "name": "JakeMSG_YEP_EventMiniLabel_Additions"
+    },
+    {
+      "key": "YEP_GabWindow::v1.06 The Gab Window functions as a window for random\njibber jabber that does not require a message window.",
+      "name": "YEP_GabWindow"
+    },
+    {
+      "key": "HIME_GuestFollowers::v1.2 - Allow non-battle actors to follow your party as guests.",
+      "name": "HIME_GuestFollowers"
+    },
+    {
+      "key": "-------- Mechanics --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Mechanics --------"
+    },
+    {
+      "key": "YEP_DashToggle::v1.03 RPG Maker MV lacks the ability to toggle dashing\non and off. This plugin will let you do so~",
+      "name": "YEP_DashToggle"
+    },
+    {
+      "key": "YEP_StopMapMovement::v1.02 A utility plugin to stop events from automatically\nmoving by themselves all across your map.",
+      "name": "YEP_StopMapMovement"
+    },
+    {
+      "key": "OcRam_Lights::v2.15 You may use event comments or plugin commands to control different type of light sources. PLUGIN NAME MUST BE OcRam_Lights.js",
+      "name": "OcRam_Lights"
+    },
+    {
+      "key": "GALV_PuzzleFunctions::(v.1.1) A bunch of functions to use to make eventing puzzles easier",
+      "name": "GALV_PuzzleFunctions"
+    },
+    {
+      "key": "GALV_EventDetectors::Have events activate when player gets in range and line of sight.",
+      "name": "GALV_EventDetectors"
+    },
+    {
+      "key": "YEP_X_ExtMovePack1::v1.01 (Requires YEP_MoveRouteCore.js) Adds extra movement\noptions to create specific behaviors in movement patterns.",
+      "name": "YEP_X_ExtMovePack1"
+    },
+    {
+      "key": "OrangePathfinding::Faster Pathfinding for Rpg Maker MV <OrangePathfinding>",
+      "name": "OrangePathfinding"
+    },
+    {
+      "key": "KCL_SmartPath::Allows events or players to do smart Pathfinding",
+      "name": "KCL_SmartPath"
+    },
+    {
+      "key": "YEP_EventChasePlayer::v1.07 When a player is in the proximity of a certain event,\nthe event will start chasing or fleeing from the player.",
+      "name": "YEP_EventChasePlayer"
+    },
+    {
+      "key": "YEP_EventEncounterAid::v1.01 This plugin helps make eventable encounters easier\nand determine player position relative to the event.",
+      "name": "YEP_EventEncounterAid"
+    },
+    {
+      "key": "YEP_EventCopier::v1.01 Copy premade events from a template including all of the\npossible data stored from a different map!",
+      "name": "YEP_EventCopier"
+    },
+    {
+      "key": "YEP_EventMorpher::v1.00 Allows events to completely morph into another, copying\nover all pages, conditions, and event commands.",
+      "name": "YEP_EventMorpher"
+    },
+    {
+      "key": "YEP_EventSpawner::v1.02 Spawn premade events at specific locations or random\npoints marked by regions.",
+      "name": "YEP_EventSpawner"
+    },
+    {
+      "key": "YEP_EventHitboxResize::v1.00 Allows you to make larger event hitboxes, making the event\nable to be triggered from multiple tiles.",
+      "name": "YEP_EventHitboxResize"
+    },
+    {
+      "key": "YEP_EventProxActivate::v1.01 Allows events to activate by being in range of them\ninstead of needing to be exactly next to or on top of them.",
+      "name": "YEP_EventProxActivate"
+    },
+    {
+      "key": "YEP_EventRegionTrigger::v1.02 Allows events to trigger by being in specific regions\ninstead of needing to exactly next to or on top of them.",
+      "name": "YEP_EventRegionTrigger"
+    },
+    {
+      "key": "YEP_RegionEvents::v1.03 Make it so that whenever players step on certain\nRegion ID's, the game will play certain common events.",
+      "name": "YEP_RegionEvents"
+    },
+    {
+      "key": "YEP_RegionRestrictions::v1.04 Use regions to block out Events and/or the player from\nbeing able to venture into those spots.",
+      "name": "YEP_RegionRestrictions"
+    },
+    {
+      "key": "YEP_FloorDamage::v1.02 Allows you to modify floor damage based on terrain tags.\nYou can also change the color of the flash when damaged, too.",
+      "name": "YEP_FloorDamage"
+    },
+    {
+      "key": "KC_MoveRouteTF::[v1.0.2]Rotate, translate, and scale characters during move routes.",
+      "name": "KC_MoveRouteTF"
+    },
+    {
+      "key": "YEP_SlipperyTiles::v1.05 You can create slippery tiles by marking them with\neither a terrain tag or a region number.",
+      "name": "YEP_SlipperyTiles"
+    },
+    {
+      "key": "YEP_SmartJump::v1.03 Adds a plugin command that enables smart jumping\nwhere the player cannot jump into illegal areas.",
+      "name": "YEP_SmartJump"
+    },
+    {
+      "key": "GALV_JumpAbility::Allows the player to jump by pressing a button.",
+      "name": "GALV_JumpAbility"
+    },
+    {
+      "key": "JakeMSG_GALV_JumpAbility_Additions::v1.5 (Requires GALV_JumpAbility.js) Adds keyboard compat, distance/sound/key overrides, landing facing, and XJumps.",
+      "name": "JakeMSG_GALV_JumpAbility_Additions"
+    },
+    {
+      "key": "-------- (Audio&) Visual Effects --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- (Audio&) Visual Effects --------"
+    },
+    {
+      "key": "YEP_FootstepSounds::v1.01 Set footstep sounds to play when the player and/or\nevents walk over specific tiles.",
+      "name": "YEP_FootstepSounds"
+    },
+    {
+      "key": "JakeMSG_AudioMultiChannels::Audio Multi Channels - Adds the ability to play multiple BGM/BGS/ME/SE \r\nat the same time, with independent control over each of them.\r\nAlso new features for \"YEP_FootstepSounds\" plugin if present.",
+      "name": "JakeMSG_AudioMultiChannels"
+    },
+    {
+      "key": "YEP_DisableAutoShadowExt::v1.00 Disable autoshadows for your game, specific maps, or even\nspecific tilesets.",
+      "name": "YEP_DisableAutoShadowExt"
+    },
+    {
+      "key": "YEP_IconsOnEvents::v1.00 Allows you to put icons on events and the player!",
+      "name": "YEP_IconsOnEvents"
+    },
+    {
+      "key": "VE_FogAndOverlay::v1.07 - Display fogs and overlay on maps and battles.",
+      "name": "VE_FogAndOverlay"
+    },
+    {
+      "key": "YEP_EventSpriteOffset::v1.00 Offset event sprites using notetags and comment tags!",
+      "name": "YEP_EventSpriteOffset"
+    },
+    {
+      "key": "PSYCHRONIC_VideoParallaxMV::Enables video parallax backgrounds for RPG Maker MV maps.\r\nUse the notetag <videoParallax: filename> in map settings or\r\nuse the plugin command PLAY_PARALLAX filename to set the video.",
+      "name": "PSYCHRONIC_VideoParallaxMV"
+    },
+    {
+      "key": "GALV_CamControl::Allows greater control over where the game camera is focused. View HELP for plugin commands.",
+      "name": "GALV_CamControl"
+    },
+    {
+      "key": "MBS_MapZoom::Makes it possible to zoom in and out the game map                        \r\n\r\n<MBS MapZoom>",
+      "name": "MBS_MapZoom"
+    },
+    {
+      "key": "FilterController::FilterController",
+      "name": "FilterController"
+    },
+    {
+      "key": "RS_SimpleCanvasFilter::This plugin applies CSS filter to canvas",
+      "name": "RS_SimpleCanvasFilter"
+    },
+    {
+      "key": "RS_SimpleLight::This plugin implements a dynamic lighting system using WebGL shaders. <RS_SimpleLight>",
+      "name": "RS_SimpleLight"
+    },
+    {
+      "key": "umc_Lighting::v1.47 The smallest, fastest lighting plugin!",
+      "name": "umc_Lighting"
+    },
+    {
+      "key": "============ Actors ============::======================================================================================================================",
+      "name": "============ Actors ============"
+    },
+    {
+      "key": "-------- Classes --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Classes --------"
+    },
+    {
+      "key": "YEP_X_Subclass::v1.11 (Requires YEP_ClassChangeCore.js) Allow your actors\nto subclass into a secondary class!",
+      "name": "YEP_X_Subclass"
+    },
+    {
+      "key": "-------- Stats --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Stats --------"
+    },
+    {
+      "key": "YEP_BaseParamControl::v1.04 Gain control over the method of calculation for base\nparameters: MaxHP, MaxMP, ATK, DEF, MAT, MDF, AGI, LUK.",
+      "name": "YEP_BaseParamControl"
+    },
+    {
+      "key": "YEP_X_ClassBaseParam::v1.05 (Requires YEP_BaseParamControl) Allow you to use\nformulas for class parameter growth.",
+      "name": "YEP_X_ClassBaseParam"
+    },
+    {
+      "key": "YEP_ExtraParamFormula::v1.04 Control the formulas of the extra parameters for\nHIT, EVA, CRI, CEV, MEV, MRF, CNT, HRG, MRG, and TRG.",
+      "name": "YEP_ExtraParamFormula"
+    },
+    {
+      "key": "YEP_SpecialParamFormula::v1.06 Control the formulas of special parameters for\nTGR, GRD, REC, PHA, MCR, TCR, PDR, MDR, FDR, EXR.",
+      "name": "YEP_SpecialParamFormula"
+    },
+    {
+      "key": "QuasiParamsPlus::v1.15 Adds improvements to parameters\n<QuasiParamsPlus>",
+      "name": "QuasiParamsPlus"
+    },
+    {
+      "key": "YEP_X_ActorVariables::v1.05 (Requires YEP_StatusMenuCore.js) Allows you to\ndisplay variables for each actor.",
+      "name": "YEP_X_ActorVariables"
+    },
+    {
+      "key": "YEP_StatAllocation::v1.02 Add a menu to your game to allocate stats for party\nmembers. Stats can be allocated through AP, JP, or items!",
+      "name": "YEP_StatAllocation"
+    },
+    {
+      "key": "YEP_EnhancedTP::v1.09 Gives you more control over how TP is handled in\nyour game in addition to letting players switch TP modes.",
+      "name": "YEP_EnhancedTP"
+    },
+    {
+      "key": "YEP_X_MoreTPModes1::v1.01 (Requires YEP_EnhancedTP.js) Adds TP Modes 21 to 40\nto your game!",
+      "name": "YEP_X_MoreTPModes1"
+    },
+    {
+      "key": "YR_NewParameters::ver 1.07 Allows creation of custom parameters.",
+      "name": "YR_NewParameters"
+    },
+    {
+      "key": "YEP_LevelUpGrowthEffects::v1.01 Equip an item that upon leveling up will raise stats?\nThis plugin will let you do just that!",
+      "name": "YEP_LevelUpGrowthEffects"
+    },
+    {
+      "key": "HIME_LevelUpEvents::Allows you to run common events when an actor levels up",
+      "name": "HIME_LevelUpEvents"
+    },
+    {
+      "key": "YEP_X_MoreStatusPages::v1.02 (Requires YEP_StatusMenuCore.js) Add more pages to\nyour status menu however you want!",
+      "name": "YEP_X_MoreStatusPages"
+    },
+    {
+      "key": "YEP_X_BattleStatistics::v1.02 (Requires YEP_StatusMenuCore.js) Logs the battle\nstatistics of actors for your players to view.",
+      "name": "YEP_X_BattleStatistics"
+    },
+    {
+      "key": "YEP_X_ProfileStatusPage::v1.03 (Requires YEP_StatusMenuCore.js) Places a Profile\nStatus Page in the status menu for your actors.",
+      "name": "YEP_X_ProfileStatusPage"
+    },
+    {
+      "key": "-------- Skills --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Skills --------"
+    },
+    {
+      "key": "YEP_SkillLearnSystem::v1.17 Allows actors to learn skills from the skill menu\nthrough crafting them via items or otherwise.",
+      "name": "YEP_SkillLearnSystem"
+    },
+    {
+      "key": "YEP_X_SkillCooldowns::v1.12 (Requires YEP_SkillCore.js) Cooldowns can be applied\nto skills to prevent them from being used continuously.",
+      "name": "YEP_X_SkillCooldowns"
+    },
+    {
+      "key": "YEP_SkillMasteryLevels::v1.00 Using skills improves skill mastery. As skill mastery\nimproves, skill costs drop and/or skill damage rises!",
+      "name": "YEP_SkillMasteryLevels"
+    },
+    {
+      "key": "YEP_X_LimitedSkillUses::v1.06 (Requires YEP_SkillCore.js) Make certain skills have\na limited amount of times they can be used in battle.",
+      "name": "YEP_X_LimitedSkillUses"
+    },
+    {
+      "key": "YEP_X_SkillCostItems::v1.05 (Requires YEP_SkillCore.js) Skills can now have an\nitem cost attached to them.",
+      "name": "YEP_X_SkillCostItems"
+    },
+    {
+      "key": "JakeMSG_YEP_SkillRewardsAdditions::v1.0 (Requires YEP_Z_SkillRewards.js UNDER it) Additions to the base\nSkill Rewards yanfly plugin",
+      "name": "JakeMSG_YEP_SkillRewardsAdditions"
+    },
+    {
+      "key": "YEP_Z_SkillRewards::v1.01 (Lunatic Pack) Add a variety of effects to your items and\nskills to reward the player for good (or bad) gameplay.",
+      "name": "YEP_Z_SkillRewards"
+    },
+    {
+      "key": "JakeMSG_YEP_SkillCoreAdditions::v1.0 (Requires YEP_SkillCore.js) Additions to the base\nSkill Core yanfly Plugin",
+      "name": "JakeMSG_YEP_SkillCoreAdditions"
+    },
+    {
+      "key": "YEP_InstantCast::v1.12 Allows skills/items to be instantly cast after being\nselected in the battle menu.",
+      "name": "YEP_InstantCast"
+    },
+    {
+      "key": "YEP_MultiTypeSkills::v1.01 Allow skills to have multiple types to make them\nappear in different skill type schools instead of just one.",
+      "name": "YEP_MultiTypeSkills"
+    },
+    {
+      "key": "-------- Items --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Items --------"
+    },
+    {
+      "key": "YEP_X_ItemRequirements::v1.02 (Requires YEP_ItemCore.js) Place requirements on\nitems before they can be used.",
+      "name": "YEP_X_ItemRequirements"
+    },
+    {
+      "key": "YEP_X_ItemUpgradeSlots::v1.10 (Requires YEP_ItemCore.js) Allows independent items to\nbe upgradeable and gain better stats.",
+      "name": "YEP_X_ItemUpgradeSlots"
+    },
+    {
+      "key": "JakeMSG_YEP_ItemCoreAdditions::v1.0 (Requires YEP_ItemCore.js) Additions to the base\nItem Core yanfly Plugin",
+      "name": "JakeMSG_YEP_ItemCoreAdditions"
+    },
+    {
+      "key": "YEP_X_ItemCategories::v1.01 (Requires YEP_ItemCore.js) Assign items to various\ncategories under the item menu.",
+      "name": "YEP_X_ItemCategories"
+    },
+    {
+      "key": "CGMV_LocationConditions::CGMV Location Conditions",
+      "name": "CGMV_LocationConditions"
+    },
+    {
+      "key": "YEP_X_AttachAugments::v1.11 (Requires YEP_ItemCore.js) Players can attach and\ndetach augments to independent equipment.",
+      "name": "YEP_X_AttachAugments"
+    },
+    {
+      "key": "YEP_X_ItemDisassemble::v1.06 (Requires YEP_ItemCore.js) Grants the option to\nbreak down items in the item menu into other items.",
+      "name": "YEP_X_ItemDisassemble"
+    },
+    {
+      "key": "YEP_X_ItemDiscard::v1.02 (Requires YEP_ItemCore.js) Allow the player to discard\nitems from their inventory.",
+      "name": "YEP_X_ItemDiscard"
+    },
+    {
+      "key": "YEP_X_ItemPictureImg::v1.01 (Requires YEP_ItemCore.js) Allows you to use images\nfor items inside of the item menu instead of large icons.",
+      "name": "YEP_X_ItemPictureImg"
+    },
+    {
+      "key": "YEP_X_ItemRename::v1.01 (Requires YEP_ItemCore.js) Allows the player to\nrename independent items in their inventory.",
+      "name": "YEP_X_ItemRename"
+    },
+    {
+      "key": "YEP_X_ItemDurability::v1.04 (Requires YEP_ItemCore.js) Independent equipment\nnow have durability, which when runs out, will break.",
+      "name": "YEP_X_ItemDurability"
+    },
+    {
+      "key": "YEP_X_EquipRequirements::v1.09 (Requires YEP_EquipCore.js) Place requirements on\npieces of equipment before actors can use them!",
+      "name": "YEP_X_EquipRequirements"
+    },
+    {
+      "key": "YEP_X_EquipCustomize::v1.02 (Requires YEP_ItemCore && YEP_EquipCore.js)\nAdds a 'Customize' command to the Equip menu.",
+      "name": "YEP_X_EquipCustomize"
+    },
+    {
+      "key": "============ Battle ============::======================================================================================================================",
+      "name": "============ Battle ============"
+    },
+    {
+      "key": "YEP_BaseTroopEvents::v1.01 Enabling this plugin will cause all troops to have\r\nevents occur in every fight.",
+      "name": "YEP_BaseTroopEvents"
+    },
+    {
+      "key": "YEP_SwapEnemies::v1.03 This is utility plugin made to help randomize sets of\nenemies for battle.",
+      "name": "YEP_SwapEnemies"
+    },
+    {
+      "key": "-------- Battle UI --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Battle UI --------"
+    },
+    {
+      "key": "YEP_X_VisualHpGauge::v1.07 (Requires YEP_BattleEngineCore.js) Reveal HP Gauges\nwhen a battler is selected or takes damage in battle.",
+      "name": "YEP_X_VisualHpGauge"
+    },
+    {
+      "key": "JakeMSG_YEP_X_VisualHpGauge_Additions::v1.0 (Requires YEP_X_VisualHpGauge.js) Add MP gauge mirroring Visual HP Gauge settings",
+      "name": "JakeMSG_YEP_X_VisualHpGauge_Additions"
+    },
+    {
+      "key": "YEP_BattleStatusWindow::v1.09 A simple battle status window that shows the\nfaces of your party members in horizontal format.",
+      "name": "YEP_BattleStatusWindow"
+    },
+    {
+      "key": "YEP_BattleBgmControl::v1.01 Assign BGM's to certain troops. Make BGM's change\nduring battle when certain enemies reach different HP values.",
+      "name": "YEP_BattleBgmControl"
+    },
+    {
+      "key": "EnemyPlacement::v1.0.1 Lets you place enemy battlers using a semi-dynamic formula.",
+      "name": "EnemyPlacement"
+    },
+    {
+      "key": "ShiftEnemies::v1.1.0 Lets you shift enemy battlers outside the boundaries of the Troop Window with notetags.",
+      "name": "ShiftEnemies"
+    },
+    {
+      "key": "YEP_X_WeakEnemyPoses::v1.03 (Requires YEP_BattleEngineCore.js) Allow enemies to\nhave different battler images when they're weakened.",
+      "name": "YEP_X_WeakEnemyPoses"
+    },
+    {
+      "key": "SRD_BattlePopupCustomizer::Adds more options to the Battle Popups; customization over the attributes of the popups and the ability to add more.",
+      "name": "SRD_BattlePopupCustomizer"
+    },
+    {
+      "key": "JakeMSG_SRD_BattlePopupCustomizer_Additions::(Requires SRD_BattlePopupCustomizer.js) Additions to the Battle Popup Customizer\nSRD Plugin",
+      "name": "JakeMSG_SRD_BattlePopupCustomizer_Additions"
+    },
+    {
+      "key": "Irina_ActionCutins::<ActionCutins> for RPG Maker MV version 1.6.2.",
+      "name": "Irina_ActionCutins"
+    },
+    {
+      "key": "Irina_UnisonAttack::<UnisonAttack> for RPG Maker MV version 1.6.2.",
+      "name": "Irina_UnisonAttack"
+    },
+    {
+      "key": "YEP_WeatherInBattle::v1.00 Allows you to have weather in battle. Weather also becomes\ncontrollable through action sequences.",
+      "name": "YEP_WeatherInBattle"
+    },
+    {
+      "key": "YEP_VictoryAftermath::v1.07 Display an informative window after a battle is over\ninstead of message box text stating what the party earned.",
+      "name": "YEP_VictoryAftermath"
+    },
+    {
+      "key": "YEP_X_AftermathLevelUp::v1.01 (Requires YEP_VictoryAftermath.js) Adds a level up\nportion to the Victory Aftermath sequences.",
+      "name": "YEP_X_AftermathLevelUp"
+    },
+    {
+      "key": "-------- Battle Mechanics --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Battle Mechanics --------"
+    },
+    {
+      "key": "YEP_JobPoints::v1.11 This plugin by itself doesn't do much, but it enables\nactors to acquire JP (job points) used for other plugins.",
+      "name": "YEP_JobPoints"
+    },
+    {
+      "key": "YEP_ElementAbsorb::v1.00 Adds the ability to absorb elemental damage!",
+      "name": "YEP_ElementAbsorb"
+    },
+    {
+      "key": "YEP_ElementReflect::v1.00 Adds rates at which elemental skills/items can be\nreflected at.",
+      "name": "YEP_ElementReflect"
+    },
+    {
+      "key": "YEP_LifeSteal::v1.04 Enables passive life steal traits without them being\nactive abilities but instead as passive traits.",
+      "name": "YEP_LifeSteal"
+    },
+    {
+      "key": "YEP_StealSnatch::v1.10 Allows your actors to be able to steal and snatch\nitems from enemies.",
+      "name": "YEP_StealSnatch"
+    },
+    {
+      "key": "YEP_X_CriticalControl::v1.06 (Requires YEP_DamageCore.js) Control over critical\nhits have been added.",
+      "name": "YEP_X_CriticalControl"
+    },
+    {
+      "key": "YEP_X_SelectionControl::v1.15 (Requires YEP_BattleEngineCore & YEP_TargetCore.js)\nControl what targets can and can't be selected for actions.",
+      "name": "YEP_X_SelectionControl"
+    },
+    {
+      "key": "YEP_Z_CriticalSway::v1.01 (Lunatic Pack) Add new effects to adjust the critical hit\nrates of your skills, items, and states!",
+      "name": "YEP_Z_CriticalSway"
+    },
+    {
+      "key": "YEP_Z_ActionBeginEnd::v1.01 (Lunatic Pack) Add additional effects that occur at the\nbeginning or end of an action.",
+      "name": "YEP_Z_ActionBeginEnd"
+    },
+    {
+      "key": "YEP_ForceAdvantage::v1.01 This plugin allows you to force pre-emptive,\nsurprise, or normal initiatives for battles.",
+      "name": "YEP_ForceAdvantage"
+    },
+    {
+      "key": "HIME_PreEmptiveBattleEvents::v1.0 - Allows you to use an event command to determine whether the\r\nnext battle will be a pre-emptive or surprise attack",
+      "name": "HIME_PreEmptiveBattleEvents"
+    },
+    {
+      "key": "YEP_RepelLureEncounters::v1.02 Tie in the variables that modify the encounter rate\nby either making them repel or lure battles.",
+      "name": "YEP_RepelLureEncounters"
+    },
+    {
+      "key": "YEP_TargetCore::v1.05 Expand the target scope from RPG Maker's default\nlimitations for better target control.",
+      "name": "YEP_TargetCore"
+    },
+    {
+      "key": "HIME_TargetAnyScope::v1.0 - Allows you to create skills that target anyone or everyone",
+      "name": "HIME_TargetAnyScope"
+    },
+    {
+      "key": "YEP_Taunt::v1.02 Adds a Taunt mechanic to battle. Battlers with a\ntaunt property become the target of enemy focus.",
+      "name": "YEP_Taunt"
+    },
+    {
+      "key": "YEP_BattleAICore::v1.15 This plugin allows you to structure battle A.I.\npatterns with more control.",
+      "name": "YEP_BattleAICore"
+    },
+    {
+      "key": "YEP_X_ActorAutoBattleAI::v1.01 (Req YEP_BattleAICore) Give auto battle actors the same\ntype of A.I. that you can assign using the Battle AI Core's notetags.",
+      "name": "YEP_X_ActorAutoBattleAI"
+    },
+    {
+      "key": "YEP_HitAccuracy::v1.04 This plugin alters the nature of hit accuracy for\nRPG Maker MV by giving control to its formula.",
+      "name": "YEP_HitAccuracy"
+    },
+    {
+      "key": "HIME_EnemyReinforcements::Allows you to summon more enemies into the current battle\r\nusing event commands.",
+      "name": "HIME_EnemyReinforcements"
+    },
+    {
+      "key": "YEP_X_CounterControl::v1.10 (Requires YEP_BattleEngineCore.js) Gives you more\ncontrol over how counters work in RPG Maker MV!",
+      "name": "YEP_X_CounterControl"
+    },
+    {
+      "key": "YEP_AbsorptionBarrier::v1.08 Battlers can be surrounded by an absorption barrier\nthat would mitigate damage dealt to HP.",
+      "name": "YEP_AbsorptionBarrier"
+    },
+    {
+      "key": "JakeMSG_YEP_AbsorptionBarrier_Additions::(Requires YEP_AbsorptionBarrier.js) Additions to the Absorption Barrier\nyanfly Plugin",
+      "name": "JakeMSG_YEP_AbsorptionBarrier_Additions"
+    },
+    {
+      "key": "YEP_OverkillBonus::v1.02 Extra rewards (EXP, Gold, Items) for overkilling\nenemies in battle.",
+      "name": "YEP_OverkillBonus"
+    },
+    {
+      "key": "YEP_ExtraEnemyDrops::v1.09 Allows your enemies to drop more than just three\nitems as per the editor's limit.",
+      "name": "YEP_ExtraEnemyDrops"
+    },
+    {
+      "key": "-------- Battle Commands --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Battle Commands --------"
+    },
+    {
+      "key": "YEP_WeaponUnleash::v1.05 Replace the Attack command or give it the option of\nhave a skill randomly occur when using it!",
+      "name": "YEP_WeaponUnleash"
+    },
+    {
+      "key": "YEP_X_ChangeBattleEquip::v1.05 (Requires YEP_BattleEngineCore & YEP_EquipCore)\nAllow your actors to change equipment mid-battle.",
+      "name": "YEP_X_ChangeBattleEquip"
+    },
+    {
+      "key": "YEP_X_InBattleStatus::v1.01 (Requires YEP_BattleEngineCore.js) Adds a 'Status'\noption in the Party Window in battle.",
+      "name": "YEP_X_InBattleStatus"
+    },
+    {
+      "key": "JakeMSG_YEP_X_InBattleStatus_Additions::v1.0 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status\ncommand to view enemy troop status effects, buffs, and debuffs.",
+      "name": "JakeMSG_YEP_X_InBattleStatus_Additions"
+    },
+    {
+      "key": "HIME_ActorBattleCommands::v1.6 - Provides you with tools to customize and manage actor\r\nbattle commands.",
+      "name": "HIME_ActorBattleCommands"
+    },
+    {
+      "key": "HIME_BattleCommandUseSkill::v1.3 - Allows you to use a skill directly from the command menu\r\nrather than going to the skill menu.",
+      "name": "HIME_BattleCommandUseSkill"
+    },
+    {
+      "key": "HIME_BattleCommandChangeEquip::Allows you to have an actor change equips during battle.",
+      "name": "HIME_BattleCommandChangeEquip"
+    },
+    {
+      "key": "VE_CommandReplace::v1.03 - Replace actor commands with another under certain conditions.",
+      "name": "VE_CommandReplace"
+    },
+    {
+      "key": "============ Mechanics ============::======================================================================================================================",
+      "name": "============ Mechanics ============"
+    },
+    {
+      "key": "X_ChapterSelect_MV::A chapter selection system for your games",
+      "name": "X_ChapterSelect_MV"
+    },
+    {
+      "key": "-------- Combine (Multi-Select) --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Combine (Multi-Select) --------"
+    },
+    {
+      "key": "VE_MixActions::v1.03 - Combine actions to create a new action.",
+      "name": "VE_MixActions"
+    },
+    {
+      "key": "-------- Notetags --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Notetags --------"
+    },
+    {
+      "key": "JakeMSG_GDN_IavraNoteFilesStandalone::The basic Iavra Note Files functionality + Global Default Notetags!\r\nGlobal Default Notetags: Allows to set up Default Global Notetags, that are Prepended for each entry of its specific data type.\r\nEach Data Type will have its own Global Notetags to be set.\r\nPrepending the Notetags makes it behave like a \"Default\" to the notetags (adding similar notetags manually in a data entry\r\ngenerally results in overwritting the similar tag used above it; thus, overwritting tags Prepended to that data entry).\r\nNote: This \"Prepended\" notetags will be above any other notetags, including ones from Iavra Note Files functionality!\r\n\r\nIavra Note Files default functionality: Allows to store notetags in text files and reference them from database objects and events.\r\n\r\n<Iavra Note Files>",
+      "name": "JakeMSG_GDN_IavraNoteFilesStandalone"
+    },
+    {
+      "key": "-------- QTEs --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- QTEs --------"
+    },
+    {
+      "key": "YEP_X_ActSeqPack1::v1.13 (Requires YEP_BattleEngineCore.js) Basic functions are\nadded to the Battle Engine Core's action sequences.",
+      "name": "YEP_X_ActSeqPack1"
+    },
+    {
+      "key": "YEP_X_ActSeqPack2::v1.13 (Requires YEP_BattleEngineCore.js) Visual functions\nare added to the Battle Engine Core's action sequences.",
+      "name": "YEP_X_ActSeqPack2"
+    },
+    {
+      "key": "YEP_X_ActSeqPack3::v1.05 (Requires YEP_BattleEngineCore.js) Camera control is\nadded to the Battle Engine Core's action sequences.",
+      "name": "YEP_X_ActSeqPack3"
+    },
+    {
+      "key": "YEP_WeaponAnimation::v1.05 This plugin allows you to go past the standard\nweapon images and even using custom images.",
+      "name": "YEP_WeaponAnimation"
+    },
+    {
+      "key": "JakeMSG_QTEWindowModification::v1.0; Basic QTE setup",
+      "name": "JakeMSG_QTEWindowModification"
+    },
+    {
+      "key": "QTEAddonSPW::v1.0; Creates a window to display the skill possibilities and their sequence, to use with the QTEWindow plugin.",
+      "name": "QTEAddonSPW"
+    },
+    {
+      "key": "SRD_TimedAttackCore::Adds a system which forces the user to time certain inputs to preform actions during battle.",
+      "name": "SRD_TimedAttackCore"
+    },
+    {
+      "key": "SRD_TimedAttack_Clock::Adds a new Timed Attack system that is similar to a clock hand revolving around the face of the clock.",
+      "name": "SRD_TimedAttack_Clock"
+    },
+    {
+      "key": "SRD_TimedAttack_Circle::Adds a new Timed Attack system involving circles that skrink and must be stopped at their smallest point.",
+      "name": "SRD_TimedAttack_Circle"
+    },
+    {
+      "key": "SRD_TimedAttack_Mash::Adds a new Timed Attack system that requires the Player to mash a button to get a gauge to a certain point.",
+      "name": "SRD_TimedAttack_Mash"
+    },
+    {
+      "key": "SRD_TimedAttack_Wheel::A ring appears on screen and commands cycle around it. The Player must press the commands as they appear on the top.",
+      "name": "SRD_TimedAttack_Wheel"
+    },
+    {
+      "key": "SRD_TimedAttack_Arrows::A Timed Attack that requires the Player to push the arrow keys in the sequence shown on screen.",
+      "name": "SRD_TimedAttack_Arrows"
+    },
+    {
+      "key": "SRD_TimedAttack_Results::Adds a customizable pop-up that can display the results of the Timed Attack.",
+      "name": "SRD_TimedAttack_Results"
+    },
+    {
+      "key": "JakeMSG_SRD_TimedAttackAdditions::Adds a method to modify TimedAttack properties within the game events",
+      "name": "JakeMSG_SRD_TimedAttackAdditions"
+    },
+    {
+      "key": "JakeMSG_SRD_TimedAttackAdditions_Balance::[Module] Balance Timed Attack module for JakeMSG_SRD_TimedAttackAdditions",
+      "name": "JakeMSG_SRD_TimedAttackAdditions_Balance"
+    },
+    {
+      "key": "JakeMSG_SRD_TimedAttackAdditions_XParallel::[Module] XParallel timed attack module for JakeMSG_SRD_TimedAttackAdditions",
+      "name": "JakeMSG_SRD_TimedAttackAdditions_XParallel"
+    },
+    {
+      "key": "---- Seamless Battle Transitions ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Seamless Battle Transitions ----"
+    },
+    {
+      "key": "JakeMSG_EncounterEffectDisablerModification::Disables the Encounter Zoom & Flash Effect when entering a battle (for the most part) and skips battler entrance (from right)",
+      "name": "JakeMSG_EncounterEffectDisablerModification"
+    },
+    {
+      "key": "-------- Status Effects --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Status Effects --------"
+    },
+    {
+      "key": "Olivia_StateTooltipDisplay::<Olivia_StateTooltipDisplay> for RPG Maker MV version 1.6.1.",
+      "name": "Olivia_StateTooltipDisplay"
+    },
+    {
+      "key": "JakeMSG_Olivia_StateTooltipDisplay_Additions::Adds new features to this plugin:\r\n- Ability to Pin Tooltips to the screen (until the next hover)\r\n- Also adds alternative Pin key, customizable via Parameter\r\nREQUIRES: \"Olivia_StateTooltipDisplay\" plugin!",
+      "name": "JakeMSG_Olivia_StateTooltipDisplay_Additions"
+    },
+    {
+      "key": "JakeMSG_MoreDescriptionsWithConditions::Adds more features to Description windows, such as setting their\r\nnumber of shown lines, writing extended descriptions within Notetags, or\r\neven opening up the description in a new \"detailed\" window by keypress\r\n(can set the key used by this in the Parameters)",
+      "name": "JakeMSG_MoreDescriptionsWithConditions"
+    },
+    {
+      "key": "YEP_X_ExtDoT::v1.04 (Req YEP_BattleEngineCore & YEP_BuffsStatesCore)\nCreate custom DoT formulas and effects with ease.",
+      "name": "YEP_X_ExtDoT"
+    },
+    {
+      "key": "YEP_X_StateCategories::v1.07 (Requires YEP_BuffsStatesCore.js) Sets up categories\nfor your states to make control over them easier.",
+      "name": "YEP_X_StateCategories"
+    },
+    {
+      "key": "JakeMSG_YEP_X_StateCategories_Additions::v1.0 (Requires YEP_StateCategories.js) Additions to the State Categories\nyanfly Plugin, currently only adding 2 script calls to modify turns of states by their categories.",
+      "name": "JakeMSG_YEP_X_StateCategories_Additions"
+    },
+    {
+      "key": "YEP_X_TickBasedRegen::v1.04 (Req YEP_BattleEngineCore & YEP_BuffsStatesCore)\nTick-Based Battle system regeneration.",
+      "name": "YEP_X_TickBasedRegen"
+    },
+    {
+      "key": "YEP_X_VisualStateFX::v1.02 (Req YEP_BattleEngineCore & YEP_BuffsStatesCore) Adds\nvisual effects to your states.",
+      "name": "YEP_X_VisualStateFX"
+    },
+    {
+      "key": "YEP_Z_StateProtection::v1.01 (Lunatic Pack) Give states a variety of ways to protect\nyour battlers.",
+      "name": "YEP_Z_StateProtection"
+    },
+    {
+      "key": "JakeMSG_YEP_BuffsStatesCore_Additions::v1.1 (Requires YEP_BuffsStatesCore.js) Additions to the base\nBuffsStates Core yanfly Plugin",
+      "name": "JakeMSG_YEP_BuffsStatesCore_Additions"
+    },
+    {
+      "key": "---- Passives ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Passives ----"
+    },
+    {
+      "key": "YEP_AutoPassiveStates::v1.17 This plugin allows for some states to function as\npassives for actors, enemies, skills, and equips.",
+      "name": "YEP_AutoPassiveStates"
+    },
+    {
+      "key": "YEP_X_PassiveAuras::v1.08 (Requires YEP_AutoPassiveStates.js) Add aura effects\nto various database objects.",
+      "name": "YEP_X_PassiveAuras"
+    },
+    {
+      "key": "YEP_Z_PassiveCases::v1.01 (Lunatic Pack) Create conditional cases for your passive\nstates through an easy and elaborate method!",
+      "name": "YEP_Z_PassiveCases"
+    },
+    {
+      "key": "HO_FieldEffects::v1.0 Field effects that enhance skills and items based on the environment.",
+      "name": "HO_FieldEffects"
+    },
+    {
+      "key": "JakeMSG_HO_FieldEffects_Additions::Adds compatibility for \"HO_FieldEffects\" older saves, and adds\r\nnew features, including new parameters to the plugin, to the Fields (called \"Advanced Fields\"\r\nwhen defined in this plugin's parameters), a new Battle Command to inspect active fields during battle,\r\na Field HUD, Field stacks, Field categories, and more! See the help file for details.\r\nREQUIRES: \"HO_FieldEffects\" plugin!\r\nThe new Battle Command's description is compatible with \"JakeMSG_MoreDescriptionsWithConditions\" plugin!",
+      "name": "JakeMSG_HO_FieldEffects_Additions"
+    },
+    {
+      "key": "HO_X_FieldBook::v1.0 Simple way to showcase all the effects caused by fields.",
+      "name": "HO_X_FieldBook"
+    },
+    {
+      "key": "-------- Enemy Levels --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Enemy Levels --------"
+    },
+    {
+      "key": "YEP_EnemyLevels::v1.09 This plugin enables giving your enemies levels and\nparameter changes with those levels.",
+      "name": "YEP_EnemyLevels"
+    },
+    {
+      "key": "YEP_X_EnemyBaseParam::v1.02 (Requires YEP_EnemyLevels.js) Use formulas to calculate\nthe base parameter values of enemies.",
+      "name": "YEP_X_EnemyBaseParam"
+    },
+    {
+      "key": "YEP_X_MapEnemyLevels::v1.00 (Req YEP_EnemyLevels) Define enemy levels based on the map\nthe player is currently in.",
+      "name": "YEP_X_MapEnemyLevels"
+    },
+    {
+      "key": "YEP_X_DifficultySlider::v1.04 (Requires YEP_EnemyLevels.js) Give your players\naccess to an option that allows them to change difficulty.",
+      "name": "YEP_X_DifficultySlider"
+    },
+    {
+      "key": "HIME_EnemyLevels::v1.4 - Gives enemies levels. Provides functions for managing\r\nenemy levels.",
+      "name": "HIME_EnemyLevels"
+    },
+    {
+      "key": "HIME_EnemyClasses::v1.1 - Allows you to assign a class to an enemy. Parameters\r\nand actions available are determined by enemy class and levels.",
+      "name": "HIME_EnemyClasses"
+    },
+    {
+      "key": "HIME_EnemyEquips::v1.3 - Allows you to give enemies equips. Provides\r\nfunctionality for managing enemy equips.",
+      "name": "HIME_EnemyEquips"
+    },
+    {
+      "key": "-------- Parties --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Parties --------"
+    },
+    {
+      "key": "YEP_PartySystem::v1.13 Replaces the default 'Formation' command with a new\nmenu for players to easily change party formations.",
+      "name": "YEP_PartySystem"
+    },
+    {
+      "key": "YEP_X_ActorPartySwitch::v1.05 (Req YEP_PartySystem.js and YEP_BattleEngineCore.js)\nAllow actors to switch with other party members mid-battle.",
+      "name": "YEP_X_ActorPartySwitch"
+    },
+    {
+      "key": "HIME_MultipleInventories::Provides an easy way to manage multiple inventories if you\r\nneed to switch between them or merge them during the game.",
+      "name": "HIME_MultipleInventories"
+    },
+    {
+      "key": "HIME_PartyManager::v1.12 - Create and manage multiples parties in your game.",
+      "name": "HIME_PartyManager"
+    },
+    {
+      "key": "HIME_PartySwitchingScene::v1.2 - Provides a simple scene for switching party members between\r\ndifferent parties.",
+      "name": "HIME_PartySwitchingScene"
+    },
+    {
+      "key": "-------- Higher Numbers --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Higher Numbers --------"
+    },
+    {
+      "key": "---- Exp ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Exp ----"
+    },
+    {
+      "key": "HIME_ExpTables::v1.2 - Set up the amount of experience required to level using\r\nspreadsheets",
+      "name": "HIME_ExpTables"
+    },
+    {
+      "key": "HIME_ParameterTables::v1.3 - Allows you to use spreadsheet software to maintain\r\nparameters for classes",
+      "name": "HIME_ParameterTables"
+    },
+    {
+      "key": "---- Numbers ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Numbers ----"
+    },
+    {
+      "key": "JDN_BigNumber::Convert Big Numbers up to 999.99 decillion!!",
+      "name": "JDN_BigNumber"
+    },
+    {
+      "key": "-------- Meta Saving --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Meta Saving --------"
+    },
+    {
+      "key": "Olivia_MetaControls::<MetaControls> for RPG Maker MV version 1.6.1.",
+      "name": "Olivia_MetaControls"
+    },
+    {
+      "key": "HIME_SyncSaveData::v1.0 - allows you to \"synchronize\" game data across different\r\nsave files and during the title screen",
+      "name": "HIME_SyncSaveData"
+    },
+    {
+      "key": "-------- Vehicles --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Vehicles --------"
+    },
+    {
+      "key": "YEP_X_VehicleRestrict::v1.01 (Req YEP_RegionRestrictions.js) This plugin allows you\nto control where vehicles can move and can land.",
+      "name": "YEP_X_VehicleRestrict"
+    },
+    {
+      "key": "CGMV_VehicleSystem::CGMV Vehicle System",
+      "name": "CGMV_VehicleSystem"
+    },
+    {
+      "key": "-------- Random Gen. --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Random Gen. --------"
+    },
+    {
+      "key": "DreamX_RandomPrefixesSuffixes::v1.26 Random prefixes/suffixes",
+      "name": "DreamX_RandomPrefixesSuffixes"
+    },
+    {
+      "key": "CTB_RandomLoot::v1.00 CT_Bolt's RandomLoot Plugin",
+      "name": "CTB_RandomLoot"
+    },
+    {
+      "key": "-------- Quests --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Quests --------"
+    },
+    {
+      "key": "YEP_QuestJournal::v1.02 Insert a quest journal system into your game!",
+      "name": "YEP_QuestJournal"
+    },
+    {
+      "key": "YEP_X_MoreQuests1::v1.00 (Requires YEP_QuestJournal.js)\nAdd quests 101 to 1000 to your game!",
+      "name": "YEP_X_MoreQuests1"
+    },
+    {
+      "key": "YEP_X_MapQuestWindow::v1.01 (Requires YEP_QuestJournal.js) Adds a window on the\nmap scene to display an active quest.",
+      "name": "YEP_X_MapQuestWindow"
+    },
+    {
+      "key": "-------- Misc Mechanics --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Misc Mechanics --------"
+    },
+    {
+      "key": "YEP_ButtonCommonEvents::v1.02 On the field map, call common events when certain\nbuttons are pressed on the keyboard.",
+      "name": "YEP_ButtonCommonEvents"
+    },
+    {
+      "key": "YEP_KeyboardConfig::v1.04 Allows players to adjust their button configuration\nfor keyboards.",
+      "name": "YEP_KeyboardConfig"
+    },
+    {
+      "key": "YEP_PatchNotes::v1.00 Add the ability to read Patch Notes from inside your game.",
+      "name": "YEP_PatchNotes"
+    },
+    {
+      "key": "============ Misc ============::======================================================================================================================",
+      "name": "============ Misc ============"
+    },
+    {
+      "key": "YEP_ExternalLinks::v1.01 Link back to your home page through the title screen\nand also be able to link your players from within the game.",
+      "name": "YEP_ExternalLinks"
+    },
+    {
+      "key": "-------- External File Manip --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- External File Manip --------"
+    },
+    {
+      "key": "JakeMSG_ozuFileModification::For checking, writing and removing files! And more! Gnarly!",
+      "name": "JakeMSG_ozuFileModification"
+    },
+    {
+      "key": "-------- System --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- System --------"
+    },
+    {
+      "key": "---- Passive ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Passive ----"
+    },
+    {
+      "key": "YEP_SelfSwVar::v1.04 Self Switches and Self Variables functionality\nwithout the need for plugin commands or script calls.",
+      "name": "YEP_SelfSwVar"
+    },
+    {
+      "key": "YEP_PluginCmdSwVar::v1.00 Make it easier to use Switch and Variable values for\nplugin commands across the board!",
+      "name": "YEP_PluginCmdSwVar"
+    },
+    {
+      "key": "HIME_Event_Parallel_Pages::",
+      "name": "HIME_Event_Parallel_Pages"
+    },
+    {
+      "key": "HIME_CustomPageConditions::v1.6 - Create your own page conditions for your events using\r\nregular eventing!",
+      "name": "HIME_CustomPageConditions"
+    },
+    {
+      "key": "HIME_CommonEventQueue::Allows you to reserve multiple common events.",
+      "name": "HIME_CommonEventQueue"
+    },
+    {
+      "key": "HIME_EndPhaseTriggers::Checks whether there are any events to run before ending the\r\nbattle.",
+      "name": "HIME_EndPhaseTriggers"
+    },
+    {
+      "key": "HIME_TimerPause::Allows you to pause and resume the timer. When the timer is\r\npaused, it will remain on the screen but it won't count down.",
+      "name": "HIME_TimerPause"
+    },
+    {
+      "key": "YEP_KeyNameEntry::v1.00 Allows the Name Input Processing event to function\nwith the keyboard keys to enter in letters and numbers.",
+      "name": "YEP_KeyNameEntry"
+    },
+    {
+      "key": "YEP_KeyNumberInput::v1.00 Allows the Input Number event to use numbers instead.",
+      "name": "YEP_KeyNumberInput"
+    },
+    {
+      "key": "HIME_FollowerEventTouch::v1.1 - when an event touches a follower, the event will be\r\ntriggered as if it touched the player.",
+      "name": "HIME_FollowerEventTouch"
+    },
+    {
+      "key": "JakeMSG_DynamicBranching::<DynamicBranching> for RPG Maker MV version 1.6.1.",
+      "name": "JakeMSG_DynamicBranching"
+    },
+    {
+      "key": "YEP_ScriptCallPluginCmd::v1.00 (Req YEP_MessageCore.js) Allows you to create your own\ncustom text codes and determine what they do.",
+      "name": "YEP_ScriptCallPluginCmd"
+    },
+    {
+      "key": "JakeMSG_EasierScriptCallsMVMZ::Easier Script Calls for MV (method wrappers to make Script Calls \r\neasier to use)",
+      "name": "JakeMSG_EasierScriptCallsMVMZ"
+    },
+    {
+      "key": "JakeMSG_WebpMP3AndSubfoldersInMVCommands::(MV & MZ) Makes both .webp and .png assets possible to load!\r\nNew: also makes both .mp3 and .ogg audio files possible to load at the same time!\r\nAlso adds, for MV, the possibility for Commands in the editor to read names \r\nthat contain subfolders (the \"/\" sign) (Will still require first opening\r\nthe project in MZ to set the Assets from the Subfolders!)",
+      "name": "JakeMSG_WebpMP3AndSubfoldersInMVCommands"
+    },
+    {
+      "key": "YEP_ScaleSprites::v1.01 This is a plugin that lets you scale sprites of\nsmaller or larger sizes to certain dimensions.",
+      "name": "YEP_ScaleSprites"
+    },
+    {
+      "key": "AnimatedBusts::Allows animating pictures",
+      "name": "AnimatedBusts"
+    },
+    {
+      "key": "---- Active ----::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "---- Active ----"
+    },
+    {
+      "key": "YEP_UtilityCommonEvents::v1.02 Make common events occur at specific gameplay points\nsuch as on loading, after battles, etc.",
+      "name": "YEP_UtilityCommonEvents"
+    },
+    {
+      "key": "CGMV_RegionSwitch::CGMV Region Switch",
+      "name": "CGMV_RegionSwitch"
+    },
+    {
+      "key": "-------- Utility --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Utility --------"
+    },
+    {
+      "key": "Olivia_AntiPlayerStress::<AntiPlayerStress> for RPG Maker MV version 1.6.1.",
+      "name": "Olivia_AntiPlayerStress"
+    },
+    {
+      "key": "YEP_TestPlayAssist::v1.00 Test playing can become a chore. This plugin offers new\nfeatures that would help make your test playing more flexible and efficient.",
+      "name": "YEP_TestPlayAssist"
+    },
+    {
+      "key": "JakeMSG_SkipMoviesMV::Adds the possibility to skip videos (Movie files) by pressing a key.",
+      "name": "JakeMSG_SkipMoviesMV"
+    },
+    {
+      "key": "Speedhax::",
+      "name": "Speedhax"
+    },
+    {
+      "key": "-------- Optimize --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Optimize --------"
+    },
+    {
+      "key": "Irina_PerformanceUpgrade::<PerformanceUpgrade> for RPG Maker MV version 1.6.2.",
+      "name": "Irina_PerformanceUpgrade"
+    },
+    {
+      "key": "YEP_FpsSynchOption::v1.03 Adds a new command to Options menu for synching\nthe FPS of moniters with higher FPS rates.",
+      "name": "YEP_FpsSynchOption"
+    },
+    {
+      "key": "MemoryLeakPatch::",
+      "name": "MemoryLeakPatch"
+    },
+    {
+      "key": "YEP_OptimizeScriptCalls::v1.00 Optimize script calls in common events to run better.",
+      "name": "YEP_OptimizeScriptCalls"
+    },
+    {
+      "key": "YEP_AnimateTilesOption::v1.03 Because some computers and devices lag with animated\ntiles on the map, an option is added to disable them.",
+      "name": "YEP_AnimateTilesOption"
+    },
+    {
+      "key": "ALOE_YEP_PluginOrderChecker::v1.0.3 Reads YEP (Yanfly) plugins activated in the\nproject and outputs the correct plugin order.",
+      "name": "ALOE_YEP_PluginOrderChecker"
+    },
+    {
+      "key": "-------- MY MISC --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- MY MISC --------"
+    },
+    {
+      "key": "JakeMSG_MiscScriptsAndCommands::Random Scripts and Commands that I use",
+      "name": "JakeMSG_MiscScriptsAndCommands"
+    },
+    {
+      "key": "1d51ModLoader::A simple mod loader for RPG Maker MV.",
+      "name": "1d51ModLoader"
+    },
+    {
+      "key": "JakeMSG_Debuggings::v1.0 - Debug options (MV & MZ compatible)",
+      "name": "JakeMSG_Debuggings"
+    },
+    {
+      "key": "-------- Tools --------::--------------------------------------------------------------------------------------------------------------------------------",
+      "name": "-------- Tools --------"
+    },
+    {
+      "key": "Xalvior_ParallaxStudio::[v4.0.0-MV] Xalvior Parallax Studio — Editor visual de parallax en tiempo real (port para RPG Maker MV).",
+      "name": "Xalvior_ParallaxStudio"
+    }
+  ],
+  "folders": [
+    {
+      "id": "ungrouped",
+      "name": "Ungrouped",
+      "parentId": null,
+      "order": 0
+    },
+    {
+      "id": "i-core",
+      "name": "I. Core",
+      "parentId": null,
+      "order": 1
+    },
+    {
+      "id": "ii-menus",
+      "name": "II. Menus",
+      "parentId": null,
+      "order": 2
+    },
+    {
+      "id": "3-messages-choices",
+      "name": "III. Messages & Choices",
+      "parentId": null,
+      "order": 3
+    },
+    {
+      "id": "iv-map",
+      "name": "IV. Map",
+      "parentId": null,
+      "order": 4
+    },
+    {
+      "id": "5-actors",
+      "name": "V. Actors",
+      "parentId": null,
+      "order": 5
+    },
+    {
+      "id": "vi-battle",
+      "name": "VI. Battle",
+      "parentId": null,
+      "order": 6
+    },
+    {
+      "id": "vii-mechanics",
+      "name": "VII. Mechanics",
+      "parentId": null,
+      "order": 7
+    },
+    {
+      "id": "viii-system-changes",
+      "name": "VIII. System Changes",
+      "parentId": null,
+      "order": 8
+    },
+    {
+      "id": "ix-external-file-manipulations",
+      "name": "IX. External File Manipulations",
+      "parentId": null,
+      "order": 9
+    },
+    {
+      "id": "x-optimize-game-processing",
+      "name": "X. Optimize (game processing)",
+      "parentId": null,
+      "order": 10
+    },
+    {
+      "id": "xi-mod-loader",
+      "name": "XI. Mod Loader",
+      "parentId": null,
+      "order": 11
+    },
+    {
+      "id": "xii-utility",
+      "name": "XII. Utility",
+      "parentId": null,
+      "order": 12
+    },
+    {
+      "id": "xiii-misc",
+      "name": "XIII. MISC",
+      "parentId": null,
+      "order": 13
+    },
+    {
+      "id": "xiv-tools",
+      "name": "XIV. Tools",
+      "parentId": null,
+      "order": 14
+    },
+    {
+      "id": "separators",
+      "name": "#### Separators",
+      "parentId": null,
+      "order": 15
+    },
+    {
+      "id": "1-messages",
+      "name": "1. Messages",
+      "parentId": "3-messages-choices",
+      "order": 0
+    },
+    {
+      "id": "2-choices",
+      "name": "2. Choices",
+      "parentId": "3-messages-choices",
+      "order": 1
+    },
+    {
+      "id": "1-classes",
+      "name": "1. Classes",
+      "parentId": "5-actors",
+      "order": 0
+    },
+    {
+      "id": "2-stats",
+      "name": "2. Stats",
+      "parentId": "5-actors",
+      "order": 1
+    },
+    {
+      "id": "3-skills",
+      "name": "3. Skills",
+      "parentId": "5-actors",
+      "order": 2
+    },
+    {
+      "id": "4-equipments-items",
+      "name": "4. Equipments - Items",
+      "parentId": "5-actors",
+      "order": 3
+    },
+    {
+      "id": "5-status-pages",
+      "name": "5. Status Pages",
+      "parentId": "5-actors",
+      "order": 4
+    },
+    {
+      "id": "a-encyclopedias",
+      "name": "A. Encyclopedias",
+      "parentId": "6-new-menus",
+      "order": 0
+    },
+    {
+      "id": "b-achievements-playstats",
+      "name": "B. Achievements & PlayStats",
+      "parentId": "6-new-menus",
+      "order": 1
+    },
+    {
+      "id": "c-jobs",
+      "name": "C. Jobs",
+      "parentId": "6-new-menus",
+      "order": 2
+    },
+    {
+      "id": "d-crafting",
+      "name": "D. Crafting",
+      "parentId": "6-new-menus",
+      "order": 3
+    },
+    {
+      "id": "a-numbers",
+      "name": "A. Numbers",
+      "parentId": "9-higher-numbers",
+      "order": 0
+    },
+    {
+      "id": "b-exp-and-levels",
+      "name": "B. Exp and Levels",
+      "parentId": "9-higher-numbers",
+      "order": 1
+    },
+    {
+      "id": "1-suite-cores",
+      "name": "1. Suite Cores",
+      "parentId": "i-core",
+      "order": 0
+    },
+    {
+      "id": "2-preload",
+      "name": "2. Preload",
+      "parentId": "i-core",
+      "order": 1
+    },
+    {
+      "id": "3-hud",
+      "name": "3. HUD",
+      "parentId": "i-core",
+      "order": 2
+    },
+    {
+      "id": "4-animations",
+      "name": "4. Animations",
+      "parentId": "i-core",
+      "order": 3
+    },
+    {
+      "id": "0-title",
+      "name": "0. Title",
+      "parentId": "ii-menus",
+      "order": 0
+    },
+    {
+      "id": "1-pause-menu",
+      "name": "1. Pause Menu",
+      "parentId": "ii-menus",
+      "order": 1
+    },
+    {
+      "id": "save-load",
+      "name": "2. Save-Load",
+      "parentId": "ii-menus",
+      "order": 2
+    },
+    {
+      "id": "3-options",
+      "name": "3. Options",
+      "parentId": "ii-menus",
+      "order": 3
+    },
+    {
+      "id": "4-shop",
+      "name": "4. Shop",
+      "parentId": "ii-menus",
+      "order": 4
+    },
+    {
+      "id": "5-gameover-quit",
+      "name": "5. GameOver - Quit",
+      "parentId": "ii-menus",
+      "order": 5
+    },
+    {
+      "id": "6-new-menus",
+      "name": "6. New Menus",
+      "parentId": "ii-menus",
+      "order": 6
+    },
+    {
+      "id": "7-making-custom-menus",
+      "name": "7. Making Custom Menus",
+      "parentId": "ii-menus",
+      "order": 7
+    },
+    {
+      "id": "0-ss-a-picture-of-the-map-initial-game-load",
+      "name": "0. SS a picture of the Map (Initial Game Load)",
+      "parentId": "iv-map",
+      "order": 0
+    },
+    {
+      "id": "1-scene-ing",
+      "name": "1. Scene-ing",
+      "parentId": "iv-map",
+      "order": 1
+    },
+    {
+      "id": "2-mechanics",
+      "name": "2. Mechanics",
+      "parentId": "iv-map",
+      "order": 2
+    },
+    {
+      "id": "3-audio-visual-effects",
+      "name": "3. (Audio&) Visual Effects",
+      "parentId": "iv-map",
+      "order": 3
+    },
+    {
+      "id": "0-enemy-and-troop-stuff",
+      "name": "0. Enemy and Troop Stuff",
+      "parentId": "vi-battle",
+      "order": 0
+    },
+    {
+      "id": "1-battle-ui",
+      "name": "1. Battle UI",
+      "parentId": "vi-battle",
+      "order": 1
+    },
+    {
+      "id": "2-battle-mechanics",
+      "name": "2. Battle Mechanics",
+      "parentId": "vi-battle",
+      "order": 2
+    },
+    {
+      "id": "3-battle-commands",
+      "name": "3. Battle Commands",
+      "parentId": "vi-battle",
+      "order": 3
+    },
+    {
+      "id": "1-combine",
+      "name": "1. Combine",
+      "parentId": "vii-mechanics",
+      "order": 0
+    },
+    {
+      "id": "2-notetags",
+      "name": "2. Notetags",
+      "parentId": "vii-mechanics",
+      "order": 1
+    },
+    {
+      "id": "3-qtes",
+      "name": "3. QTEs",
+      "parentId": "vii-mechanics",
+      "order": 2
+    },
+    {
+      "id": "4-seamless-battle-transitions",
+      "name": "4. Seamless Battle Transitions",
+      "parentId": "vii-mechanics",
+      "order": 3
+    },
+    {
+      "id": "5-status-effects",
+      "name": "5. Status Effects",
+      "parentId": "vii-mechanics",
+      "order": 4
+    },
+    {
+      "id": "6-passives",
+      "name": "6. Passives",
+      "parentId": "vii-mechanics",
+      "order": 5
+    },
+    {
+      "id": "7-enemy-levels",
+      "name": "7. Enemy Levels",
+      "parentId": "vii-mechanics",
+      "order": 6
+    },
+    {
+      "id": "8-parties",
+      "name": "8. Parties",
+      "parentId": "vii-mechanics",
+      "order": 7
+    },
+    {
+      "id": "9-higher-numbers",
+      "name": "9. Higher Numbers",
+      "parentId": "vii-mechanics",
+      "order": 8
+    },
+    {
+      "id": "10-keybind-customizations",
+      "name": "10. Keybind customizations",
+      "parentId": "vii-mechanics",
+      "order": 9
+    },
+    {
+      "id": "11-level-up-effects",
+      "name": "11. Level-up effects",
+      "parentId": "vii-mechanics",
+      "order": 10
+    },
+    {
+      "id": "12-quest-journal",
+      "name": "12. Quest - Journal",
+      "parentId": "vii-mechanics",
+      "order": 11
+    },
+    {
+      "id": "13-chapter-select",
+      "name": "13. Chapter Select",
+      "parentId": "vii-mechanics",
+      "order": 12
+    },
+    {
+      "id": "14-meta-saving",
+      "name": "14. Meta Saving",
+      "parentId": "vii-mechanics",
+      "order": 13
+    },
+    {
+      "id": "15-vehicles",
+      "name": "15. Vehicles",
+      "parentId": "vii-mechanics",
+      "order": 14
+    },
+    {
+      "id": "16-random-gen",
+      "name": "16. Random Gen.",
+      "parentId": "vii-mechanics",
+      "order": 15
+    },
+    {
+      "id": "1-passive",
+      "name": "1. Passive",
+      "parentId": "viii-system-changes",
+      "order": 0
+    },
+    {
+      "id": "2-active",
+      "name": "2. Active",
+      "parentId": "viii-system-changes",
+      "order": 1
+    }
+  ],
+  "pluginFolderMap": {
+    "============ Core ============::======================================================================================================================": "separators",
+    "-------- Cores --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "Community_Basic::Plugin used to set basic parameters.": "1-suite-cores",
+    "SRD_GameUpgrade::Enables more customization over the core mechanics of one's game while also providing additional functions for future plugins.": "1-suite-cores",
+    "SRD_WindowUpgrade::Upgrades and adds various features to the existing window system within one's game.": "1-suite-cores",
+    "SRD_SuperToolsEngine::The heart of all maker-style plugins; it adds a playtesting editor that can be opened with F12.": "1-suite-cores",
+    "YEP_CoreEngine::v1.32 Needed for the majority of Yanfly Engine Scripts. Also\r\ncontains bug fixes found inherently in RPG Maker.": "1-suite-cores",
+    "YEP_BattleEngineCore::v1.51 Have more control over the flow of the battle system\nwith this plugin and alter various aspects to your liking.": "1-suite-cores",
+    "YEP_SkillCore::v1.13 Skills are now given more functions and the ability\r\nto require different types of costs.": "1-suite-cores",
+    "TSR_Popups::v1.2.6 Provide multiple options for battle Popups.": "i-core",
+    "YEP_BuffsStatesCore::v1.16 Alter the basic mechanics behind buffs and states\nthat aren't adjustable within the RPG Maker editor.": "1-suite-cores",
+    "YEP_DamageCore::v1.08 Expand the control you have over the game's damage\ncalculation with more features and effects.": "1-suite-cores",
+    "YEP_ElementCore::v1.02 Manage the way elements work in this game from\nabsorbing elements, reflecting elements, and more!": "1-suite-cores",
+    "YEP_ClassChangeCore::v1.13 This plugin creates a system where your player\ncan change classes through the main menu.": "1-suite-cores",
+    "YEP_ItemCore::v1.30 Changes the way Items are handled for your game\nand the Item Scene, too.": "1-suite-cores",
+    "YEP_EquipCore::v1.18 Allows for the equipment system to be more flexible to\nallow for unique equipment slots per class.": "1-suite-cores",
+    "YEP_MessageCore::v1.19 Adds more features to the Message Window to customized\nthe way your messages appear and functions.": "1-suite-cores",
+    "YEP_MoveRouteCore::v1.04 Expand the number of movement options for the move\nroute events using this plugin.": "1-suite-cores",
+    "YEP_ShopMenuCore::v1.05 Revamps the shop menu appearance and provides the\nframework for many new shop options.": "1-suite-cores",
+    "YEP_StatusMenuCore::v1.04 Changes the Status menu for your characters into\na hub that displays more character information.": "1-suite-cores",
+    "YEP_SaveCore::v1.06 Alter the save menu for a more aesthetic layout\nand take control over the file system's rules.": "1-suite-cores",
+    "HIME_EquipSlotsCore::v1.5 - Provides you with tools to set up custom equip slots\r\nfor each actor individually.": "1-suite-cores",
+    "HIME_YanflyItemCoreEquipSlotsCore::Patch for Yanfly's ItemCore to support Equip Slots Core": "1-suite-cores",
+    "VE_BasicModule::v1.23 - Plugin with base code required for all Victor Engine plugins.": "1-suite-cores",
+    "CGMV_Core::Core CGMV Script.": "1-suite-cores",
+    "-------- PreLoad --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "SRD_PreloaderCore::Allows developers to preload specific audio and images before running the game through a new pre-title scene.": "2-preload",
+    "-------- HUD --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "SRD_HUDMaker::Allows developers to create their own map-based HUD through an in-game GUI window!": "3-hud",
+    "-------- Animations --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "PKD_VPlayer::(v.1.7)[PRO] Extended WEBM Video Player": "4-animations",
+    "Coolie_IndividualAnimDimensions::v1.0 Coolie Individual Anim Dimensions\r\n     Special thanks to caethyril": "4-animations",
+    "Tsukimi_AnimationFrameRate::Tsukimi_AnimationFrameRate": "4-animations",
+    "GALV_PictureAnims::(v.1.4) Play database animations on pictures made with \"Show Picture\"": "4-animations",
+    "Transitions::Replaces the default fade in/out behaviour of scenes with custom transitions.": "4-animations",
+    "============ Menus ============::======================================================================================================================": "separators",
+    "-------- Title-Save-Load-Options-GameOver --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "HIME_PreTitleEvents::Build your own sequence of events that should occur before\r\nthe title screen begins": "0-title",
+    "YEP_DynamicTitleImages::v1.00 Change title images depending on how far along your game\nthe player has progressed.": "0-title",
+    "X_SocialMediaButtons::v 1.0.0 Place social media buttons on your title screen\r\n<X_SocialMediaButtons>": "1-pause-menu",
+    "LUX_TitleScreen::v0.6.3 Customize your title screen!": "0-title",
+    "SRD_TitleCommandCustomizer::Allows customization over the Title Command Window.\r\nCan customize size, position, rows, columns, and commands.": "0-title",
+    "YEP_MainMenuManager::v1.03 This plugin allows you to manage the various aspects\nof your main menu.": "1-pause-menu",
+    "JakeMSG_XPauseModeMVModification::v1.2.0 (MV Only) - A customizable pause scene, enhancing mobile game-play and increasing accessibility": "1-pause-menu",
+    "YEP_MainMenuVar::v1.02 Adds a new variable window to your main menu.\nYou can use it to display up to 10 different variables!": "1-pause-menu",
+    "YEP_X_MenuActorEvents::v1.00 (Req YEP_MainMenuManager) Allows you to run common events\nstraight from the main menu depending on which actor the player has picked.": "1-pause-menu",
+    "YEP_X_Autosave::v1.00 (Req YEP_SaveCore.js) Adds Autosave functionality to your\nRPG Maker game.": "3-options",
+    "YEP_SaveEventLocations::v1.06 Enable specified maps to memorize the locations of\nevents when leaving and loading them upon reentering map.": "save-load",
+    "YEP_OptionsCore::v1.02 Expand the Options Menu into a more elegant looking menu\nwith more customization potential.": "3-options",
+    "HIME_GameOverEvents::v1.2 - Allows you to use events to set up a game over event.": "5-gameover-quit",
+    "SRD_QuitConfirmation::Provides a confirmation popup prior to the player leaving the game, confirming whether they wish to leave.": "5-gameover-quit",
+    "SRD_GoldWindowCustomizer::A Plugin that allows you to manipulate the information presented on the Gold Window.": "1-pause-menu",
+    "-------- Save Compatibility --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JakeMSG_EventAfterLoadModification::Execute The Event After Successful Load\r\nv1.12": "save-load",
+    "-------- Shop --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_X_HideShowShopItems::v1.00 (Req YEP_ShopMenuCore) Allows you to hide/show shop menu\nentries using switches and/or variables.": "4-shop",
+    "YEP_X_MoreCurrencies::v1.05 (Requires YEP_ShopMenuCore.js) This plugin adds\nfunctionality for your shops to have multiple currencies.": "4-shop",
+    "YEP_X_CondShopPrices::v1.01 (Req YEP_ShopMenuCore) Allows you to set prices that can\nchange based on various conditions and even variables.": "4-shop",
+    "HIME_HiddenShopGoods::Easily hide shop goods when they shouldn't be seen!": "4-shop",
+    "-------- New Menus --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "---- Encyclopedias ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "CGMV_Encyclopedia::CGMV Encyclopedia": "a-encyclopedias",
+    "---- Achievements & PlayStats ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "CGMV_ExtraStats::CGMV Tracking for extra statistics.": "b-achievements-playstats",
+    "CGMV_Achievements::CGMV Achievement Script": "b-achievements-playstats",
+    "HC_Achievements::v1.7.0 Achievements + rewards + browser + stacked acheivement popups": "b-achievements-playstats",
+    "HO_AchievementSystem::v1.5 Achievement System for RPG Maker MV": "b-achievements-playstats",
+    "HO_X_AchievementExt::Achievement System Extension": "b-achievements-playstats",
+    "---- Jobs ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "CGMV_Professions::CGMV Professions": "c-jobs",
+    "---- Crafting ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "CGMV_Crafting::CGMV Crafting": "d-crafting",
+    "YEP_ItemSynthesis::v1.11 Players can now craft their own items in-game\nthrough an item synthesis system.": "d-crafting",
+    "-------- Making Custom Menus --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_CommonEventMenu::v1.04 This plugin allows the creation of windows to call\ncommon events with.": "7-making-custom-menus",
+    "YEP_X_CEMSetupPack1::v1.00 (Requires YEP_CommonEventMenu.js) Adds more setups\nto use with the Common Event Menu.": "7-making-custom-menus",
+    "YEP_X_CEMSetupPack2::v1.01 (Requires YEP_CommonEventMenu.js) Adds more setups\nto use with the Common Event Menu.": "7-making-custom-menus",
+    "============ Message&Choices ============::======================================================================================================================": "separators",
+    "-------- Messages --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JakeMSG_YEP_MessageCore_Additions::v1.0 (Requires YEP_MessageCore.js) Additions to the base\nMessage Core yanfly Plugin": "1-messages",
+    "YEP_LoadCustomFonts::v1.01 Load custom fonts from the /fonts/ folder. This will\nallow you to use custom fonts without installing them.": "1-messages",
+    "HIME_PlaceholderMessageFaces::v1.1 - Allows you to use placeholder graphics in your\r\nmessages that will dynamically display faces during the game.": "1-messages",
+    "YEP_X_ExtMesPack1::v1.12 (Requires YEP_MessageCore.js) Letter Sounds, NameBox\nBackground Types, Choice Control, and more!": "1-messages",
+    "YEP_X_ExtMesPack2::v1.00 (Requires YEP_MessageCore.js) Adds text codes to display\nvarious game data information for messages.": "1-messages",
+    "YEP_X_MessageBacklog::v1.01 (Requires YEP_MessageCore.js) Add a message backlog\nfunction to your game's message system!": "1-messages",
+    "YEP_X_MessageEvalText::v1.00 (Req YEP_MessageCore.js) Adds \\evalText<<code>> to the text\ncode list so that you can run JavaScript code and display it as text.": "1-messages",
+    "YEP_X_MessageSpeedOpt::v1.00 (Requires YEP_MessageCore.js) Let your places adjust the\nspeed the message window displays text.": "1-messages",
+    "YEP_X_MessageMacros1::v1.01 (Requires YEP_MessageCore.js) Adds macros 1 to 100\nfor your game's message system.": "1-messages",
+    "PKD_HelpInMessages::(v.1.1)[PRO] Allows you create mini hint messages for any word or sentence in messages": "1-messages",
+    "JakeMSG_PKDHelpInMessagesAdditions::Adds compatibilities for this plugin with other existing Plugins\r\nAlso adds new features!\r\nREQUIRES: \"PKD_HelpInMessages\" plugin (Basic/Pro)!": "1-messages",
+    "CGMV_Toast::CGMV Toast Script": "1-messages",
+    "-------- Choices --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "HIME_LargeChoices::v1.2 - Combines multiple show choice commands into a single,\r\nlarge list.": "2-choices",
+    "HIME_ConditionalChoiceText::v1.1 - Allows you to dynamically set the text for each choice\r\nin your events.": "2-choices",
+    "HIME_DisabledChoiceConditions::v1.4 Allows you to disable individual choices in a set of options\r\nbased on custom conditions": "2-choices",
+    "HIME_HiddenChoiceConditions::Allows you to hide choices with a simple event call": "2-choices",
+    "HIME_TimedChoiceSelection::v1.1 - Set a timer that automatically selects a choice for the\r\nplayer when the timer expires.": "2-choices",
+    "HIME_HMSChoiceDisplayMode::v1.3 - Customize the way choices are displayed": "2-choices",
+    "============ Map ============::======================================================================================================================": "separators",
+    "OrangeMapshot::This plugin will save a picture of the entire map on a Mapshots folder when you press a key. <OrangeMapshot>": "0-ss-a-picture-of-the-map-initial-game-load",
+    "-------- Scene-ing --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "TDDP_BindPicturesToMap::1.0.7 Plugin Commands for binding pictures to the map and/or changing what layer they're drawn on.": "1-scene-ing",
+    "YEP_CallEvent::v1.01 A lost utility command from RPG Maker 2000 and\nRPG Maker 2003 has been remade for RPG Maker MV!": "1-scene-ing",
+    "YEP_EventTimerControl::v1.01 Gain more control over the event timer function\nfor your game.": "1-scene-ing",
+    "YEP_EventClickTrigger::v1.00 Lets the player click on designated notetagged events to\ntrigger them from afar!": "1-scene-ing",
+    "YEP_PictureCommonEvents::v1.06 Causes common events to run when certain pictures\nare clicked while on the map.": "1-scene-ing",
+    "YEP_IconBalloons::v1.02 Allows you to use icons for your on-map balloons\nover your characters and events!": "1-scene-ing",
+    "JakeMSG_ScreenAnimationModification::show Animation on screen at x,y coordination and optinal to tweak scale delay mirror fps": "1-scene-ing",
+    "YEP_EventMiniLabel::v1.12 Creates miniature-sized labels over events to allow\nyou to insert whatever text you'd like in them.": "1-scene-ing",
+    "JakeMSG_YEP_EventMiniLabel_Additions::v1.1 (Requires YEP_EventMiniLabel.js) Additions to YEP Event Mini Label.": "1-scene-ing",
+    "YEP_GabWindow::v1.06 The Gab Window functions as a window for random\njibber jabber that does not require a message window.": "1-scene-ing",
+    "HIME_GuestFollowers::v1.2 - Allow non-battle actors to follow your party as guests.": "1-scene-ing",
+    "-------- Mechanics --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_DashToggle::v1.03 RPG Maker MV lacks the ability to toggle dashing\non and off. This plugin will let you do so~": "2-mechanics",
+    "YEP_StopMapMovement::v1.02 A utility plugin to stop events from automatically\nmoving by themselves all across your map.": "2-mechanics",
+    "OcRam_Lights::v2.15 You may use event comments or plugin commands to control different type of light sources. PLUGIN NAME MUST BE OcRam_Lights.js": "2-mechanics",
+    "GALV_PuzzleFunctions::(v.1.1) A bunch of functions to use to make eventing puzzles easier": "2-mechanics",
+    "GALV_EventDetectors::Have events activate when player gets in range and line of sight.": "2-mechanics",
+    "YEP_X_ExtMovePack1::v1.01 (Requires YEP_MoveRouteCore.js) Adds extra movement\noptions to create specific behaviors in movement patterns.": "2-mechanics",
+    "OrangePathfinding::Faster Pathfinding for Rpg Maker MV <OrangePathfinding>": "2-mechanics",
+    "KCL_SmartPath::Allows events or players to do smart Pathfinding": "2-mechanics",
+    "YEP_EventChasePlayer::v1.07 When a player is in the proximity of a certain event,\nthe event will start chasing or fleeing from the player.": "2-mechanics",
+    "YEP_EventEncounterAid::v1.01 This plugin helps make eventable encounters easier\nand determine player position relative to the event.": "2-mechanics",
+    "YEP_EventCopier::v1.01 Copy premade events from a template including all of the\npossible data stored from a different map!": "2-mechanics",
+    "YEP_EventMorpher::v1.00 Allows events to completely morph into another, copying\nover all pages, conditions, and event commands.": "2-mechanics",
+    "YEP_EventSpawner::v1.02 Spawn premade events at specific locations or random\npoints marked by regions.": "2-mechanics",
+    "YEP_EventHitboxResize::v1.00 Allows you to make larger event hitboxes, making the event\nable to be triggered from multiple tiles.": "2-mechanics",
+    "YEP_EventProxActivate::v1.01 Allows events to activate by being in range of them\ninstead of needing to be exactly next to or on top of them.": "2-mechanics",
+    "YEP_EventRegionTrigger::v1.02 Allows events to trigger by being in specific regions\ninstead of needing to exactly next to or on top of them.": "2-mechanics",
+    "YEP_RegionEvents::v1.03 Make it so that whenever players step on certain\nRegion ID's, the game will play certain common events.": "2-mechanics",
+    "YEP_RegionRestrictions::v1.04 Use regions to block out Events and/or the player from\nbeing able to venture into those spots.": "2-mechanics",
+    "YEP_FloorDamage::v1.02 Allows you to modify floor damage based on terrain tags.\nYou can also change the color of the flash when damaged, too.": "2-mechanics",
+    "KC_MoveRouteTF::[v1.0.2]Rotate, translate, and scale characters during move routes.": "2-mechanics",
+    "YEP_SlipperyTiles::v1.05 You can create slippery tiles by marking them with\neither a terrain tag or a region number.": "2-mechanics",
+    "YEP_SmartJump::v1.03 Adds a plugin command that enables smart jumping\nwhere the player cannot jump into illegal areas.": "2-mechanics",
+    "GALV_JumpAbility::Allows the player to jump by pressing a button.": "2-mechanics",
+    "JakeMSG_GALV_JumpAbility_Additions::v1.5 (Requires GALV_JumpAbility.js) Adds keyboard compat, distance/sound/key overrides, landing facing, and XJumps.": "2-mechanics",
+    "-------- (Audio&) Visual Effects --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_FootstepSounds::v1.01 Set footstep sounds to play when the player and/or\nevents walk over specific tiles.": "3-audio-visual-effects",
+    "JakeMSG_AudioMultiChannels::Audio Multi Channels - Adds the ability to play multiple BGM/BGS/ME/SE \r\nat the same time, with independent control over each of them.\r\nAlso new features for \"YEP_FootstepSounds\" plugin if present.": "3-audio-visual-effects",
+    "YEP_DisableAutoShadowExt::v1.00 Disable autoshadows for your game, specific maps, or even\nspecific tilesets.": "3-audio-visual-effects",
+    "YEP_IconsOnEvents::v1.00 Allows you to put icons on events and the player!": "3-audio-visual-effects",
+    "VE_FogAndOverlay::v1.07 - Display fogs and overlay on maps and battles.": "3-audio-visual-effects",
+    "YEP_EventSpriteOffset::v1.00 Offset event sprites using notetags and comment tags!": "3-audio-visual-effects",
+    "PSYCHRONIC_VideoParallaxMV::Enables video parallax backgrounds for RPG Maker MV maps.\r\nUse the notetag <videoParallax: filename> in map settings or\r\nuse the plugin command PLAY_PARALLAX filename to set the video.": "3-audio-visual-effects",
+    "GALV_CamControl::Allows greater control over where the game camera is focused. View HELP for plugin commands.": "3-audio-visual-effects",
+    "MBS_MapZoom::Makes it possible to zoom in and out the game map                        \r\n\r\n<MBS MapZoom>": "3-audio-visual-effects",
+    "FilterController::FilterController": "3-audio-visual-effects",
+    "RS_SimpleCanvasFilter::This plugin applies CSS filter to canvas": "3-audio-visual-effects",
+    "RS_SimpleLight::This plugin implements a dynamic lighting system using WebGL shaders. <RS_SimpleLight>": "3-audio-visual-effects",
+    "umc_Lighting::v1.47 The smallest, fastest lighting plugin!": "3-audio-visual-effects",
+    "============ Actors ============::======================================================================================================================": "separators",
+    "-------- Classes --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_X_Subclass::v1.11 (Requires YEP_ClassChangeCore.js) Allow your actors\nto subclass into a secondary class!": "1-classes",
+    "-------- Stats --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_BaseParamControl::v1.04 Gain control over the method of calculation for base\nparameters: MaxHP, MaxMP, ATK, DEF, MAT, MDF, AGI, LUK.": "2-stats",
+    "YEP_X_ClassBaseParam::v1.05 (Requires YEP_BaseParamControl) Allow you to use\nformulas for class parameter growth.": "2-stats",
+    "YEP_ExtraParamFormula::v1.04 Control the formulas of the extra parameters for\nHIT, EVA, CRI, CEV, MEV, MRF, CNT, HRG, MRG, and TRG.": "2-stats",
+    "YEP_SpecialParamFormula::v1.06 Control the formulas of special parameters for\nTGR, GRD, REC, PHA, MCR, TCR, PDR, MDR, FDR, EXR.": "2-stats",
+    "QuasiParamsPlus::v1.15 Adds improvements to parameters\n<QuasiParamsPlus>": "2-stats",
+    "YEP_X_ActorVariables::v1.05 (Requires YEP_StatusMenuCore.js) Allows you to\ndisplay variables for each actor.": "2-stats",
+    "YEP_StatAllocation::v1.02 Add a menu to your game to allocate stats for party\nmembers. Stats can be allocated through AP, JP, or items!": "2-stats",
+    "YEP_EnhancedTP::v1.09 Gives you more control over how TP is handled in\nyour game in addition to letting players switch TP modes.": "2-stats",
+    "YEP_X_MoreTPModes1::v1.01 (Requires YEP_EnhancedTP.js) Adds TP Modes 21 to 40\nto your game!": "2-stats",
+    "YR_NewParameters::ver 1.07 Allows creation of custom parameters.": "2-stats",
+    "YEP_LevelUpGrowthEffects::v1.01 Equip an item that upon leveling up will raise stats?\nThis plugin will let you do just that!": "11-level-up-effects",
+    "HIME_LevelUpEvents::Allows you to run common events when an actor levels up": "11-level-up-effects",
+    "YEP_X_MoreStatusPages::v1.02 (Requires YEP_StatusMenuCore.js) Add more pages to\nyour status menu however you want!": "5-status-pages",
+    "YEP_X_BattleStatistics::v1.02 (Requires YEP_StatusMenuCore.js) Logs the battle\nstatistics of actors for your players to view.": "5-status-pages",
+    "YEP_X_ProfileStatusPage::v1.03 (Requires YEP_StatusMenuCore.js) Places a Profile\nStatus Page in the status menu for your actors.": "5-status-pages",
+    "-------- Skills --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_SkillLearnSystem::v1.17 Allows actors to learn skills from the skill menu\nthrough crafting them via items or otherwise.": "3-skills",
+    "YEP_X_SkillCooldowns::v1.12 (Requires YEP_SkillCore.js) Cooldowns can be applied\nto skills to prevent them from being used continuously.": "3-skills",
+    "YEP_SkillMasteryLevels::v1.00 Using skills improves skill mastery. As skill mastery\nimproves, skill costs drop and/or skill damage rises!": "3-skills",
+    "YEP_X_LimitedSkillUses::v1.06 (Requires YEP_SkillCore.js) Make certain skills have\na limited amount of times they can be used in battle.": "3-skills",
+    "YEP_X_SkillCostItems::v1.05 (Requires YEP_SkillCore.js) Skills can now have an\nitem cost attached to them.": "3-skills",
+    "JakeMSG_YEP_SkillRewardsAdditions::v1.0 (Requires YEP_Z_SkillRewards.js UNDER it) Additions to the base\nSkill Rewards yanfly plugin": "3-skills",
+    "YEP_Z_SkillRewards::v1.01 (Lunatic Pack) Add a variety of effects to your items and\nskills to reward the player for good (or bad) gameplay.": "3-skills",
+    "JakeMSG_YEP_SkillCoreAdditions::v1.0 (Requires YEP_SkillCore.js) Additions to the base\nSkill Core yanfly Plugin": "3-skills",
+    "YEP_InstantCast::v1.12 Allows skills/items to be instantly cast after being\nselected in the battle menu.": "3-skills",
+    "YEP_MultiTypeSkills::v1.01 Allow skills to have multiple types to make them\nappear in different skill type schools instead of just one.": "3-skills",
+    "-------- Items --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_X_ItemRequirements::v1.02 (Requires YEP_ItemCore.js) Place requirements on\nitems before they can be used.": "4-equipments-items",
+    "YEP_X_ItemUpgradeSlots::v1.10 (Requires YEP_ItemCore.js) Allows independent items to\nbe upgradeable and gain better stats.": "4-equipments-items",
+    "JakeMSG_YEP_ItemCoreAdditions::v1.0 (Requires YEP_ItemCore.js) Additions to the base\nItem Core yanfly Plugin": "4-equipments-items",
+    "YEP_X_ItemCategories::v1.01 (Requires YEP_ItemCore.js) Assign items to various\ncategories under the item menu.": "4-equipments-items",
+    "CGMV_LocationConditions::CGMV Location Conditions": "4-equipments-items",
+    "YEP_X_AttachAugments::v1.11 (Requires YEP_ItemCore.js) Players can attach and\ndetach augments to independent equipment.": "4-equipments-items",
+    "YEP_X_ItemDisassemble::v1.06 (Requires YEP_ItemCore.js) Grants the option to\nbreak down items in the item menu into other items.": "4-equipments-items",
+    "YEP_X_ItemDiscard::v1.02 (Requires YEP_ItemCore.js) Allow the player to discard\nitems from their inventory.": "4-equipments-items",
+    "YEP_X_ItemPictureImg::v1.01 (Requires YEP_ItemCore.js) Allows you to use images\nfor items inside of the item menu instead of large icons.": "4-equipments-items",
+    "YEP_X_ItemRename::v1.01 (Requires YEP_ItemCore.js) Allows the player to\nrename independent items in their inventory.": "4-equipments-items",
+    "YEP_X_ItemDurability::v1.04 (Requires YEP_ItemCore.js) Independent equipment\nnow have durability, which when runs out, will break.": "4-equipments-items",
+    "YEP_X_EquipRequirements::v1.09 (Requires YEP_EquipCore.js) Place requirements on\npieces of equipment before actors can use them!": "4-equipments-items",
+    "YEP_X_EquipCustomize::v1.02 (Requires YEP_ItemCore && YEP_EquipCore.js)\nAdds a 'Customize' command to the Equip menu.": "4-equipments-items",
+    "============ Battle ============::======================================================================================================================": "separators",
+    "YEP_BaseTroopEvents::v1.01 Enabling this plugin will cause all troops to have\r\nevents occur in every fight.": "0-enemy-and-troop-stuff",
+    "YEP_SwapEnemies::v1.03 This is utility plugin made to help randomize sets of\nenemies for battle.": "0-enemy-and-troop-stuff",
+    "-------- Battle UI --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_X_VisualHpGauge::v1.07 (Requires YEP_BattleEngineCore.js) Reveal HP Gauges\nwhen a battler is selected or takes damage in battle.": "1-battle-ui",
+    "JakeMSG_YEP_X_VisualHpGauge_Additions::v1.0 (Requires YEP_X_VisualHpGauge.js) Add MP gauge mirroring Visual HP Gauge settings": "1-battle-ui",
+    "YEP_BattleStatusWindow::v1.09 A simple battle status window that shows the\nfaces of your party members in horizontal format.": "1-battle-ui",
+    "YEP_BattleBgmControl::v1.01 Assign BGM's to certain troops. Make BGM's change\nduring battle when certain enemies reach different HP values.": "1-battle-ui",
+    "EnemyPlacement::v1.0.1 Lets you place enemy battlers using a semi-dynamic formula.": "1-battle-ui",
+    "ShiftEnemies::v1.1.0 Lets you shift enemy battlers outside the boundaries of the Troop Window with notetags.": "1-battle-ui",
+    "YEP_X_WeakEnemyPoses::v1.03 (Requires YEP_BattleEngineCore.js) Allow enemies to\nhave different battler images when they're weakened.": "1-battle-ui",
+    "SRD_BattlePopupCustomizer::Adds more options to the Battle Popups; customization over the attributes of the popups and the ability to add more.": "1-battle-ui",
+    "JakeMSG_SRD_BattlePopupCustomizer_Additions::(Requires SRD_BattlePopupCustomizer.js) Additions to the Battle Popup Customizer\nSRD Plugin": "1-battle-ui",
+    "Irina_ActionCutins::<ActionCutins> for RPG Maker MV version 1.6.2.": "1-battle-ui",
+    "Irina_UnisonAttack::<UnisonAttack> for RPG Maker MV version 1.6.2.": "2-battle-mechanics",
+    "YEP_WeatherInBattle::v1.00 Allows you to have weather in battle. Weather also becomes\ncontrollable through action sequences.": "1-battle-ui",
+    "YEP_VictoryAftermath::v1.07 Display an informative window after a battle is over\ninstead of message box text stating what the party earned.": "1-battle-ui",
+    "YEP_X_AftermathLevelUp::v1.01 (Requires YEP_VictoryAftermath.js) Adds a level up\nportion to the Victory Aftermath sequences.": "1-battle-ui",
+    "-------- Battle Mechanics --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_JobPoints::v1.11 This plugin by itself doesn't do much, but it enables\nactors to acquire JP (job points) used for other plugins.": "1-classes",
+    "YEP_ElementAbsorb::v1.00 Adds the ability to absorb elemental damage!": "2-battle-mechanics",
+    "YEP_ElementReflect::v1.00 Adds rates at which elemental skills/items can be\nreflected at.": "2-battle-mechanics",
+    "YEP_LifeSteal::v1.04 Enables passive life steal traits without them being\nactive abilities but instead as passive traits.": "2-battle-mechanics",
+    "YEP_StealSnatch::v1.10 Allows your actors to be able to steal and snatch\nitems from enemies.": "2-battle-mechanics",
+    "YEP_X_CriticalControl::v1.06 (Requires YEP_DamageCore.js) Control over critical\nhits have been added.": "2-battle-mechanics",
+    "YEP_X_SelectionControl::v1.15 (Requires YEP_BattleEngineCore & YEP_TargetCore.js)\nControl what targets can and can't be selected for actions.": "2-battle-mechanics",
+    "YEP_Z_CriticalSway::v1.01 (Lunatic Pack) Add new effects to adjust the critical hit\nrates of your skills, items, and states!": "2-battle-mechanics",
+    "YEP_Z_ActionBeginEnd::v1.01 (Lunatic Pack) Add additional effects that occur at the\nbeginning or end of an action.": "2-battle-mechanics",
+    "YEP_ForceAdvantage::v1.01 This plugin allows you to force pre-emptive,\nsurprise, or normal initiatives for battles.": "2-battle-mechanics",
+    "HIME_PreEmptiveBattleEvents::v1.0 - Allows you to use an event command to determine whether the\r\nnext battle will be a pre-emptive or surprise attack": "2-battle-mechanics",
+    "YEP_RepelLureEncounters::v1.02 Tie in the variables that modify the encounter rate\nby either making them repel or lure battles.": "2-battle-mechanics",
+    "YEP_TargetCore::v1.05 Expand the target scope from RPG Maker's default\nlimitations for better target control.": "2-battle-mechanics",
+    "HIME_TargetAnyScope::v1.0 - Allows you to create skills that target anyone or everyone": "2-battle-mechanics",
+    "YEP_Taunt::v1.02 Adds a Taunt mechanic to battle. Battlers with a\ntaunt property become the target of enemy focus.": "2-battle-mechanics",
+    "YEP_BattleAICore::v1.15 This plugin allows you to structure battle A.I.\npatterns with more control.": "2-battle-mechanics",
+    "YEP_X_ActorAutoBattleAI::v1.01 (Req YEP_BattleAICore) Give auto battle actors the same\ntype of A.I. that you can assign using the Battle AI Core's notetags.": "2-battle-mechanics",
+    "YEP_HitAccuracy::v1.04 This plugin alters the nature of hit accuracy for\nRPG Maker MV by giving control to its formula.": "2-battle-mechanics",
+    "HIME_EnemyReinforcements::Allows you to summon more enemies into the current battle\r\nusing event commands.": "2-battle-mechanics",
+    "YEP_X_CounterControl::v1.10 (Requires YEP_BattleEngineCore.js) Gives you more\ncontrol over how counters work in RPG Maker MV!": "2-battle-mechanics",
+    "YEP_AbsorptionBarrier::v1.08 Battlers can be surrounded by an absorption barrier\nthat would mitigate damage dealt to HP.": "2-battle-mechanics",
+    "JakeMSG_YEP_AbsorptionBarrier_Additions::(Requires YEP_AbsorptionBarrier.js) Additions to the Absorption Barrier\nyanfly Plugin": "2-battle-mechanics",
+    "YEP_OverkillBonus::v1.02 Extra rewards (EXP, Gold, Items) for overkilling\nenemies in battle.": "2-battle-mechanics",
+    "YEP_ExtraEnemyDrops::v1.09 Allows your enemies to drop more than just three\nitems as per the editor's limit.": "2-battle-mechanics",
+    "-------- Battle Commands --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_WeaponUnleash::v1.05 Replace the Attack command or give it the option of\nhave a skill randomly occur when using it!": "3-battle-commands",
+    "YEP_X_ChangeBattleEquip::v1.05 (Requires YEP_BattleEngineCore & YEP_EquipCore)\nAllow your actors to change equipment mid-battle.": "3-battle-commands",
+    "YEP_X_InBattleStatus::v1.01 (Requires YEP_BattleEngineCore.js) Adds a 'Status'\noption in the Party Window in battle.": "3-battle-commands",
+    "JakeMSG_YEP_X_InBattleStatus_Additions::v1.0 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status\ncommand to view enemy troop status effects, buffs, and debuffs.": "3-battle-commands",
+    "HIME_ActorBattleCommands::v1.6 - Provides you with tools to customize and manage actor\r\nbattle commands.": "3-battle-commands",
+    "HIME_BattleCommandUseSkill::v1.3 - Allows you to use a skill directly from the command menu\r\nrather than going to the skill menu.": "3-battle-commands",
+    "HIME_BattleCommandChangeEquip::Allows you to have an actor change equips during battle.": "3-battle-commands",
+    "VE_CommandReplace::v1.03 - Replace actor commands with another under certain conditions.": "3-battle-commands",
+    "============ Mechanics ============::======================================================================================================================": "separators",
+    "X_ChapterSelect_MV::A chapter selection system for your games": "13-chapter-select",
+    "-------- Combine (Multi-Select) --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "VE_MixActions::v1.03 - Combine actions to create a new action.": "1-combine",
+    "-------- Notetags --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JakeMSG_GDN_IavraNoteFilesStandalone::The basic Iavra Note Files functionality + Global Default Notetags!\r\nGlobal Default Notetags: Allows to set up Default Global Notetags, that are Prepended for each entry of its specific data type.\r\nEach Data Type will have its own Global Notetags to be set.\r\nPrepending the Notetags makes it behave like a \"Default\" to the notetags (adding similar notetags manually in a data entry\r\ngenerally results in overwritting the similar tag used above it; thus, overwritting tags Prepended to that data entry).\r\nNote: This \"Prepended\" notetags will be above any other notetags, including ones from Iavra Note Files functionality!\r\n\r\nIavra Note Files default functionality: Allows to store notetags in text files and reference them from database objects and events.\r\n\r\n<Iavra Note Files>": "2-notetags",
+    "-------- QTEs --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_X_ActSeqPack1::v1.13 (Requires YEP_BattleEngineCore.js) Basic functions are\nadded to the Battle Engine Core's action sequences.": "3-qtes",
+    "YEP_X_ActSeqPack2::v1.13 (Requires YEP_BattleEngineCore.js) Visual functions\nare added to the Battle Engine Core's action sequences.": "3-qtes",
+    "YEP_X_ActSeqPack3::v1.05 (Requires YEP_BattleEngineCore.js) Camera control is\nadded to the Battle Engine Core's action sequences.": "3-qtes",
+    "YEP_WeaponAnimation::v1.05 This plugin allows you to go past the standard\nweapon images and even using custom images.": "4-equipments-items",
+    "JakeMSG_QTEWindowModification::v1.0; Basic QTE setup": "3-qtes",
+    "QTEAddonSPW::v1.0; Creates a window to display the skill possibilities and their sequence, to use with the QTEWindow plugin.": "3-qtes",
+    "SRD_TimedAttackCore::Adds a system which forces the user to time certain inputs to preform actions during battle.": "3-qtes",
+    "SRD_TimedAttack_Clock::Adds a new Timed Attack system that is similar to a clock hand revolving around the face of the clock.": "3-qtes",
+    "SRD_TimedAttack_Circle::Adds a new Timed Attack system involving circles that skrink and must be stopped at their smallest point.": "3-qtes",
+    "SRD_TimedAttack_Mash::Adds a new Timed Attack system that requires the Player to mash a button to get a gauge to a certain point.": "3-qtes",
+    "SRD_TimedAttack_Wheel::A ring appears on screen and commands cycle around it. The Player must press the commands as they appear on the top.": "3-qtes",
+    "SRD_TimedAttack_Arrows::A Timed Attack that requires the Player to push the arrow keys in the sequence shown on screen.": "3-qtes",
+    "SRD_TimedAttack_Results::Adds a customizable pop-up that can display the results of the Timed Attack.": "3-qtes",
+    "JakeMSG_SRD_TimedAttackAdditions::Adds a method to modify TimedAttack properties within the game events": "3-qtes",
+    "JakeMSG_SRD_TimedAttackAdditions_Balance::[Module] Balance Timed Attack module for JakeMSG_SRD_TimedAttackAdditions": "3-qtes",
+    "JakeMSG_SRD_TimedAttackAdditions_XParallel::[Module] XParallel timed attack module for JakeMSG_SRD_TimedAttackAdditions": "3-qtes",
+    "---- Seamless Battle Transitions ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JakeMSG_EncounterEffectDisablerModification::Disables the Encounter Zoom & Flash Effect when entering a battle (for the most part) and skips battler entrance (from right)": "4-seamless-battle-transitions",
+    "-------- Status Effects --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "Olivia_StateTooltipDisplay::<Olivia_StateTooltipDisplay> for RPG Maker MV version 1.6.1.": "5-status-effects",
+    "JakeMSG_Olivia_StateTooltipDisplay_Additions::Adds new features to this plugin:\r\n- Ability to Pin Tooltips to the screen (until the next hover)\r\n- Also adds alternative Pin key, customizable via Parameter\r\nREQUIRES: \"Olivia_StateTooltipDisplay\" plugin!": "5-status-effects",
+    "JakeMSG_MoreDescriptionsWithConditions::Adds more features to Description windows, such as setting their\r\nnumber of shown lines, writing extended descriptions within Notetags, or\r\neven opening up the description in a new \"detailed\" window by keypress\r\n(can set the key used by this in the Parameters)": "5-status-effects",
+    "YEP_X_ExtDoT::v1.04 (Req YEP_BattleEngineCore & YEP_BuffsStatesCore)\nCreate custom DoT formulas and effects with ease.": "5-status-effects",
+    "YEP_X_StateCategories::v1.07 (Requires YEP_BuffsStatesCore.js) Sets up categories\nfor your states to make control over them easier.": "5-status-effects",
+    "JakeMSG_YEP_X_StateCategories_Additions::v1.0 (Requires YEP_StateCategories.js) Additions to the State Categories\nyanfly Plugin, currently only adding 2 script calls to modify turns of states by their categories.": "5-status-effects",
+    "YEP_X_TickBasedRegen::v1.04 (Req YEP_BattleEngineCore & YEP_BuffsStatesCore)\nTick-Based Battle system regeneration.": "5-status-effects",
+    "YEP_X_VisualStateFX::v1.02 (Req YEP_BattleEngineCore & YEP_BuffsStatesCore) Adds\nvisual effects to your states.": "5-status-effects",
+    "YEP_Z_StateProtection::v1.01 (Lunatic Pack) Give states a variety of ways to protect\nyour battlers.": "5-status-effects",
+    "JakeMSG_YEP_BuffsStatesCore_Additions::v1.1 (Requires YEP_BuffsStatesCore.js) Additions to the base\nBuffsStates Core yanfly Plugin": "5-status-effects",
+    "---- Passives ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_AutoPassiveStates::v1.17 This plugin allows for some states to function as\npassives for actors, enemies, skills, and equips.": "6-passives",
+    "YEP_X_PassiveAuras::v1.08 (Requires YEP_AutoPassiveStates.js) Add aura effects\nto various database objects.": "6-passives",
+    "YEP_Z_PassiveCases::v1.01 (Lunatic Pack) Create conditional cases for your passive\nstates through an easy and elaborate method!": "6-passives",
+    "HO_FieldEffects::v1.0 Field effects that enhance skills and items based on the environment.": "5-status-effects",
+    "JakeMSG_HO_FieldEffects_Additions::Adds compatibility for \"HO_FieldEffects\" older saves, and adds\r\nnew features, including new parameters to the plugin, to the Fields (called \"Advanced Fields\"\r\nwhen defined in this plugin's parameters), a new Battle Command to inspect active fields during battle,\r\na Field HUD, Field stacks, Field categories, and more! See the help file for details.\r\nREQUIRES: \"HO_FieldEffects\" plugin!\r\nThe new Battle Command's description is compatible with \"JakeMSG_MoreDescriptionsWithConditions\" plugin!": "5-status-effects",
+    "HO_X_FieldBook::v1.0 Simple way to showcase all the effects caused by fields.": "5-status-effects",
+    "-------- Enemy Levels --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_EnemyLevels::v1.09 This plugin enables giving your enemies levels and\nparameter changes with those levels.": "7-enemy-levels",
+    "YEP_X_EnemyBaseParam::v1.02 (Requires YEP_EnemyLevels.js) Use formulas to calculate\nthe base parameter values of enemies.": "7-enemy-levels",
+    "YEP_X_MapEnemyLevels::v1.00 (Req YEP_EnemyLevels) Define enemy levels based on the map\nthe player is currently in.": "7-enemy-levels",
+    "YEP_X_DifficultySlider::v1.04 (Requires YEP_EnemyLevels.js) Give your players\naccess to an option that allows them to change difficulty.": "7-enemy-levels",
+    "HIME_EnemyLevels::v1.4 - Gives enemies levels. Provides functions for managing\r\nenemy levels.": "7-enemy-levels",
+    "HIME_EnemyClasses::v1.1 - Allows you to assign a class to an enemy. Parameters\r\nand actions available are determined by enemy class and levels.": "7-enemy-levels",
+    "HIME_EnemyEquips::v1.3 - Allows you to give enemies equips. Provides\r\nfunctionality for managing enemy equips.": "7-enemy-levels",
+    "-------- Parties --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_PartySystem::v1.13 Replaces the default 'Formation' command with a new\nmenu for players to easily change party formations.": "8-parties",
+    "YEP_X_ActorPartySwitch::v1.05 (Req YEP_PartySystem.js and YEP_BattleEngineCore.js)\nAllow actors to switch with other party members mid-battle.": "8-parties",
+    "HIME_MultipleInventories::Provides an easy way to manage multiple inventories if you\r\nneed to switch between them or merge them during the game.": "8-parties",
+    "HIME_PartyManager::v1.12 - Create and manage multiples parties in your game.": "8-parties",
+    "HIME_PartySwitchingScene::v1.2 - Provides a simple scene for switching party members between\r\ndifferent parties.": "8-parties",
+    "-------- Higher Numbers --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "---- Exp ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "HIME_ExpTables::v1.2 - Set up the amount of experience required to level using\r\nspreadsheets": "b-exp-and-levels",
+    "HIME_ParameterTables::v1.3 - Allows you to use spreadsheet software to maintain\r\nparameters for classes": "b-exp-and-levels",
+    "---- Numbers ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JDN_BigNumber::Convert Big Numbers up to 999.99 decillion!!": "a-numbers",
+    "-------- Meta Saving --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "Olivia_MetaControls::<MetaControls> for RPG Maker MV version 1.6.1.": "14-meta-saving",
+    "HIME_SyncSaveData::v1.0 - allows you to \"synchronize\" game data across different\r\nsave files and during the title screen": "14-meta-saving",
+    "-------- Vehicles --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_X_VehicleRestrict::v1.01 (Req YEP_RegionRestrictions.js) This plugin allows you\nto control where vehicles can move and can land.": "15-vehicles",
+    "CGMV_VehicleSystem::CGMV Vehicle System": "15-vehicles",
+    "-------- Random Gen. --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "DreamX_RandomPrefixesSuffixes::v1.26 Random prefixes/suffixes": "16-random-gen",
+    "CTB_RandomLoot::v1.00 CT_Bolt's RandomLoot Plugin": "16-random-gen",
+    "-------- Quests --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_QuestJournal::v1.02 Insert a quest journal system into your game!": "12-quest-journal",
+    "YEP_X_MoreQuests1::v1.00 (Requires YEP_QuestJournal.js)\nAdd quests 101 to 1000 to your game!": "12-quest-journal",
+    "YEP_X_MapQuestWindow::v1.01 (Requires YEP_QuestJournal.js) Adds a window on the\nmap scene to display an active quest.": "12-quest-journal",
+    "-------- Misc Mechanics --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_ButtonCommonEvents::v1.02 On the field map, call common events when certain\nbuttons are pressed on the keyboard.": "10-keybind-customizations",
+    "YEP_KeyboardConfig::v1.04 Allows players to adjust their button configuration\nfor keyboards.": "separators",
+    "YEP_PatchNotes::v1.00 Add the ability to read Patch Notes from inside your game.": "xiii-misc",
+    "============ Misc ============::======================================================================================================================": "separators",
+    "YEP_ExternalLinks::v1.01 Link back to your home page through the title screen\nand also be able to link your players from within the game.": "xiii-misc",
+    "-------- External File Manip --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JakeMSG_ozuFileModification::For checking, writing and removing files! And more! Gnarly!": "ix-external-file-manipulations",
+    "-------- System --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "---- Passive ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_SelfSwVar::v1.04 Self Switches and Self Variables functionality\nwithout the need for plugin commands or script calls.": "1-passive",
+    "YEP_PluginCmdSwVar::v1.00 Make it easier to use Switch and Variable values for\nplugin commands across the board!": "1-passive",
+    "HIME_Event_Parallel_Pages::": "1-passive",
+    "HIME_CustomPageConditions::v1.6 - Create your own page conditions for your events using\r\nregular eventing!": "1-passive",
+    "HIME_CommonEventQueue::Allows you to reserve multiple common events.": "1-passive",
+    "HIME_EndPhaseTriggers::Checks whether there are any events to run before ending the\r\nbattle.": "1-passive",
+    "HIME_TimerPause::Allows you to pause and resume the timer. When the timer is\r\npaused, it will remain on the screen but it won't count down.": "1-passive",
+    "YEP_KeyNameEntry::v1.00 Allows the Name Input Processing event to function\nwith the keyboard keys to enter in letters and numbers.": "1-passive",
+    "YEP_KeyNumberInput::v1.00 Allows the Input Number event to use numbers instead.": "1-passive",
+    "HIME_FollowerEventTouch::v1.1 - when an event touches a follower, the event will be\r\ntriggered as if it touched the player.": "1-passive",
+    "JakeMSG_DynamicBranching::<DynamicBranching> for RPG Maker MV version 1.6.1.": "1-passive",
+    "YEP_ScriptCallPluginCmd::v1.00 (Req YEP_MessageCore.js) Allows you to create your own\ncustom text codes and determine what they do.": "1-passive",
+    "JakeMSG_EasierScriptCallsMVMZ::Easier Script Calls for MV (method wrappers to make Script Calls \r\neasier to use)": "1-passive",
+    "JakeMSG_WebpMP3AndSubfoldersInMVCommands::(MV & MZ) Makes both .webp and .png assets possible to load!\r\nNew: also makes both .mp3 and .ogg audio files possible to load at the same time!\r\nAlso adds, for MV, the possibility for Commands in the editor to read names \r\nthat contain subfolders (the \"/\" sign) (Will still require first opening\r\nthe project in MZ to set the Assets from the Subfolders!)": "1-passive",
+    "YEP_ScaleSprites::v1.01 This is a plugin that lets you scale sprites of\nsmaller or larger sizes to certain dimensions.": "1-passive",
+    "AnimatedBusts::Allows animating pictures": "1-passive",
+    "---- Active ----::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "YEP_UtilityCommonEvents::v1.02 Make common events occur at specific gameplay points\nsuch as on loading, after battles, etc.": "2-active",
+    "CGMV_RegionSwitch::CGMV Region Switch": "2-active",
+    "-------- Utility --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "Olivia_AntiPlayerStress::<AntiPlayerStress> for RPG Maker MV version 1.6.1.": "xii-utility",
+    "YEP_TestPlayAssist::v1.00 Test playing can become a chore. This plugin offers new\nfeatures that would help make your test playing more flexible and efficient.": "xii-utility",
+    "JakeMSG_SkipMoviesMV::Adds the possibility to skip videos (Movie files) by pressing a key.": "xii-utility",
+    "Speedhax::": "xii-utility",
+    "-------- Optimize --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "Irina_PerformanceUpgrade::<PerformanceUpgrade> for RPG Maker MV version 1.6.2.": "x-optimize-game-processing",
+    "YEP_FpsSynchOption::v1.03 Adds a new command to Options menu for synching\nthe FPS of moniters with higher FPS rates.": "x-optimize-game-processing",
+    "MemoryLeakPatch::": "x-optimize-game-processing",
+    "YEP_OptimizeScriptCalls::v1.00 Optimize script calls in common events to run better.": "x-optimize-game-processing",
+    "YEP_AnimateTilesOption::v1.03 Because some computers and devices lag with animated\ntiles on the map, an option is added to disable them.": "x-optimize-game-processing",
+    "ALOE_YEP_PluginOrderChecker::v1.0.3 Reads YEP (Yanfly) plugins activated in the\nproject and outputs the correct plugin order.": "x-optimize-game-processing",
+    "-------- MY MISC --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "JakeMSG_MiscScriptsAndCommands::Random Scripts and Commands that I use": "xiii-misc",
+    "1d51ModLoader::A simple mod loader for RPG Maker MV.": "xi-mod-loader",
+    "JakeMSG_Debuggings::v1.0 - Debug options (MV & MZ compatible)": "xiii-misc",
+    "-------- Tools --------::--------------------------------------------------------------------------------------------------------------------------------": "separators",
+    "Xalvior_ParallaxStudio::[v4.0.0-MV] Xalvior Parallax Studio — Editor visual de parallax en tiempo real (port para RPG Maker MV).": "xiv-tools"
+  },
+  "pluginTags": {},
+  "folderCollapsed": {
+    "i-core": true,
+    "ii-menus": true,
+    "6-new-menus": true,
+    "3-messages-choices": true,
+    "iv-map": true,
+    "5-actors": true,
+    "vi-battle": true,
+    "9-higher-numbers": true,
+    "vii-mechanics": true,
+    "viii-system-changes": false
+  },
+  "managerLayout": {
+    "openTabs": [
+      "Community_Basic::Plugin used to set basic parameters."
+    ],
+    "activeTab": "Community_Basic::Plugin used to set basic parameters.",
+    "folderSearch": "",
+    "pluginSearch": "",
+    "tabSearch": "",
+    "paramSearch": "",
+    "schemaSearch": "",
+    "structSchemaSearch": "",
+    "uiZoomPercent": 90,
+    "scrollPositions": {
+      "window": {
+        "left": 0,
+        "top": 0
+      },
+      "workspaceLayout": {
+        "left": 0,
+        "top": 0
+      },
+      "folderTree": {
+        "left": 0,
+        "top": 31.231231689453125
+      },
+      "pluginList": {
+        "left": 0,
+        "top": 2950.750732421875
+      },
+      "editorContent": {
+        "left": 0,
+        "top": 555.5555419921875
+      },
+      "tabsBar": {
+        "left": 0,
+        "top": 0
+      }
+    },
+    "editorDetailsOpenState": {
+      "params": false,
+      "schema": true,
+      "structSchema": true
+    },
+    "typedTreeOpenState": {},
+    "devEntryOpenState": {
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d1": false,
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d2": false,
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d3": false,
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d4": false,
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d5": true,
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d6": true,
+      "plugin-schema-param::Community_Basic::Plugin used to set basic parameters.::d7": true
+    },
+    "lastOpenedGameRoot": "F:\\VM\\W\\Game-Making\\=#= TestBuild\\Build"
+  }
+}
