@@ -11,9 +11,11 @@ Imported.JakeMSG_SRD_TimedAttackAdditions = true;
  /*:
  * @plugindesc Adds a method to modify TimedAttack properties within the game events
  * @author JakeMSG
- * v2.0
+ * v2.1
  * 
 ============ Change Log ============
+2.1 - 5.25th.2026
+ * Fixed a bug that made script calls reset default values for Properties not specfiied in those script calls
 2.0 - 5.14th.2026
  * Added a fkton of new Properties, for each of the SRD Timed Attack types, and some that work for all types.
  * New properties, such as new Modes per Bar Timed Attack and Mash Timed Attack
@@ -239,7 +241,7 @@ Imported.JakeMSG_SRD_TimedAttackAdditions = true;
  * - true: keep the partial result when the TA ends before all hits are used.
  * - false: if not all required hits are used, result power is forced to zero.
 
- * Repeat amount:
+ * Repeat amount: (of the cursor movement across the bar, not per hit) integer >= -1 (default 1)
  * - -1 = infinite repeats
  * - 0 = no repeats (single pass)
  * 
@@ -9688,6 +9690,12 @@ TimedAttackSystem.prototype.playWheelGame = function() {
 		return J.getValue(source, pattern, semicolonMode) !== null;
 	}
 
+	function jApplyTypeDefault(o, propName, source, pattern, semicolonMode, applyFn) {
+		if (!o || o[propName] !== undefined) return;
+		if (jSourceHasValue(source, pattern, semicolonMode)) return;
+		applyFn();
+	}
+
 	var _jApplyGeneralProps_v232_typeDefaults = J.applyGeneralProps;
 	J.applyGeneralProps = function(o, source, semicolonMode) {
 		_jApplyGeneralProps_v232_typeDefaults.call(this, o, source, semicolonMode);
@@ -9695,47 +9703,47 @@ TimedAttackSystem.prototype.playWheelGame = function() {
 
 		var typeName = o.type;
 
-		if (!jSourceHasValue(source, 'No Skill Use', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeNoSkillUse', source, 'No Skill Use', semicolonMode, function() {
 			o.jakeNoSkillUse = J._getTypeDefaultBool(typeName, 'No Skill Use', !!o.jakeNoSkillUse);
-		}
-		if (!jSourceHasValue(source, 'Reset on Use', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeResetOnUse', source, 'Reset on Use', semicolonMode, function() {
 			o.jakeResetOnUse = J._getTypeDefaultBool(typeName, 'Reset on Use', !!o.jakeResetOnUse);
-		}
-		if (!jSourceHasValue(source, 'Reset on (?:Battle End|End Battle)', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeResetOnBattleEnd', source, 'Reset on (?:Battle End|End Battle)', semicolonMode, function() {
 			o.jakeResetOnBattleEnd = J._getTypeDefaultBool(typeName, 'Reset on Battle End', !!o.jakeResetOnBattleEnd);
-		}
+		});
 
-		if (!jSourceHasValue(source, 'Independent Text', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeIndependentText', source, 'Independent Text', semicolonMode, function() {
 			o.jakeIndependentText = J._getTypeDefaultBool(typeName, 'Independent Text', !!o.jakeIndependentText);
-		}
-		if (!jSourceHasValue(source, 'Independent Picture', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeIndependentPicture', source, 'Independent Picture', semicolonMode, function() {
 			o.jakeIndependentPicture = J._getTypeDefaultBool(typeName, 'Independent Picture', !!o.jakeIndependentPicture);
-		}
-		if (!jSourceHasValue(source, 'Independent Icons', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeIndependentIcons', source, 'Independent Icons', semicolonMode, function() {
 			o.jakeIndependentIcons = J._getTypeDefaultBool(typeName, 'Independent Icons', !!o.jakeIndependentIcons);
-		}
+		});
 
-		if (!jSourceHasValue(source, 'Keys X Offset', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeKeysXOffset', source, 'Keys X Offset', semicolonMode, function() {
 			o.jakeKeysXOffset = J._getTypeDefaultEvalNumber(typeName, 'Keys X Offset', J.toEvalNumber(o.jakeKeysXOffset, 0));
-		}
-		if (!jSourceHasValue(source, 'Keys Y Offset', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeKeysYOffset', source, 'Keys Y Offset', semicolonMode, function() {
 			o.jakeKeysYOffset = J._getTypeDefaultEvalNumber(typeName, 'Keys Y Offset', J.toEvalNumber(o.jakeKeysYOffset, 0));
-		}
-		if (!jSourceHasValue(source, 'Keys Angle(?: Offset)?', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeKeysAngle', source, 'Keys Angle(?: Offset)?', semicolonMode, function() {
 			o.jakeKeysAngle = J._getTypeDefaultEvalNumber(typeName, 'Keys Angle', J.toEvalNumber(o.jakeKeysAngle, 0));
-		}
-		if (!jSourceHasValue(source, 'Keys Scale X', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeKeysScaleX', source, 'Keys Scale X', semicolonMode, function() {
 			o.jakeKeysScaleX = J._getTypeDefaultEvalNumber(typeName, 'Keys Scale X', J.toEvalNumber(o.jakeKeysScaleX, 1));
-		}
-		if (!jSourceHasValue(source, 'Keys Scale Y', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeKeysScaleY', source, 'Keys Scale Y', semicolonMode, function() {
 			o.jakeKeysScaleY = J._getTypeDefaultEvalNumber(typeName, 'Keys Scale Y', J.toEvalNumber(o.jakeKeysScaleY, 1));
-		}
-		if (!jSourceHasValue(source, 'Visual Scale X', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'visualScaleX', source, 'Visual Scale X', semicolonMode, function() {
 			o.visualScaleX = J._getTypeDefaultEvalNumber(typeName, 'Visual Scale X', J.toEvalNumber(o.visualScaleX, 1));
-		}
-		if (!jSourceHasValue(source, 'Visual Scale Y', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'visualScaleY', source, 'Visual Scale Y', semicolonMode, function() {
 			o.visualScaleY = J._getTypeDefaultEvalNumber(typeName, 'Visual Scale Y', J.toEvalNumber(o.visualScaleY, 1));
-		}
+		});
 	};
 
 	var _jApplyDefaultProps_v232_typeDefaults = J.applyDefaultProps;
@@ -9743,34 +9751,34 @@ TimedAttackSystem.prototype.playWheelGame = function() {
 		_jApplyDefaultProps_v232_typeDefaults.call(this, o, source, semicolonMode);
 		if (!o || J._resolveTypeDefaultKey(o.type) !== 'default') return;
 
-		if (!jSourceHasValue(source, 'Mode', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeDefaultMode', source, 'Mode', semicolonMode, function() {
 			o.jakeDefaultMode = J.normalizeDefaultMode(J._getTypeDefaultRaw(o.type, 'Mode', (o.jakeDefaultMode !== undefined ? String(o.jakeDefaultMode) : 'center hit')));
-		}
-		if (!jSourceHasValue(source, 'Background[ ]?Color', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarBackgroundColor', source, 'Background[ ]?Color', semicolonMode, function() {
 			o.jakeBarBackgroundColor = String(J._getTypeDefaultRaw(o.type, 'Background Color', (o.jakeBarBackgroundColor !== undefined ? String(o.jakeBarBackgroundColor) : '#ffffff')));
-		}
-		if (!jSourceHasValue(source, 'Thickness', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarThickness', source, 'Thickness', semicolonMode, function() {
 			o.jakeBarThickness = Math.max(1, J._getTypeDefaultInt(o.type, 'Thickness', (o.jakeBarThickness !== undefined ? o.jakeBarThickness : 16)));
-		}
-		if (!jSourceHasValue(source, 'Power[ ]?Value', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarPowerValue', source, 'Power[ ]?Value', semicolonMode, function() {
 			o.jakeBarPowerValue = J.normalizeDefaultPowerValue(J._getTypeDefaultRaw(o.type, 'Power Value', (o.jakeBarPowerValue !== undefined ? String(o.jakeBarPowerValue) : 'multiple hitzones')));
-		}
-		if (!jSourceHasValue(source, 'Repeat(?![ ]?Type)(?![ ]?Bounce)(?![ ]?amount)', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarRepeat', source, 'Repeat(?![ ]?Type)(?![ ]?Bounce)(?![ ]?amount)', semicolonMode, function() {
 			o.jakeBarRepeat = J._getTypeDefaultBool(o.type, 'Repeat', !!o.jakeBarRepeat);
-		}
-		if (!jSourceHasValue(source, 'Repeat[ ]?Bounce', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarRepeatBounce', source, 'Repeat[ ]?Bounce', semicolonMode, function() {
 			o.jakeBarRepeatBounce = J._getTypeDefaultBool(o.type, 'Repeat Bounce', !!o.jakeBarRepeatBounce);
-		}
-		if (!jSourceHasValue(source, 'Repeat[ ]?amount', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarRepeatAmount', source, 'Repeat[ ]?amount', semicolonMode, function() {
 			o.jakeBarRepeatAmount = J._getTypeDefaultInt(o.type, 'Repeat amount', (o.jakeBarRepeatAmount !== undefined ? o.jakeBarRepeatAmount : 0));
-		}
-		if (!jSourceHasValue(source, 'Incomplete[ ]?Value', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarIncompleteValue', source, 'Incomplete[ ]?Value', semicolonMode, function() {
 			o.jakeBarIncompleteValue = J._getTypeDefaultBool(o.type, 'Incomplete Value', (o.jakeBarIncompleteValue !== false));
-		}
-		if (!jSourceHasValue(source, 'Hit[ ]?Markers', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeBarHitMarkers', source, 'Hit[ ]?Markers', semicolonMode, function() {
 			o.jakeBarHitMarkers = J._getTypeDefaultBool(o.type, 'Hit Markers', (o.jakeBarHitMarkers !== false));
-		}
-		if (!jSourceHasValue(source, 'Max[ ]?Hit[ ]?Markers', semicolonMode) && !jSourceHasValue(source, 'Max[ ]?Markers', semicolonMode)) {
+		});
+		if (o.jakeBarMaxHitMarkers === undefined && !jSourceHasValue(source, 'Max[ ]?Hit[ ]?Markers', semicolonMode) && !jSourceHasValue(source, 'Max[ ]?Markers', semicolonMode)) {
 			var maxBarHitMarkers = J._getTypeDefaultInt(o.type, 'Max Hit Markers', (o.jakeBarMaxHitMarkers !== undefined ? o.jakeBarMaxHitMarkers : -1));
 			if (maxBarHitMarkers < -1) maxBarHitMarkers = -1;
 			o.jakeBarMaxHitMarkers = maxBarHitMarkers;
@@ -9782,90 +9790,90 @@ TimedAttackSystem.prototype.playWheelGame = function() {
 		_jApplyMashProps_v232_typeDefaults.call(this, o, source, semicolonMode);
 		if (!o || J._resolveTypeDefaultKey(o.type) !== 'mash') return;
 
-		if (!jSourceHasValue(source, 'Mode', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeMashMode', source, 'Mode', semicolonMode, function() {
 			o.jakeMashMode = J.normalizeMashMode(J._getTypeDefaultRaw(o.type, 'Mode', (o.jakeMashMode !== undefined ? String(o.jakeMashMode) : 'default mash')));
-		}
-		if (!jSourceHasValue(source, 'Mash[ ]?Keys', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashKeys', source, 'Mash[ ]?Keys', semicolonMode, function() {
 			o.jakeMashKeys = String(J._getTypeDefaultRaw(o.type, 'Keys', (o.jakeMashKeys !== undefined ? String(o.jakeMashKeys) : '13, 90, -1')));
-		}
-		if (!jSourceHasValue(source, 'Frames', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashFrames', source, 'Frames', semicolonMode, function() {
 			o.jakeMashFrames = J._getTypeDefaultInt(o.type, 'Frames', (o.jakeMashFrames !== undefined ? o.jakeMashFrames : 0));
-		}
-		if (!jSourceHasValue(source, 'Seconds', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashSeconds', source, 'Seconds', semicolonMode, function() {
 			o.jakeMashSeconds = J._getTypeDefaultInt(o.type, 'Seconds', (o.jakeMashSeconds !== undefined ? o.jakeMashSeconds : 0));
-		}
-		if (!jSourceHasValue(source, 'Random[ ]?Once', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashRandomOnce', source, 'Random[ ]?Once', semicolonMode, function() {
 			o.jakeMashRandomOnce = J._getTypeDefaultBool(o.type, 'Random Once', !!o.jakeMashRandomOnce);
-		}
-		if (!jSourceHasValue(source, 'Random[ ]?Specified[ ]?Once', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashRandomSpecifiedOnce', source, 'Random[ ]?Specified[ ]?Once', semicolonMode, function() {
 			o.jakeMashRandomSpecifiedOnce = String(J._getTypeDefaultRaw(o.type, 'Random Specified Once', (o.jakeMashRandomSpecifiedOnce !== undefined ? String(o.jakeMashRandomSpecifiedOnce) : '')));
-		}
-		if (!jSourceHasValue(source, 'Random[ ]?No[ ]?Repeat', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashRandomNoRepeat', source, 'Random[ ]?No[ ]?Repeat', semicolonMode, function() {
 			o.jakeMashRandomNoRepeat = J._getTypeDefaultBool(o.type, 'Random No Repeat', !!o.jakeMashRandomNoRepeat);
-		}
-		if (!jSourceHasValue(source, 'Unending', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashUnending', source, 'Unending', semicolonMode, function() {
 			o.jakeMashUnending = J._getTypeDefaultBool(o.type, 'Unending', !!o.jakeMashUnending);
-		}
-		if (!jSourceHasValue(source, 'Unstarting', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashUnstarting', source, 'Unstarting', semicolonMode, function() {
 			o.jakeMashUnstarting = J._getTypeDefaultBool(o.type, 'Unstarting', !!o.jakeMashUnstarting);
-		}
-		if (!jSourceHasValue(source, 'Timeless', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashTimeless', source, 'Timeless', semicolonMode, function() {
 			o.jakeMashTimeless = J._getTypeDefaultBool(o.type, 'Timeless', !!o.jakeMashTimeless);
-		}
-		if (!jSourceHasValue(source, 'Power[ ]?Value', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashPowerValue', source, 'Power[ ]?Value', semicolonMode, function() {
 			o.jakeMashPowerValue = J.normalizePowerValue(J._getTypeDefaultRaw(o.type, 'Power Value', (o.jakeMashPowerValue !== undefined ? String(o.jakeMashPowerValue) : 'last value')));
-		}
-		if (!jSourceHasValue(source, 'Tap[ ]?Gain[ ]?Fade', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashTapGainFade', source, 'Tap[ ]?Gain[ ]?Fade', semicolonMode, function() {
 			o.jakeMashTapGainFade = Math.max(0, J._getTypeDefaultEvalNumber(o.type, 'Tap Gain Fade', J.toEvalNumber(o.jakeMashTapGainFade, 1)));
-		}
-		if (!jSourceHasValue(source, 'Mash[ ]?SE', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashSE', source, 'Mash[ ]?SE', semicolonMode, function() {
 			o.jakeMashSE = String(J._getTypeDefaultRaw(o.type, 'SE', (o.jakeMashSE !== undefined ? String(o.jakeMashSE) : '')));
-		}
-		if (!jSourceHasValue(source, 'Invalid[ ]?Mash[ ]?SE', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashInvalidSE', source, 'Invalid[ ]?Mash[ ]?SE', semicolonMode, function() {
 			o.jakeMashInvalidSE = String(J._getTypeDefaultRaw(o.type, 'Invalid Mash SE', (o.jakeMashInvalidSE !== undefined ? String(o.jakeMashInvalidSE) : '')));
-		}
-		if (!jSourceHasValue(source, 'HighLow[ ]?Marker[ ]?Color', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashHighLowMarkerColor', source, 'HighLow[ ]?Marker[ ]?Color', semicolonMode, function() {
 			o.jakeMashHighLowMarkerColor = String(J._getTypeDefaultRaw(o.type, 'HighLow Marker Color', (o.jakeMashHighLowMarkerColor !== undefined ? String(o.jakeMashHighLowMarkerColor) : '#8b0000')));
-		}
-		if (!jSourceHasValue(source, 'Invalid[ ]?Key[ ]?Color', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashInvalidKeyColor', source, 'Invalid[ ]?Key[ ]?Color', semicolonMode, function() {
 			o.jakeMashInvalidKeyColor = String(J._getTypeDefaultRaw(o.type, 'Invalid Key Color', (o.jakeMashInvalidKeyColor !== undefined ? String(o.jakeMashInvalidKeyColor) : '#ff8c00')));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?Key[ ]?Color', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashStopKeyColor', source, 'Stop[ ]?Key[ ]?Color', semicolonMode, function() {
 			o.jakeMashStopKeyColor = String(J._getTypeDefaultRaw(o.type, 'Stop Key Color', (o.jakeMashStopKeyColor !== undefined ? String(o.jakeMashStopKeyColor) : '#0000ff')));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?key', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashStopKey', source, 'Stop[ ]?key', semicolonMode, function() {
 			var stopKeyRaw = J._getTypeDefaultRaw(o.type, 'Stop Key', (o.jakeMashStopKey !== undefined && o.jakeMashStopKey !== null ? String(o.jakeMashStopKey) : '-1'));
 			var stopKey = parseInt(stopKeyRaw);
 			o.jakeMashStopKey = isNaN(stopKey) ? null : stopKey;
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?key[ ]?Text', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashStopText', source, 'Stop[ ]?key[ ]?Text', semicolonMode, function() {
 			o.jakeMashStopText = String(J._getTypeDefaultRaw(o.type, 'Stop Key Text', (o.jakeMashStopText !== undefined ? String(o.jakeMashStopText) : '')));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?key[ ]?Icon', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashStopIcon', source, 'Stop[ ]?key[ ]?Icon', semicolonMode, function() {
 			var stopKeyIconRaw = String(J._getTypeDefaultRaw(o.type, 'Stop Key Icon', (o.jakeMashStopIcon !== undefined ? String(o.jakeMashStopIcon) : '')));
 			o.jakeMashStopIcon = (stopKeyIconRaw.trim() === '0') ? '' : stopKeyIconRaw;
-		}
-		if (!jSourceHasValue(source, 'Invalid[ ]?Tap[ ]?Loss', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeMashInvalidTapLoss', source, 'Invalid[ ]?Tap[ ]?Loss', semicolonMode, function() {
 			o.jakeMashInvalidTapLoss = J._getTypeDefaultEvalNumber(o.type, 'Invalid Tap Loss', J.toEvalNumber(o.jakeMashInvalidTapLoss, 0));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?Key[ ]?X[ ]?Offset', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeStopKeyXOffset', source, 'Stop[ ]?Key[ ]?X[ ]?Offset', semicolonMode, function() {
 			o.jakeStopKeyXOffset = J._getTypeDefaultEvalNumber(o.type, 'Stop Key X Offset', J.toEvalNumber(o.jakeStopKeyXOffset, 0));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?Key[ ]?Y[ ]?Offset', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeStopKeyYOffset', source, 'Stop[ ]?Key[ ]?Y[ ]?Offset', semicolonMode, function() {
 			o.jakeStopKeyYOffset = J._getTypeDefaultEvalNumber(o.type, 'Stop Key Y Offset', J.toEvalNumber(o.jakeStopKeyYOffset, 0));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?Key[ ]?Angle(?:[ ]?Offset)?', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeStopKeyAngle', source, 'Stop[ ]?Key[ ]?Angle(?:[ ]?Offset)?', semicolonMode, function() {
 			o.jakeStopKeyAngle = J._getTypeDefaultEvalNumber(o.type, 'Stop Key Angle', J.toEvalNumber(o.jakeStopKeyAngle, 0));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?Key[ ]?Scale[ ]?X', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeStopKeyScaleX', source, 'Stop[ ]?Key[ ]?Scale[ ]?X', semicolonMode, function() {
 			o.jakeStopKeyScaleX = J._getTypeDefaultEvalNumber(o.type, 'Stop Key Scale X', J.toEvalNumber(o.jakeStopKeyScaleX, 1));
-		}
-		if (!jSourceHasValue(source, 'Stop[ ]?Key[ ]?Scale[ ]?Y', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeStopKeyScaleY', source, 'Stop[ ]?Key[ ]?Scale[ ]?Y', semicolonMode, function() {
 			o.jakeStopKeyScaleY = J._getTypeDefaultEvalNumber(o.type, 'Stop Key Scale Y', J.toEvalNumber(o.jakeStopKeyScaleY, 1));
-		}
-		if (!jSourceHasValue(source, 'Independent[ ]?Stop[ ]?Key[ ]?Icon', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeIndependentStopKeyIcon', source, 'Independent[ ]?Stop[ ]?Key[ ]?Icon', semicolonMode, function() {
 			o.jakeIndependentStopKeyIcon = J._getTypeDefaultBool(o.type, 'Independent Stop Key Icon', !!o.jakeIndependentStopKeyIcon);
-		}
+		});
 	};
 
 	var _jApplyArrowsProps_v232_typeDefaults = J.applyArrowsProps;
@@ -9873,26 +9881,26 @@ TimedAttackSystem.prototype.playWheelGame = function() {
 		_jApplyArrowsProps_v232_typeDefaults.call(this, o, source, semicolonMode);
 		if (!o || J._resolveTypeDefaultKey(o.type) !== 'arrows') return;
 
-		if (!jSourceHasValue(source, 'Frames', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeArrowFrames', source, 'Frames', semicolonMode, function() {
 			o.jakeArrowFrames = J._getTypeDefaultInt(o.type, 'Frames', (o.jakeArrowFrames !== undefined ? o.jakeArrowFrames : 0));
-		}
-		if (!jSourceHasValue(source, 'Seconds', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeArrowSeconds', source, 'Seconds', semicolonMode, function() {
 			o.jakeArrowSeconds = J._getTypeDefaultInt(o.type, 'Seconds', (o.jakeArrowSeconds !== undefined ? o.jakeArrowSeconds : 0));
-		}
-		if (!jSourceHasValue(source, 'Timeless', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeArrowTimeless', source, 'Timeless', semicolonMode, function() {
 			o.jakeArrowTimeless = J._getTypeDefaultBool(o.type, 'Timeless', !!o.jakeArrowTimeless);
-		}
-		if (!jSourceHasValue(source, 'Ignore[ ]?Keys?[ ]?for[ ]?Invalid', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeArrowIgnoreInvalidKeys', source, 'Ignore[ ]?Keys?[ ]?for[ ]?Invalid', semicolonMode, function() {
 			var ignoreInvalidRaw = String(J._getTypeDefaultRaw(o.type, 'Ignore Keys for Invalid', (o.jakeArrowIgnoreInvalidKeys !== undefined ? String(o.jakeArrowIgnoreInvalidKeys) : '')) || '');
 			if (/^(?:true|false)$/i.test(ignoreInvalidRaw.trim())) ignoreInvalidRaw = '';
 			o.jakeArrowIgnoreInvalidKeys = ignoreInvalidRaw;
-		}
-		if (!jSourceHasValue(source, 'Randomize[ ]?Commands[ ]?Texts', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeArrowCommandTexts', source, 'Randomize[ ]?Commands[ ]?Texts', semicolonMode, function() {
 			o.jakeArrowCommandTexts = String(J._getTypeDefaultRaw(o.type, 'Command Texts', (o.jakeArrowCommandTexts !== undefined ? String(o.jakeArrowCommandTexts) : 'left, down, up, right')));
-		}
-		if (!jSourceHasValue(source, 'Randomize[ ]?Commands[ ]?Icons', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeArrowCommandIcons', source, 'Randomize[ ]?Commands[ ]?Icons', semicolonMode, function() {
 			o.jakeArrowCommandIcons = String(J._getTypeDefaultRaw(o.type, 'Command Icons', (o.jakeArrowCommandIcons !== undefined ? String(o.jakeArrowCommandIcons) : '')));
-		}
+		});
 	};
 
 	var _jApplyClockTargets_v232_typeDefaults = J.applyClockTargets;
@@ -9900,15 +9908,15 @@ TimedAttackSystem.prototype.playWheelGame = function() {
 		_jApplyClockTargets_v232_typeDefaults.call(this, o, source, semicolonMode);
 		if (!o || J._resolveTypeDefaultKey(o.type) !== 'clock') return;
 
-		if (!jSourceHasValue(source, 'Power[ ]?Value', semicolonMode)) {
+		jApplyTypeDefault(o, 'jakeClockPowerValue', source, 'Power[ ]?Value', semicolonMode, function() {
 			o.jakeClockPowerValue = J.normalizeClockPowerValue(J._getTypeDefaultRaw(o.type, 'Power Value', (o.jakeClockPowerValue !== undefined ? String(o.jakeClockPowerValue) : 'one value')));
-		}
-		if (!jSourceHasValue(source, 'Hit[ ]?Markers', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeClockHitMarkers', source, 'Hit[ ]?Markers', semicolonMode, function() {
 			o.jakeClockHitMarkers = J._getTypeDefaultBool(o.type, 'Hit Markers', (o.jakeClockHitMarkers !== false));
-		}
-		if (!jSourceHasValue(source, 'Incomplete[ ]?Value', semicolonMode)) {
+		});
+		jApplyTypeDefault(o, 'jakeClockIncompleteValue', source, 'Incomplete[ ]?Value', semicolonMode, function() {
 			o.jakeClockIncompleteValue = J._getTypeDefaultBool(o.type, 'Incomplete Value', (o.jakeClockIncompleteValue !== false));
-		}
+		});
 	};
 
 	var _jLoadItem_v232_opacityRuntime = TimedAttackSystem.prototype.loadItem;

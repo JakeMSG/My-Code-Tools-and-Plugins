@@ -10,9 +10,11 @@ Imported.JakeMSG_SRD_TimedAttackAdditions_Balance = true;
 /*:
  * @plugindesc [Module] Balance Timed Attack module for JakeMSG_SRD_TimedAttackAdditions
  * @author JakeMSG
- * v1.0
+ * v1.1
  * 
 ============ Change Log ============
+1.1 - 5.25th.2026
+ * Added a "Maneuver Type" property
 1.0 - 5.14th.2026
  * initial release
 ====================================
@@ -115,6 +117,7 @@ Imported.JakeMSG_SRD_TimedAttackAdditions_Balance = true;
  * Core movement and stability controls:
  * - Unbalance Movement
  * - Unbalance Movement Left / Unbalance Movement Right
+ * - Maneuver Type (Hold (default) or Mash)
  * - Maneuver, Maneuver Left, Maneuver Right
  * - Stability, Max Stability, Balance Loss
  * - Random Movement 1..40
@@ -137,7 +140,9 @@ Imported.JakeMSG_SRD_TimedAttackAdditions_Balance = true;
  * - Feature bar shown text/picture and transform controls
  * - Independent shown text/picture toggles
  *
+ * 
  * Balance Area Effects value format (comma-separated, in order):
+ * 
  * unbalanceMovement, unbalanceMovementLeft, unbalanceMovementRight,
  * maneuver, maneuverLeft, maneuverRight, balanceLoss,
  * boostValue, focusValue, stickValue, nitroValue, concentrateValue, freezeValue,
@@ -145,6 +150,7 @@ Imported.JakeMSG_SRD_TimedAttackAdditions_Balance = true;
  * nitroPassiveRecharge, concentratePassiveRecharge, freezePassiveRecharge,
  * boostActiveDischarge, focusActiveDischarge, stickActiveDischarge,
  * nitroActiveDischarge, concentrateActiveDischarge, freezeActiveDischarge
+ * 
  *
  * Balance Area Effects X adds/subtracts those aspects while cursor hovers that area.
  * Balance Area Mult-Effects X multiplies those aspects while cursor hovers that area.
@@ -379,6 +385,15 @@ Imported.JakeMSG_SRD_TimedAttackAdditions_Balance = true;
  * @parent Balance Timed Attack
  * @desc Default right maneuver value.
  * @default 4
+
+ * @param Maneuver Type
+ * @parent Balance Timed Attack
+ * @type select
+ * @option Hold
+ * @option Mash
+ * @desc Default input mode for Left/Right maneuver movement.
+ * Hold = movement each frame while held. Mash = movement per key tap.
+ * @default Hold
  *
  * @param Timeless
  * @parent Balance Timed Attack
@@ -1850,6 +1865,14 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 		return !!Input.isPressed(symbol);
 	};
 
+	J.normalizeBalanceManeuverType = function(raw, fallback) {
+		var fb = String((fallback === undefined || fallback === null) ? 'hold' : fallback).trim().toLowerCase();
+		if (fb !== 'mash' && fb !== 'hold') fb = 'hold';
+		var value = String((raw === undefined || raw === null) ? fb : raw).trim().toLowerCase();
+		if (value === 'mash') return 'mash';
+		return 'hold';
+	};
+
 	J.defaultBalanceAreas = function() {
 		var list = [];
 		for (var i = 0; i < 40; i++) {
@@ -2033,6 +2056,7 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 		var dRightKey = isNaN(parseInt(bpv('Right Key', 39))) ? 39 : parseInt(bpv('Right Key', 39));
 		var dLeftMove = Number(J.toEvalNumber(bpv('Left Maneuver', 3), 3));
 		var dRightMove = Number(J.toEvalNumber(bpv('Right Maneuver', 3), 3));
+		var dManeuverType = J.normalizeBalanceManeuverType(bpv('Maneuver Type', 'Hold'), 'hold');
 		var dTimeless = String(bpv('Timeless', 'true')).trim().toLowerCase() === 'true';
 		var dUnstarting = String(bpv('Unstarting', 'true')).trim().toLowerCase() === 'true';
 		var dUnending = String(bpv('Unending', 'true')).trim().toLowerCase() === 'true';
@@ -2408,6 +2432,10 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 		v = J.getValue(source, 'Right[ ]?maneuver[ ]?value', semicolonMode);
 		if (v !== null) o.jakeBalanceRightManeuver = J.toEvalNumber(v, 3);
 		else if (o.jakeBalanceRightManeuver === undefined) o.jakeBalanceRightManeuver = dRightMove;
+
+		v = J.getFirstValue(source, ['Maneuver[ ]?Type', 'Maneuver[ ]?Input[ ]?Type'], semicolonMode);
+		if (v !== null) o.jakeBalanceManeuverType = J.normalizeBalanceManeuverType(v, dManeuverType);
+		else if (o.jakeBalanceManeuverType === undefined) o.jakeBalanceManeuverType = dManeuverType;
 
 		v = J.getValue(source, 'Left[ ]?key', semicolonMode);
 		if (v !== null) o.jakeBalanceLeftKey = parseInt(v);
@@ -3126,6 +3154,9 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 		this._jBalanceRightKey = isNaN(parseInt(item.jakeBalanceRightKey)) ? 39 : parseInt(item.jakeBalanceRightKey);
 		this._jBalanceLeftManeuver = Number(item.jakeBalanceLeftManeuver || 3);
 		this._jBalanceRightManeuver = Number(item.jakeBalanceRightManeuver || 3);
+		this._jBalanceManeuverType = J.normalizeBalanceManeuverType(item.jakeBalanceManeuverType, 'hold');
+		this._jBalLeftWasPressed = false;
+		this._jBalRightWasPressed = false;
 		this._jBalanceDisableLeft = !!item.jakeBalanceDisableLeft;
 		this._jBalanceDisableRight = !!item.jakeBalanceDisableRight;
 
@@ -3356,6 +3387,8 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 		this._notPressed = true;
 		this._flashTime = 0;
 		this._jBalanceCursorX = J.clamp(this._jBalanceCursorStart, 0, this._jBalanceWidth);
+		this._jBalLeftWasPressed = false;
+		this._jBalRightWasPressed = false;
 	};
 
 	TimedAttackSystem.prototype._jakeResolveBalanceTokenDisplay = function(icon, text, keyCode) {
@@ -3653,6 +3686,14 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 
 			var leftHeld = !this._jBalanceDisableLeft && J.isKeyCodePressed(this._jBalanceLeftKey);
 			var rightHeld = !this._jBalanceDisableRight && J.isKeyCodePressed(this._jBalanceRightKey);
+			var maneuverType = J.normalizeBalanceManeuverType(this._jBalanceManeuverType, 'hold');
+			var isMashManeuverType = (maneuverType === 'mash');
+			var leftTap = leftHeld && !this._jBalLeftWasPressed;
+			var rightTap = rightHeld && !this._jBalRightWasPressed;
+			this._jBalLeftWasPressed = leftHeld;
+			this._jBalRightWasPressed = rightHeld;
+			var leftManeuverActive = isMashManeuverType ? leftTap : leftHeld;
+			var rightManeuverActive = isMashManeuverType ? rightTap : rightHeld;
 
 			var boostHeldRaw = (this._jBalanceBoostKey !== null) && J.isKeyCodePressed(this._jBalanceBoostKey);
 			var focusHeldRaw = (this._jBalanceFocusKey !== null) && J.isKeyCodePressed(this._jBalanceFocusKey);
@@ -3754,14 +3795,14 @@ var globalNonSideYOffset = Number(sharedVisual.globalNonSideYOffset || 0);
 			var freezeActive = freezeHeld && this._jBalanceFreezeKey !== null && this._jBalanceFreezeLimit !== 0 && (this._jBalanceFreezeLimit < 0 || this._jBalanceFreezeCurrent > 0);
 
 			var inputMove = 0;
-			if (leftHeld) {
+			if (leftManeuverActive) {
 				var leftValue = this._jBalanceLeftManeuver + hoverManeuver + hoverManeuverLeft;
 				leftValue *= (hoverManeuverMult * hoverManeuverLeftMult);
 				if (boostActive) leftValue += boostValue;
 				if (focusActive) leftValue -= focusValue;
 				inputMove -= leftValue;
 			}
-			if (rightHeld) {
+			if (rightManeuverActive) {
 				var rightValue = this._jBalanceRightManeuver + hoverManeuver + hoverManeuverRight;
 				rightValue *= (hoverManeuverMult * hoverManeuverRightMult);
 				if (boostActive) rightValue += boostValue;
