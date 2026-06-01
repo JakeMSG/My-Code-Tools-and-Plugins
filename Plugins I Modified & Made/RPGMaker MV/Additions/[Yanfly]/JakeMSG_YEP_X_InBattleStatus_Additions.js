@@ -15,9 +15,12 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * @plugindesc v1.0 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status 
  * command to view enemy troop status effects, buffs, and debuffs.
  * @author JakeMSG
- * v1.0
+ * v1.2
  * 
 ============ Change Log ============
+1.2 - 6.1st.2026
+ * Added option to group the in battle status commands together in the Party Command Window (via Plugin Parameters)
+ * Made scrolling through the enemy status menu a bit more intuitive
 1.1 - 3.16th.2026
  * Added compatibility for YEP_AbsorptionBarrier.
  * Added parameters to show/hide enemy HP and MP gauges.
@@ -111,6 +114,24 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * @desc Show the enemy's MP in the status window by default?
  * NO - false     YES - true
  * @default true
+ * 
+ * @param ---All Status Commands (Ally+Enemy)---
+ * @default
+ * 
+ * @param Group the Status Commands
+ * @parent ---All Status Commands (Ally+Enemy)---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Whether to group the in battle status commands together in the Party Command Window.
+ * NO - false     YES - true
+ * @default true
+ * 
+ * @param Parent Status Command Text
+ * @parent ---All Status Commands (Ally+Enemy)---
+ * @desc (only if "Group the Status Commands" is true) Text used for parent status command.
+ * @default Status
+ * 
  *
  * @help
  * ============================================================================
@@ -192,6 +213,14 @@ Yanfly.Param.EnemyIBSHealthyHelp = String(Yanfly.Parameters['Enemy Healthy Help'
 
 Yanfly.Param.ShowEnemyHP = eval(String(Yanfly.Parameters['Show Enemy HP']));
 Yanfly.Param.ShowEnemyMP = eval(String(Yanfly.Parameters['Show Enemy MP']));
+Yanfly.Param.GroupStatusCommands =
+  eval(String(Yanfly.Parameters['Group the Status Commands']));
+Yanfly.Param.ParentStatusCmdText =
+  String(Yanfly.Parameters['Parent Status Command Text'] || '');
+if (!Yanfly.Param.ParentStatusCmdText ||
+/^(?:true|false)$/i.test(Yanfly.Param.ParentStatusCmdText)) {
+  Yanfly.Param.ParentStatusCmdText = Yanfly.Param.IBSCmdName || 'Status';
+}
 
 //=============================================================================
 // DataManager
@@ -278,14 +307,91 @@ Yanfly.InBattleStatus_JakeMSGAdd.Window_PartyCommand_makeCommandList =
   Window_PartyCommand.prototype.makeCommandList;
 Window_PartyCommand.prototype.makeCommandList = function() {
   Yanfly.InBattleStatus_JakeMSGAdd.Window_PartyCommand_makeCommandList.call(this);
-  this.makeEnemyInBattleStatusCommand();
+  if (Yanfly.Param.GroupStatusCommands) {
+    this.makeGroupedStatusCommands();
+  } else {
+    this.makeEnemyInBattleStatusCommand();
+  }
 };
 
 Window_PartyCommand.prototype.makeEnemyInBattleStatusCommand = function() {
   if (!$gameSystem.isShowEnemyInBattleStatus()) return;
   var index = this.findSymbol('escape');
+  if (index < 0) index = this._list.length;
   var text = Yanfly.Param.EnemyIBSCmdName;
   this.addCommandAt(index, text, 'enemyInBattleStatus', true);
+};
+
+Window_PartyCommand.prototype.makeGroupedStatusCommands = function() {
+  this.removeCommandBySymbol('inBattleStatus');
+  this.removeCommandBySymbol('enemyInBattleStatus');
+  if (!this.canAddGroupedStatusCommand()) return;
+  var index = this.findSymbol('escape');
+  if (index < 0) index = this._list.length;
+  this.addCommandAt(index, Yanfly.Param.ParentStatusCmdText,
+    'statusCommandGroup', true);
+};
+
+Window_PartyCommand.prototype.canAddGroupedStatusCommand = function() {
+  return $gameSystem.isShowInBattleStatus() ||
+    $gameSystem.isShowEnemyInBattleStatus();
+};
+
+Window_PartyCommand.prototype.removeCommandBySymbol = function(symbol) {
+  this._list = this._list.filter(function(command) {
+    return command.symbol !== symbol;
+  });
+};
+
+//=============================================================================
+// Window_StatusCommandGroup
+//=============================================================================
+
+function Window_StatusCommandGroup() {
+    this.initialize.apply(this, arguments);
+}
+
+Window_StatusCommandGroup._lastCommandSymbol = null;
+
+Window_StatusCommandGroup.prototype = Object.create(Window_Command.prototype);
+Window_StatusCommandGroup.prototype.constructor = Window_StatusCommandGroup;
+
+Window_StatusCommandGroup.prototype.initialize = function() {
+  Window_Command.prototype.initialize.call(this, 0, 0);
+  this.deactivate();
+  this.hide();
+};
+
+Window_StatusCommandGroup.prototype.windowWidth = function() {
+  return 280;
+};
+
+Window_StatusCommandGroup.prototype.numVisibleRows = function() {
+  return Math.max(1, this.maxItems());
+};
+
+Window_StatusCommandGroup.prototype.makeCommandList = function() {
+  if ($gameSystem && $gameSystem.isShowInBattleStatus()) {
+    this.addCommand(Yanfly.Param.IBSCmdName, 'inBattleStatus', true);
+  }
+  if ($gameSystem && $gameSystem.isShowEnemyInBattleStatus()) {
+    this.addCommand(Yanfly.Param.EnemyIBSCmdName, 'enemyInBattleStatus', true);
+  }
+};
+
+Window_StatusCommandGroup.prototype.selectLast = function() {
+  if (this.maxItems() <= 0) return;
+  var symbol = Window_StatusCommandGroup._lastCommandSymbol;
+  if (symbol) {
+    this.selectSymbol(symbol);
+  } else {
+    this.select(0);
+  }
+};
+
+Window_StatusCommandGroup.prototype.processOk = function() {
+  Window_StatusCommandGroup._lastCommandSymbol = this.currentSymbol();
+  Window_Command.prototype.processOk.call(this);
 };
 
 //=============================================================================
@@ -443,6 +549,9 @@ Window_EnemyInBattleStateList.prototype.setStatusWindow = function(win) {
 
 Window_EnemyInBattleStateList.prototype.setBattler = function(battler) {
   this._battler = battler;
+  if ($gameTroop && $gameTroop.select) {
+    $gameTroop.select(battler || null);
+  }
   this._parentWindow.setBattler(battler);
   this.refresh();
   this.select(0);
@@ -702,6 +811,7 @@ Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_createAllWindows =
 Scene_Battle.prototype.createAllWindows = function() {
   Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_createAllWindows.call(this);
   this.createEnemyInBattleStatusWindows();
+  this._returnToStatusCommandGroup = false;
 };
 
 Scene_Battle.prototype.createEnemyInBattleStatusWindows = function() {
@@ -715,12 +825,9 @@ Scene_Battle.prototype.createEnemyInBattleStatusWindows = function() {
   this.addChild(this._enemySelectList);
   // link the two windows so movement stays in sync
   this._enemyInBattleStateList.setSelectWindow(this._enemySelectList);
-  // handlers
-  this._enemySelectList.setHandler('ok', this.onEnemySelectOk.bind(this));
-  this._enemySelectList.setHandler('cancel', 
+  // mirror ally status flow: enter state list directly, one cancel exits
+  this._enemyInBattleStateList.setHandler('cancel',
     this.onEnemyInBattleStatusCancel.bind(this));
-  this._enemyInBattleStateList.setHandler('cancel', 
-    this.onEnemyStateCancel.bind(this));
 };
 
 Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_createPartyCommandWindow =
@@ -728,21 +835,116 @@ Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_createPartyCommandWindow =
 Scene_Battle.prototype.createPartyCommandWindow = function() {
   Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_createPartyCommandWindow.call(this);
   var win = this._partyCommandWindow;
+  win.setHandler('statusCommandGroup', this.commandStatusCommandGroup.bind(this));
   win.setHandler('enemyInBattleStatus', this.commandEnemyInBattleStatus.bind(this));
+  this.createStatusCommandGroupWindow();
+};
+
+Scene_Battle.prototype.createStatusCommandGroupWindow = function() {
+  this._statusCommandGroupWindow = new Window_StatusCommandGroup();
+  this._statusCommandGroupWindow.setHandler('inBattleStatus',
+    this.commandInBattleStatus.bind(this));
+  this._statusCommandGroupWindow.setHandler('enemyInBattleStatus',
+    this.commandEnemyInBattleStatus.bind(this));
+  this._statusCommandGroupWindow.setHandler('cancel',
+    this.onStatusCommandGroupCancel.bind(this));
+  this.addWindow(this._statusCommandGroupWindow);
+};
+
+Scene_Battle.prototype.commandStatusCommandGroup = function() {
+  this._returnToStatusCommandGroup = false;
+  this.openStatusCommandGroupWindow();
+};
+
+Scene_Battle.prototype.openStatusCommandGroupWindow = function() {
+  var win = this._statusCommandGroupWindow;
+  if (!win) return;
+  win.refresh();
+  if (win.maxItems() <= 0) {
+    this._partyCommandWindow.show();
+    this._partyCommandWindow.activate();
+    return;
+  }
+  win.x = this._partyCommandWindow.x;
+  win.y = this._partyCommandWindow.y;
+  win.show();
+  win.activate();
+  win.selectLast();
+  this._partyCommandWindow.hide();
+  this._partyCommandWindow.deactivate();
+};
+
+Scene_Battle.prototype.onStatusCommandGroupCancel = function() {
+  this._returnToStatusCommandGroup = false;
+  this.hideStatusCommandGroupWindow();
+  this._partyCommandWindow.activate();
+};
+
+Scene_Battle.prototype.hideStatusCommandGroupWindow = function() {
+  if (!this._statusCommandGroupWindow) return;
+  this._statusCommandGroupWindow.hide();
+  this._statusCommandGroupWindow.deactivate();
+  this._statusCommandGroupWindow.deselect();
+  this._partyCommandWindow.show();
+};
+
+Scene_Battle.prototype.prepareStatusCommandGroupChild = function() {
+  var win = this._statusCommandGroupWindow;
+  if (!win || !win.visible) {
+    this._returnToStatusCommandGroup = false;
+    return false;
+  }
+  Window_StatusCommandGroup._lastCommandSymbol = win.currentSymbol();
+  this._returnToStatusCommandGroup = true;
+  win.deactivate();
+  win.hide();
+  return true;
+};
+
+Scene_Battle.prototype.restoreStatusCommandGroupAfterChild = function() {
+  if (!this._returnToStatusCommandGroup) return false;
+  this._returnToStatusCommandGroup = false;
+  this.openStatusCommandGroupWindow();
+  var win = this._statusCommandGroupWindow;
+  return !!(win && win.visible && win.active);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_commandInBattleStatus =
+  Scene_Battle.prototype.commandInBattleStatus;
+Scene_Battle.prototype.commandInBattleStatus = function() {
+  this.prepareStatusCommandGroupChild();
+  Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_commandInBattleStatus.call(this);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_onInBattleStatusCancel =
+  Scene_Battle.prototype.onInBattleStatusCancel;
+Scene_Battle.prototype.onInBattleStatusCancel = function() {
+  Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_onInBattleStatusCancel.call(this);
+  if (this.restoreStatusCommandGroupAfterChild()) return;
+  this._partyCommandWindow.show();
 };
 
 Scene_Battle.prototype.commandEnemyInBattleStatus = function() {
+  this.prepareStatusCommandGroupChild();
   this._helpWindow.show();
   this._enemyInBattleStatusWindow.show();
   this._enemyInBattleStateList.show();
-  this._enemySelectList.show();
-  // start with the enemy list active so player can choose one
-  this._enemySelectList.activate();
-  this._enemyInBattleStateList.deactivate();
+  this._enemySelectList.hide();
+  this._enemySelectList.deactivate();
+  this._enemyInBattleStateList.activate();
   var members = $gameTroop.members();
-  var firstAliveEnemy = members.find(function(enemy) { return enemy.isAlive(); });
-  if (firstAliveEnemy) {
-    this._enemySelectList.selectEnemy(members.indexOf(firstAliveEnemy));
+  var battler = null;
+  for (var i = 0; i < members.length; i++) {
+    if (members[i] && members[i].isAlive()) {
+      battler = members[i];
+      break;
+    }
+  }
+  if (!battler) battler = members[0];
+  if (battler) {
+    this._enemyInBattleStateList.setBattler(battler);
+  } else if ($gameTroop && $gameTroop.select) {
+    $gameTroop.select(null);
   }
 };
 
@@ -753,29 +955,18 @@ Scene_Battle.prototype.onEnemyInBattleStatusCancel = function() {
   this._enemySelectList.hide();
   this._enemySelectList.deactivate();
   this._enemyInBattleStateList.deactivate();
-  this._partyCommandWindow.activate();
-};
-
-// navigate from enemy list into state list
-Scene_Battle.prototype.onEnemySelectOk = function() {
-  var index = this._enemySelectList.index();
-  var enemy = $gameTroop.members()[index];
-  if (enemy && enemy.isAlive()) {
-    this._enemyInBattleStateList.setBattler(enemy);
+  if ($gameTroop && $gameTroop.select) {
+    $gameTroop.select(null);
   }
-  this._enemySelectList.deactivate();
-  this._enemyInBattleStateList.activate();
-};
-
-// return from state list back to enemy list
-Scene_Battle.prototype.onEnemyStateCancel = function() {
-  this._enemyInBattleStateList.deactivate();
-  this._enemySelectList.activate();
+  if (this.restoreStatusCommandGroupAfterChild()) return;
+  this._partyCommandWindow.show();
+  this._partyCommandWindow.activate();
 };
 
 Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_isAnyInputWindowActive =
   Scene_Battle.prototype.isAnyInputWindowActive;
 Scene_Battle.prototype.isAnyInputWindowActive = function() {
+  if (this._statusCommandGroupWindow && this._statusCommandGroupWindow.active) return true;
   if (this._enemySelectList && this._enemySelectList.active) return true;
   if (this._enemyInBattleStateList && this._enemyInBattleStateList.active) return true;
   return Yanfly.InBattleStatus_JakeMSGAdd.Scene_Battle_isAnyInputWindowActive.call(this);
