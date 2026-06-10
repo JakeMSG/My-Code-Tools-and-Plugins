@@ -1,0 +1,226 @@
+{
+    "name": "open-editors-list-in-sidebar",
+    "displayName": "Open Editors list in Sidebar",
+    "description": "Adds an OPENED EDITORS view to Explorer and keeps it in tab order.",
+    "version": "0.0.3",
+    "publisher": "JakeMSG",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "openEditorsList.refresh",
+                "title": "Refresh Opened Editors"
+            },
+            {
+                "command": "openEditorsList.openEditor",
+                "title": "Open Editor From Opened Editors"
+            },
+            {
+                "command": "openEditorsList.openEditorToSide",
+                "title": "Open to the Side"
+            },
+            {
+                "command": "openEditorsList.revealInExplorer",
+                "title": "Reveal in Explorer View"
+            },
+            {
+                "command": "openEditorsList.copyPath",
+                "title": "Copy Path"
+            },
+            {
+                "command": "openEditorsList.copyRelativePath",
+                "title": "Copy Relative Path"
+            },
+            {
+                "command": "openEditorsList.copy",
+                "title": "Copy"
+            },
+            {
+                "command": "openEditorsList.cut",
+                "title": "Cut"
+            },
+            {
+                "command": "openEditorsList.paste",
+                "title": "Paste"
+            },
+            {
+                "command": "openEditorsList.rename",
+                "title": "Rename"
+            },
+            {
+                "command": "openEditorsList.delete",
+                "title": "Delete"
+            },
+            {
+                "command": "openEditorsList.compare",
+                "title": "Compare"
+            },
+            {
+                "command": "openEditorsList.addFilesToCursorChat",
+                "title": "Add Files to Cursor Chat"
+            },
+            {
+                "command": "openEditorsList.addFilesToNewCursorChat",
+                "title": "Add Files to New Cursor Chat"
+            },
+            {
+                "command": "openEditorsList.openTimeline",
+                "title": "Open Timeline"
+            }
+        ],
+        "views": {
+            "explorer": [
+                {
+                    "id": "openEditorsList.openedEditorsView",
+                    "name": "OPENED EDITORS"
+                }
+            ]
+        },
+        "menus": {
+            "view/title": [
+                {
+                    "command": "openEditorsList.refresh",
+                    "when": "view == openEditorsList.openedEditorsView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "openEditorsList.paste",
+                    "when": "view == openEditorsList.openedEditorsView && openEditorsList.hasClipboard",
+                    "group": "navigation@2"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "openEditorsList.openEditor",
+                    "when": "view == openEditorsList.openedEditorsView",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "openEditorsList.openEditorToSide",
+                    "when": "view == openEditorsList.openedEditorsView",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "openEditorsList.revealInExplorer",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "openEditorsList.compare",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "navigation@4"
+                },
+                {
+                    "command": "openEditorsList.openTimeline",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "navigation@5"
+                },
+                {
+                    "command": "openEditorsList.copy",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "2_clipboard@1"
+                },
+                {
+                    "command": "openEditorsList.cut",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "2_clipboard@2"
+                },
+                {
+                    "command": "openEditorsList.paste",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile && openEditorsList.hasClipboard",
+                    "group": "2_clipboard@3"
+                },
+                {
+                    "command": "openEditorsList.rename",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "3_modification@1"
+                },
+                {
+                    "command": "openEditorsList.delete",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "3_modification@2"
+                },
+                {
+                    "command": "openEditorsList.copyPath",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "4_copy@1"
+                },
+                {
+                    "command": "openEditorsList.copyRelativePath",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "4_copy@2"
+                },
+                {
+                    "command": "openEditorsList.addFilesToCursorChat",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "5_chat@1"
+                },
+                {
+                    "command": "openEditorsList.addFilesToNewCursorChat",
+                    "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
+                    "group": "5_chat@2"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "list.selectAll",
+                "key": "ctrl+a",
+                "mac": "cmd+a",
+                "when": "view == openEditorsList.openedEditorsView && listFocus"
+            },
+            {
+                "command": "openEditorsList.copy",
+                "key": "ctrl+c",
+                "mac": "cmd+c",
+                "when": "view == openEditorsList.openedEditorsView && listFocus"
+            },
+            {
+                "command": "openEditorsList.cut",
+                "key": "ctrl+x",
+                "mac": "cmd+x",
+                "when": "view == openEditorsList.openedEditorsView && listFocus"
+            },
+            {
+                "command": "openEditorsList.paste",
+                "key": "ctrl+v",
+                "mac": "cmd+v",
+                "when": "view == openEditorsList.openedEditorsView && listFocus && openEditorsList.hasClipboard"
+            },
+            {
+                "command": "openEditorsList.delete",
+                "key": "delete",
+                "when": "focusedView == openEditorsList.openedEditorsView && !inputFocus"
+            },
+            {
+                "command": "openEditorsList.rename",
+                "key": "f2",
+                "when": "view == openEditorsList.openedEditorsView && listFocus"
+            },
+            {
+                "command": "openEditorsList.openEditor",
+                "key": "enter",
+                "when": "view == openEditorsList.openedEditorsView && listFocus"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/node": "^20.12.12",
+        "@types/vscode": "^1.85.0",
+        "@vscode/vsce": "^3.9.2",
+        "ovsx": "^1.0.0",
+        "typescript": "^5.4.5"
+    },
+    "license": "MIT"
+}
