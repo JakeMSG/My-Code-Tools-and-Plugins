@@ -1,6 +1,10 @@
 ======== Install/Update extension:
-==== Run this command in Terminal in the "\Extension" folder:
+==== Run this command in Terminal in the "\Extension" folder :
+npm install --save-dev @vscode/vsce
+==== Then run this command (press "y", then Enter, for each missing package):
 npx @vscode/vsce package
 ==== In the Editor, in "View => Command Pallete", search for this:
 Extensions: Install from VSIX...
 ==== pick new .vsix, reload.
+
+
