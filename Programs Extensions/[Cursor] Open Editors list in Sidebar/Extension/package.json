@@ -2,7 +2,7 @@
     "name": "open-editors-list-in-sidebar",
     "displayName": "Open Editors list in Sidebar",
     "description": "Adds an OPENED EDITORS view to Explorer and keeps it in tab order.",
-    "version": "0.0.3",
+    "version": "0.0.7",
     "publisher": "JakeMSG",
     "engines": {
         "vscode": "^1.85.0"
@@ -52,6 +52,10 @@
             {
                 "command": "openEditorsList.rename",
                 "title": "Rename"
+            },
+            {
+                "command": "openEditorsList.close",
+                "title": "Close"
             },
             {
                 "command": "openEditorsList.delete",
@@ -142,9 +146,14 @@
                     "group": "3_modification@1"
                 },
                 {
+                    "command": "openEditorsList.close",
+                    "when": "view == openEditorsList.openedEditorsView",
+                    "group": "3_modification@2"
+                },
+                {
                     "command": "openEditorsList.delete",
                     "when": "view == openEditorsList.openedEditorsView && viewItem == openedEditorFile",
-                    "group": "3_modification@2"
+                    "group": "3_modification@3"
                 },
                 {
                     "command": "openEditorsList.copyPath",
@@ -202,6 +211,12 @@
                 "command": "openEditorsList.rename",
                 "key": "f2",
                 "when": "view == openEditorsList.openedEditorsView && listFocus"
+            },
+            {
+                "command": "openEditorsList.close",
+                "key": "ctrl+d",
+                "mac": "cmd+d",
+                "when": "focusedView == openEditorsList.openedEditorsView && !inputFocus"
             },
             {
                 "command": "openEditorsList.openEditor",

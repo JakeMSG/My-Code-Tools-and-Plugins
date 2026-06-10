@@ -10,15 +10,17 @@ The view lists currently opened file editors in the same left-to-right order as 
 - Updates automatically when tabs are opened, closed, moved, focused, or changed.
 - Supports multi-select in the `OPENED EDITORS` view (`Ctrl/Cmd+Click`, `Shift+Click`, `Ctrl/Cmd+A`).
 - Supports file operations on current selection:
+  - `Ctrl/Cmd+D` closes selected opened editor tabs
   - `Delete` key (Key Code 46 on Windows) moves files to Trash
   - `Ctrl/Cmd+C`, `Ctrl/Cmd+X`, `Ctrl/Cmd+V` (copy/cut/paste)
   - `F2` rename
 - Supports drag out of selected entries (URI payload + text payload).
+- Supports drag in / drop from other views or windows to open dropped files and add them to `OPENED EDITORS`.
 - Adds right-click context menu on entries:
   - Open, Open to the Side, Reveal in Explorer View
   - Compare, Open Timeline
   - Add Files to Cursor Chat, Add Files to New Cursor Chat
-  - Copy, Cut, Paste, Rename, Delete
+  - Copy, Cut, Paste, Rename, Close (`Ctrl/Cmd+D`), Delete
   - Copy Path, Copy Relative Path
 - Clicking an item opens/focuses that editor.
 - Shows `No opened file editors right now.` when no file tab exists.
@@ -44,6 +46,7 @@ The view lists currently opened file editors in the same left-to-right order as 
    - `Shift+Click` range select.
    - `Ctrl/Cmd+A` select all.
 7. Keyboard ops on selected entries:
+   - `Ctrl/Cmd+D` closes selected opened tabs.
    - `Delete` removes selected files (confirm prompt appears).
    - `Ctrl/Cmd+C`, `Ctrl/Cmd+X`, `Ctrl/Cmd+V` copy/cut/paste selected files.
    - `F2` rename first selected file.
@@ -52,8 +55,9 @@ The view lists currently opened file editors in the same left-to-right order as 
    - Add Files to Cursor Chat / Add Files to New Cursor Chat
    - Open Timeline
 9. Drag selected entries into other windows/inputs and confirm URI/text payload appears.
-10. Close tabs; verify items disappear.
-11. Edit file without saving; verify dirty marker (`●`) appears.
+10. Drag files from Explorer/other windows and drop into `OPENED EDITORS`; verify dropped files open and appear in list.
+11. Close tabs; verify items disappear.
+12. Edit file without saving; verify dirty marker (`●`) appears.
 
 ## Install in Cursor (non-debug)
 
@@ -67,7 +71,7 @@ The view lists currently opened file editors in the same left-to-right order as 
 
 ## Update existing local install
 
-1. Bump `version` in `package.json` (already `0.0.3` now).
+1. Bump `version` in `package.json` (already `0.0.7` now).
 2. Rebuild package:
    - `npm run compile`
    - `npx @vscode/vsce package`

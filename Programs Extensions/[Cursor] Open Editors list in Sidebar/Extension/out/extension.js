@@ -48,12 +48,14 @@ const COMMAND_COPY = "openEditorsList.copy";
 const COMMAND_CUT = "openEditorsList.cut";
 const COMMAND_PASTE = "openEditorsList.paste";
 const COMMAND_RENAME = "openEditorsList.rename";
+const COMMAND_CLOSE = "openEditorsList.close";
 const COMMAND_DELETE = "openEditorsList.delete";
 const COMMAND_COMPARE = "openEditorsList.compare";
 const COMMAND_ADD_FILES_TO_CURSOR_CHAT = "openEditorsList.addFilesToCursorChat";
 const COMMAND_ADD_FILES_TO_NEW_CURSOR_CHAT = "openEditorsList.addFilesToNewCursorChat";
 const COMMAND_OPEN_TIMELINE = "openEditorsList.openTimeline";
 const CONTEXT_HAS_CLIPBOARD = "openEditorsList.hasClipboard";
+let activeDragAndDropController;
 class OpenedEditorItem extends vscode.TreeItem {
     target;
     isFileResource;
@@ -79,7 +81,27 @@ class OpenedEditorsDragAndDropController {
         "text/plain",
         `application/vnd.code.tree.${VIEW_ID}`,
     ];
-    dropMimeTypes = [];
+    dropMimeTypes = [
+        "files",
+        "Files",
+        "resourceurls",
+        "text/uri-list",
+        "text/x-uri",
+        "text/x-moz-url",
+        "text/plain",
+        "application/octet-stream",
+        "application/x-moz-file",
+        "application/vnd.code.editor",
+        "application/vnd.code.editors",
+        "application/vnd.code.tab",
+        "application/vnd.code.tabs",
+        "application/vnd.code.resource",
+        "application/vnd.code.tree.explorer",
+        "application/vnd.code.tree.openEditors",
+        "application/vnd.code.tree.openeditors",
+        "application/vnd.code.tree.editors",
+        `application/vnd.code.tree.${VIEW_ID}`,
+    ];
     async handleDrag(source, dataTransfer) {
         const dragUris = uniqueUris(source
             .map((item) => item.resourceUri)
@@ -93,8 +115,44 @@ class OpenedEditorsDragAndDropController {
             .join("\n")));
         dataTransfer.set(`application/vnd.code.tree.${VIEW_ID}`, new vscode.DataTransferItem(JSON.stringify(dragUris.map((uri) => uri.toString()))));
     }
-    async handleDrop(_target, _dataTransfer, _token) {
-        // Drag-out only for this view.
+    async handleDrop(target, dataTransfer, _token) {
+        const droppedUris = await extractDroppedUris(dataTransfer);
+        if (droppedUris.length === 0) {
+            const mimeTypes = [...dataTransfer].map(([mime]) => mime).join(", ");
+            if (mimeTypes) {
+                void vscode.window.showInformationMessage(`Drop data received but no file URI parsed. Mime types: ${mimeTypes}`);
+            }
+            return;
+        }
+        const openableUris = await filterOpenableUris(droppedUris);
+        if (openableUris.length === 0) {
+            void vscode.window.showInformationMessage("Dropped entries are not openable files.");
+            return;
+        }
+        const openOptions = {
+            preview: false,
+            preserveFocus: true,
+        };
+        if (target?.target.viewColumn !== undefined) {
+            openOptions.viewColumn = target.target.viewColumn;
+        }
+        let openedCount = 0;
+        const errors = [];
+        for (const uri of openableUris) {
+            try {
+                await vscode.commands.executeCommand("vscode.open", uri, openOptions);
+                openedCount += 1;
+            }
+            catch (error) {
+                errors.push(`${uri.toString(true)}: ${toErrorMessage(error)}`);
+            }
+        }
+        if (openedCount > 0) {
+            vscode.window.setStatusBarMessage(`Opened Editors: added ${openedCount} dropped file(s).`, 2000);
+        }
+        if (errors.length > 0) {
+            void vscode.window.showWarningMessage(`Drop done with ${errors.length} issue(s): ${errors[0]}`);
+        }
     }
 }
 class OpenedEditorsProvider {
@@ -260,6 +318,7 @@ class OpenedEditorsProvider {
 function activate(context) {
     const provider = new OpenedEditorsProvider();
     const dragAndDropController = new OpenedEditorsDragAndDropController();
+    activeDragAndDropController = dragAndDropController;
     const treeView = vscode.window.createTreeView(VIEW_ID, {
         treeDataProvider: provider,
         showCollapseAll: false,
@@ -292,6 +351,10 @@ function activate(context) {
         return uniqueUris(entries
             .map((entry) => entry.resourceUri)
             .filter((uri) => uri !== undefined && uri.scheme === "file"));
+    };
+    const resolveTabs = (item, selectedItems) => {
+        const entries = resolveSelection(item, selectedItems);
+        return resolveLiveTabsFromEntries(entries);
     };
     const resolvePasteTargetDirectory = (item, selectedItems) => {
         const entries = resolveSelection(item, selectedItems);
@@ -422,6 +485,20 @@ function activate(context) {
         });
         provider.refresh();
         updateViewMessage();
+    }), vscode.commands.registerCommand(COMMAND_CLOSE, async (item, selectedItems) => {
+        const tabs = resolveTabs(item, selectedItems);
+        if (tabs.length === 0) {
+            void vscode.window.showInformationMessage("No opened editor selected to close.");
+            return;
+        }
+        try {
+            await vscode.window.tabGroups.close(tabs, true);
+            provider.refresh();
+            updateViewMessage();
+        }
+        catch (error) {
+            void vscode.window.showErrorMessage(`Could not close editor: ${toErrorMessage(error)}`);
+        }
     }), vscode.commands.registerCommand(COMMAND_DELETE, async (item, selectedItems) => {
         const uris = resolveFileUris(item, selectedItems);
         if (uris.length === 0) {
@@ -511,6 +588,7 @@ function activate(context) {
     updateViewMessage();
 }
 function deactivate() {
+    activeDragAndDropController = undefined;
     // No-op
 }
 async function openEditorFromTarget(target, overrides) {
@@ -633,6 +711,364 @@ async function executeFirstAvailableCommand(candidateCommandIds, argumentSets) {
                 // Try next argument signature for this command.
             }
         }
+    }
+    return false;
+}
+async function extractDroppedUris(dataTransfer) {
+    const uriCandidates = [];
+    const processedItems = new WeakSet();
+    const processItem = async (mimeType, item) => {
+        const asObject = item;
+        if (processedItems.has(asObject)) {
+            return;
+        }
+        processedItems.add(asObject);
+        const asFile = item.asFile();
+        if (asFile?.uri) {
+            uriCandidates.push(asFile.uri);
+        }
+        uriCandidates.push(...collectFileLikeValueUris(item.value));
+        if (item.value !== undefined) {
+            uriCandidates.push(...parseStructuredUnknownPayload(item.value));
+        }
+        try {
+            const raw = await item.asString();
+            if (mimeType === "text/uri-list") {
+                uriCandidates.push(...parseUriList(raw));
+            }
+            else if (mimeType === "text/plain") {
+                uriCandidates.push(...parsePlainTextUris(raw));
+            }
+            else if (mimeType === "files" ||
+                mimeType.startsWith("application/vnd.code.tree.") ||
+                mimeType.startsWith("application/vnd.code.") ||
+                mimeType.includes("uri")) {
+                uriCandidates.push(...parseStructuredUriPayload(raw));
+            }
+        }
+        catch {
+            // Ignore payload parse failures for non-string drag payloads.
+        }
+    };
+    const explicitMimeCandidates = [
+        "files",
+        "Files",
+        "resourceurls",
+        "text/uri-list",
+        "text/x-uri",
+        "text/x-moz-url",
+        "text/plain",
+        "application/octet-stream",
+        "application/x-moz-file",
+        "application/vnd.code.editor",
+        "application/vnd.code.editors",
+        "application/vnd.code.tab",
+        "application/vnd.code.tabs",
+        "application/vnd.code.resource",
+        "application/vnd.code.tree.explorer",
+        "application/vnd.code.tree.openEditors",
+        "application/vnd.code.tree.openeditors",
+        "application/vnd.code.tree.editors",
+        `application/vnd.code.tree.${VIEW_ID}`,
+    ];
+    for (const mimeType of explicitMimeCandidates) {
+        const item = dataTransfer.get(mimeType);
+        if (item) {
+            await processItem(mimeType.toLowerCase(), item);
+        }
+    }
+    for (const [mimeType, item] of dataTransfer) {
+        await processItem(mimeType.toLowerCase(), item);
+    }
+    return uniqueUris(uriCandidates);
+}
+async function filterOpenableUris(uris) {
+    const openable = [];
+    for (const uri of uris) {
+        if (uri.scheme !== "file") {
+            openable.push(uri);
+            continue;
+        }
+        try {
+            const stat = await vscode.workspace.fs.stat(uri);
+            const isDirectory = (stat.type & vscode.FileType.Directory) !== 0;
+            if (!isDirectory) {
+                openable.push(uri);
+            }
+        }
+        catch {
+            // Skip entries that cannot be resolved as files.
+        }
+    }
+    return openable;
+}
+function parseUriList(rawUriList) {
+    const uris = [];
+    for (const line of rawUriList.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+            continue;
+        }
+        const uri = parseUriLikeText(trimmed);
+        if (uri) {
+            uris.push(uri);
+        }
+    }
+    return uris;
+}
+function parsePlainTextUris(rawText) {
+    const uris = [];
+    for (const token of rawText.split(/\r?\n/)) {
+        const trimmedToken = token.trim();
+        if (!trimmedToken) {
+            continue;
+        }
+        const firstColumn = trimmedToken.split("\t")[0].trim();
+        const candidates = [firstColumn];
+        const spaceSeparated = firstColumn.split(" ");
+        if (spaceSeparated.length > 1) {
+            candidates.push(spaceSeparated[spaceSeparated.length - 1]);
+        }
+        for (const candidate of candidates) {
+            const uri = parseUriLikeText(candidate);
+            if (uri) {
+                uris.push(uri);
+            }
+        }
+    }
+    return uris;
+}
+function parseStructuredUriPayload(rawPayload) {
+    const uriStrings = new Set();
+    const addCandidate = (value) => {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return;
+        }
+        uriStrings.add(trimmed);
+    };
+    addCandidate(rawPayload);
+    try {
+        const parsed = JSON.parse(rawPayload);
+        collectUriCandidates(parsed, addCandidate);
+    }
+    catch {
+        // Non-JSON payload; fall back to direct parsing.
+    }
+    const uris = [];
+    for (const candidate of uriStrings) {
+        const uri = parseUriLikeText(candidate);
+        if (uri) {
+            uris.push(uri);
+        }
+    }
+    return uris;
+}
+function parseStructuredUnknownPayload(payload) {
+    const uriStrings = new Set();
+    collectUriCandidates(payload, (candidate) => uriStrings.add(candidate));
+    const uris = [];
+    for (const candidate of uriStrings) {
+        const parsed = parseUriLikeText(candidate);
+        if (parsed) {
+            uris.push(parsed);
+        }
+    }
+    return uris;
+}
+function collectFileLikeValueUris(value) {
+    if (!value) {
+        return [];
+    }
+    const uris = [];
+    const collect = (entry) => {
+        if (!entry) {
+            return;
+        }
+        if (entry instanceof vscode.Uri) {
+            uris.push(entry);
+            return;
+        }
+        if (Array.isArray(entry)) {
+            for (const nested of entry) {
+                collect(nested);
+            }
+            return;
+        }
+        if (typeof entry !== "object") {
+            return;
+        }
+        const maybeFile = entry;
+        if (maybeFile.uri instanceof vscode.Uri) {
+            uris.push(maybeFile.uri);
+            return;
+        }
+        if (typeof maybeFile.uri === "string") {
+            const parsed = parseUriLikeText(maybeFile.uri);
+            if (parsed) {
+                uris.push(parsed);
+            }
+        }
+    };
+    collect(value);
+    return uris;
+}
+function collectUriCandidates(value, push) {
+    if (value instanceof vscode.Uri) {
+        push(value.toString());
+        return;
+    }
+    if (typeof value === "string") {
+        push(value);
+        return;
+    }
+    if (Array.isArray(value)) {
+        for (const entry of value) {
+            collectUriCandidates(entry, push);
+        }
+        return;
+    }
+    if (!value || typeof value !== "object") {
+        return;
+    }
+    const objectValue = value;
+    const hasUriShape = typeof objectValue.scheme === "string" && typeof objectValue.path === "string";
+    if (hasUriShape) {
+        try {
+            const uri = vscode.Uri.from({
+                scheme: String(objectValue.scheme),
+                authority: typeof objectValue.authority === "string" ? objectValue.authority : "",
+                path: String(objectValue.path),
+                query: typeof objectValue.query === "string" ? objectValue.query : "",
+                fragment: typeof objectValue.fragment === "string" ? objectValue.fragment : "",
+            });
+            push(uri.toString());
+        }
+        catch {
+            // Fall back to recursive parsing below.
+        }
+    }
+    for (const [key, entry] of Object.entries(objectValue)) {
+        const normalizedKey = key.toLowerCase();
+        if (normalizedKey === "uri" ||
+            normalizedKey === "resourceuri" ||
+            normalizedKey === "path" ||
+            normalizedKey === "fspath" ||
+            normalizedKey === "sourceuri") {
+            collectUriCandidates(entry, push);
+            continue;
+        }
+        if (normalizedKey === "scheme" ||
+            normalizedKey === "authority" ||
+            normalizedKey === "fragment") {
+            continue;
+        }
+        collectUriCandidates(entry, push);
+    }
+}
+function parseUriLikeText(text) {
+    if (!text) {
+        return undefined;
+    }
+    const trimmed = text.trim().replace(/^"(.*)"$/, "$1");
+    if (!trimmed) {
+        return undefined;
+    }
+    const isWindowsDrivePath = /^[a-zA-Z]:[\\/]/.test(trimmed);
+    const isUncPath = /^\\\\/.test(trimmed);
+    if (isWindowsDrivePath || isUncPath) {
+        return vscode.Uri.file(trimmed);
+    }
+    const isUriStyleWindowsPath = /^\/[a-zA-Z]:\//.test(trimmed);
+    if (isUriStyleWindowsPath) {
+        return vscode.Uri.file(trimmed.slice(1));
+    }
+    if (path.isAbsolute(trimmed)) {
+        return vscode.Uri.file(trimmed);
+    }
+    try {
+        const parsed = vscode.Uri.parse(trimmed, true);
+        if (parsed.scheme) {
+            return parsed;
+        }
+    }
+    catch {
+        // Not a URI-like value.
+    }
+    return undefined;
+}
+function resolveLiveTabsFromEntries(entries) {
+    const groups = vscode.window.tabGroups.all;
+    const used = new Set();
+    const resolved = [];
+    for (const entry of entries) {
+        const tab = findLiveTabForEntry(entry, groups, used);
+        if (!tab) {
+            continue;
+        }
+        used.add(tab);
+        resolved.push(tab);
+    }
+    return resolved;
+}
+function findLiveTabForEntry(entry, groups, usedTabs) {
+    const indexedTab = findIndexedTab(entry.id, groups);
+    if (indexedTab && !usedTabs.has(indexedTab) && tabMatchesTarget(indexedTab, entry.target)) {
+        return indexedTab;
+    }
+    for (const group of groups) {
+        for (const tab of group.tabs) {
+            if (usedTabs.has(tab)) {
+                continue;
+            }
+            if (tabMatchesTarget(tab, entry.target)) {
+                return tab;
+            }
+        }
+    }
+    if (indexedTab && !usedTabs.has(indexedTab)) {
+        return indexedTab;
+    }
+    return undefined;
+}
+function findIndexedTab(itemId, groups) {
+    if (!itemId) {
+        return undefined;
+    }
+    const match = /^(\d+):(\d+):/.exec(itemId);
+    if (!match) {
+        return undefined;
+    }
+    const groupIndex = Number.parseInt(match[1], 10);
+    const tabIndex = Number.parseInt(match[2], 10);
+    if (Number.isNaN(groupIndex) || Number.isNaN(tabIndex)) {
+        return undefined;
+    }
+    const group = groups[groupIndex];
+    return group?.tabs[tabIndex];
+}
+function tabMatchesTarget(tab, target) {
+    const input = tab.input;
+    if (target.kind === "open") {
+        return input instanceof vscode.TabInputText && input.uri.toString() === target.uri.toString();
+    }
+    if (target.kind === "openWith") {
+        if (input instanceof vscode.TabInputCustom) {
+            return (input.uri.toString() === target.uri.toString() && input.viewType === target.viewType);
+        }
+        if (input instanceof vscode.TabInputNotebook) {
+            return (input.uri.toString() === target.uri.toString() &&
+                input.notebookType === target.viewType);
+        }
+        return false;
+    }
+    if (input instanceof vscode.TabInputTextDiff) {
+        return (input.original.toString() === target.original.toString() &&
+            input.modified.toString() === target.modified.toString());
+    }
+    if (input instanceof vscode.TabInputNotebookDiff) {
+        return (input.original.toString() === target.original.toString() &&
+            input.modified.toString() === target.modified.toString());
     }
     return false;
 }

@@ -1,5 +1,5 @@
 ======== Install/Update extension:
-==== Run this command in Terminal in the "\Extension" folder :
+==== Run this command in Terminal in the "\Extension" folder (only if this is the first time you're running this command for this folder):
 npm install --save-dev @vscode/vsce
 ==== Then run this command (press "y", then Enter, for each missing package):
 npx @vscode/vsce package
