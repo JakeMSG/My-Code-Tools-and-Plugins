@@ -14,9 +14,12 @@ JakeMSG.PassivesForAll = JakeMSG.PassivesForAll || {};
  /*:
  * @plugindesc Adds passive eval timings for owned data entries + visual passives menus in battle.
  * @author JakeMSG
- * v1.0
+ * v1.1
  *
 ============ Change Log ============
+1.1 - 6.19th.2026
+ * Added plugin parameters for setting the size settings for the Description (Help) Window in both menus
+ * Removed the stats showing for Party and Enemies (this is already done by the "YEP_X_InBattleStatus" and "JakeMSG_X_InBattleStatus_Additions" plugins)
 1.0 - 6.3rd.2026
  * initial release
 ====================================
@@ -264,6 +267,35 @@ JakeMSG.PassivesForAll = JakeMSG.PassivesForAll || {};
  * @param --- Party Command Options ---
  * @default
  *
+ * @param - Description Window Settings -
+ * @parent --- Party Command Options ---
+ * @default
+ * 
+ * @param Window X
+ * @parent - Description Window Settings -
+ * @desc The default X location used for the passives description window.
+ * You can use formulas.
+ * @default 0
+ *
+ * @param Window Y
+ * @parent - Description Window Settings -
+ * @desc The default Y location used for the passives description window.
+ * You can use formulas.
+ * @default this.fittingHeight(2)
+ *
+ * @param Window Width
+ * @parent - Description Window Settings -
+ * @desc The default width used for the passives description window.
+ * You can use formulas.
+ * @default Graphics.boxWidth
+ *
+ * @param Window Height
+ * @parent - Description Window Settings -
+ * @desc The default height used for the passives description window.
+ * You can use formulas.
+ * @default Graphics.boxHeight - this.fittingHeight(2) - this.fittingHeight(4)
+ *
+ * 
  * @param Enable the Party Passives Option
  * @parent --- Party Command Options ---
  * @type boolean
@@ -672,6 +704,14 @@ $.sanitizeCommandText = function(text, fallback) {
     return result;
 };
 
+$.sanitizeFormulaText = function(text, fallback) {
+    var result = String(text || '').trim();
+    if (!result) {
+        return fallback;
+    }
+    return result;
+};
+
 $.splitLines = function(text) {
     if (!text) {
         return [];
@@ -778,6 +818,13 @@ $.warnUnknownPassive = function(name) {
 };
 
 $.params = {
+    descriptionWindowX: $.sanitizeFormulaText($.paramsRaw['Window X'], '0'),
+    descriptionWindowY: $.sanitizeFormulaText($.paramsRaw['Window Y'], 'this.fittingHeight(2)'),
+    descriptionWindowWidth: $.sanitizeFormulaText($.paramsRaw['Window Width'], 'Graphics.boxWidth'),
+    descriptionWindowHeight: $.sanitizeFormulaText(
+        $.paramsRaw['Window Height'],
+        'Graphics.boxHeight - this.fittingHeight(2) - this.fittingHeight(4)'
+    ),
     showPartyPassivesOption: $.toBool($.paramsRaw['Enable the Party Passives Option'], true),
     partyPassivesCommandText: $.sanitizeCommandText(
         $.paramsRaw['Party Passives Command Text'],
@@ -2144,42 +2191,20 @@ $.evalFormula = function(formula, fallback, context) {
 };
 
 $.partyWindowFormulas = function() {
-    if (Imported.YEP_X_InBattleStatus && Yanfly && Yanfly.Param) {
-        return {
-            x: Yanfly.Param.IBSWinX,
-            y: Yanfly.Param.IBSWinY,
-            w: Yanfly.Param.IBSWinWidth,
-            h: Yanfly.Param.IBSWinHeight,
-            listW: Yanfly.Param.IBSStatusListWidth
-        };
-    }
-
     return {
-        x: '0',
-        y: 'this.fittingHeight(2)',
-        w: 'Graphics.boxWidth',
-        h: 'Graphics.boxHeight - this.fittingHeight(2) - this.fittingHeight(4)',
-        listW: 'Math.max(312, Graphics.boxWidth / 4)'
+        x: $.params.descriptionWindowX,
+        y: $.params.descriptionWindowY,
+        w: $.params.descriptionWindowWidth,
+        h: $.params.descriptionWindowHeight
     };
 };
 
 $.enemyWindowFormulas = function() {
-    if (Imported.JakeMSG_YEP_X_InBattleStatus_Additions && Yanfly && Yanfly.Param) {
-        return {
-            x: Yanfly.Param.EnemyIBSWinX,
-            y: Yanfly.Param.EnemyIBSWinY,
-            w: Yanfly.Param.EnemyIBSWinWidth,
-            h: Yanfly.Param.EnemyIBSWinHeight,
-            listW: Yanfly.Param.EnemyIBSStatusListWidth || 'Math.max(312, Graphics.boxWidth / 4)'
-        };
-    }
-
     return {
-        x: '0',
-        y: 'this.fittingHeight(2)',
-        w: 'Graphics.boxWidth',
-        h: 'Graphics.boxHeight - this.fittingHeight(2) - this.fittingHeight(4)',
-        listW: 'Math.max(312, Graphics.boxWidth / 4)'
+        x: $.params.descriptionWindowX,
+        y: $.params.descriptionWindowY,
+        w: $.params.descriptionWindowWidth,
+        h: $.params.descriptionWindowHeight
     };
 };
 
@@ -2337,14 +2362,13 @@ Window_PartyPassivesForAllStatus.prototype.constructor = Window_PartyPassivesFor
 
 Window_PartyPassivesForAllStatus.prototype.initialize = function() {
     var formulas = $.partyWindowFormulas();
-    this._listContentWidth = $.evalFormula(formulas.listW,
-        Math.max(312, Graphics.boxWidth / 4), this);
     var x = $.evalFormula(formulas.x, 0, this);
     var y = $.evalFormula(formulas.y, this.fittingHeight(2), this);
     var w = $.evalFormula(formulas.w, Graphics.boxWidth, this);
     var h = $.evalFormula(formulas.h,
         Graphics.boxHeight - this.fittingHeight(2) - this.fittingHeight(4), this);
     Window_Base.prototype.initialize.call(this, x, y, w, h);
+    this._listContentWidth = this.contents.width;
     this._battler = $.firstPartyBattlerForMenu();
     this.hide();
 };
@@ -2356,24 +2380,6 @@ Window_PartyPassivesForAllStatus.prototype.setBattler = function(battler) {
 
 Window_PartyPassivesForAllStatus.prototype.refresh = function() {
     this.contents.clear();
-    if (!this._battler) {
-        return;
-    }
-
-    var x = this.standardPadding() + this._listContentWidth;
-    this.drawActorFace(this._battler, x, 0, Window_Base._faceWidth, Window_Base._faceHeight);
-
-    var x2 = x + Window_Base._faceWidth + this.standardPadding();
-    var width = this.contents.width - x2;
-
-    this.drawActorName(this._battler, x2, 0, width);
-    this.drawActorClass(this._battler, x2, this.lineHeight(), width);
-    this.drawActorHp(this._battler, x2, this.lineHeight() * 2, width);
-    this.drawActorMp(this._battler, x2, this.lineHeight() * 3, width);
-
-    this.changeTextColor(this.systemColor());
-    this.drawText('Visual Passives', x2, this.lineHeight() * 5, width);
-    this.resetTextColor();
 };
 
 //=============================================================================
@@ -2514,14 +2520,13 @@ Window_EnemyPassivesForAllStatus.prototype.constructor = Window_EnemyPassivesFor
 
 Window_EnemyPassivesForAllStatus.prototype.initialize = function() {
     var formulas = $.enemyWindowFormulas();
-    this._listContentWidth = $.evalFormula(formulas.listW,
-        Math.max(312, Graphics.boxWidth / 4), this);
     var x = $.evalFormula(formulas.x, 0, this);
     var y = $.evalFormula(formulas.y, this.fittingHeight(2), this);
     var w = $.evalFormula(formulas.w, Graphics.boxWidth, this);
     var h = $.evalFormula(formulas.h,
         Graphics.boxHeight - this.fittingHeight(2) - this.fittingHeight(4), this);
     Window_Base.prototype.initialize.call(this, x, y, w, h);
+    this._listContentWidth = this.contents.width;
     this._battler = $.firstEnemyBattlerForMenu();
     this.hide();
 };
@@ -2533,61 +2538,6 @@ Window_EnemyPassivesForAllStatus.prototype.setBattler = function(battler) {
 
 Window_EnemyPassivesForAllStatus.prototype.refresh = function() {
     this.contents.clear();
-    if (!this._battler) {
-        return;
-    }
-
-    var x = this.standardPadding() + this._listContentWidth;
-    var width = this.contents.width - x - this.standardPadding();
-
-    this.changeTextColor(this.systemColor());
-    this.drawText('Name:', x, 0, 80);
-    this.resetTextColor();
-    this.drawText(this._battler.name(), x + 80, 0, width - 80);
-
-    this.drawGauge(
-        x,
-        this.lineHeight() * 2,
-        width,
-        this._battler.hpRate ? this._battler.hpRate() : 0,
-        this.hpGaugeColor1(),
-        this.hpGaugeColor2()
-    );
-    this.changeTextColor(this.systemColor());
-    this.drawText(TextManager.hpA, x, this.lineHeight() * 2, 44);
-    this.drawCurrentAndMax(
-        this._battler.hp,
-        this._battler.mhp,
-        x,
-        this.lineHeight() * 2,
-        width,
-        this.hpColor(this._battler),
-        this.normalColor()
-    );
-
-    this.drawGauge(
-        x,
-        this.lineHeight() * 3,
-        width,
-        this._battler.mpRate ? this._battler.mpRate() : 0,
-        this.mpGaugeColor1(),
-        this.mpGaugeColor2()
-    );
-    this.changeTextColor(this.systemColor());
-    this.drawText(TextManager.mpA, x, this.lineHeight() * 3, 44);
-    this.drawCurrentAndMax(
-        this._battler.mp,
-        this._battler.mmp,
-        x,
-        this.lineHeight() * 3,
-        width,
-        this.mpColor(this._battler),
-        this.normalColor()
-    );
-
-    this.changeTextColor(this.systemColor());
-    this.drawText('Visual Passives', x, this.lineHeight() * 5, width);
-    this.resetTextColor();
 };
 
 //=============================================================================
