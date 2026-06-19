@@ -132,6 +132,52 @@ Yanfly.ABR_JakeMSGAdd.version = 1.0;
  *   another. Prefer using 'barrier_value' to change the barrier from within
  *   these evals.
  *
+ *   --- The damage_value and change_value Helpers ---
+ *
+ *   Two more helper variables are available inside every eval timing above.
+ *   Like 'barrier_value', they can be read AND assigned to.
+ *
+ *   IMPORTANT - timing: the OnReduce / OnBreak timings caused by damage run
+ *   BEFORE that barrier actually absorbs. Your assignments inside them therefore
+ *   decide how the absorption happens. (OnApply / OnFreshApply still run for the
+ *   gain that triggered them.)
+ *
+ *   'damage_value'
+ *   - The amount of damage about to be dealt to this barrier at the time of the
+ *     eval (the damage that is then distributed: part absorbed by this barrier,
+ *     the rest passed on to the barriers that absorb after it and finally to HP).
+ *   - It is 0 when the eval was not caused by damage (for example, a barrier
+ *     gained from a skill, regen, or battle start).
+ *   - Assign to it to change the damage. Because the eval runs before this
+ *     barrier absorbs, lowering 'damage_value' makes this barrier absorb less
+ *     and sends less onward to later barriers and HP; raising it does the
+ *     opposite. (Has no effect in the gain timings, where it is 0.)
+ *
+ *   'change_value'
+ *   - The signed change this barrier is about to undergo: positive when the
+ *     barrier increases (OnApply / OnFreshApply) and negative when it decreases
+ *     (OnReduce / OnBreak, e.g. from absorbing 'damage_value'). On a damage
+ *     reduction it starts at minus the amount this barrier would absorb.
+ *   - Assign to it to override how much this barrier changes. The barrier ends
+ *     up at (value before the event) + change_value, floored, clamped to a
+ *     minimum of 0 and to the Maximum Barrier Value if one is set.
+ *
+ *   How the values resolve (damage timings):
+ *   - If you change 'change_value' (or 'barrier_value'), this barrier is set
+ *     accordingly and the amount it absorbs is (before - new value). The damage
+ *     passed onward is 'damage_value' minus that absorbed amount.
+ *   - If you only change 'damage_value', this barrier re-absorbs from the new
+ *     damage (using its penetration), and the rest passes onward.
+ *   - If you assign to both 'barrier_value' and 'change_value', 'change_value'
+ *     takes precedence for the barrier's final value.
+ *
+ *   Example - halve the damage before this barrier (and everything after it)
+ *   absorbs it:
+ *
+ *     <Barrier OnReduce Eval>
+ *      damage_value = Math.floor(damage_value / 2);
+ *     </Barrier OnReduce Eval>
+ *
  * ================================
  * Maximum Barrier Value
  * ================================
@@ -260,7 +306,10 @@ Yanfly.ABR_JakeMSGAdd.version = 1.0;
  *     ...and so on for every barrier notetag.
  *
  *   Inside a Custom Barrier's eval timings, the helper variable is named
- *   'cBarrier_value' (instead of 'barrier_value').
+ *   'cBarrier_value' (instead of 'barrier_value'). The 'damage_value' and
+ *   'change_value' helpers (see "Barrier Eval Timings" above) are available in
+ *   Custom Barrier eval timings too, with the same names and behavior, where
+ *   'change_value' refers to the change of that Custom Barrier.
  *
  *   --- Custom Barrier Script Calls ---
  *
@@ -1020,21 +1069,21 @@ Game_Battler.prototype.getBarrierEvalFormulas = function(timing) {
     return result;
 };
 
-Game_Battler.prototype.runBarrierEval = function(timing) {
+Game_Battler.prototype.runBarrierEval = function(timing, context) {
     if (this._barrierEvalRunning) return;
     var formulas = this.getBarrierEvalFormulas(timing);
     if (!formulas || formulas.length === 0) return;
     this._barrierEvalRunning = true;
     try {
       for (var i = 0; i < formulas.length; ++i) {
-        this.processBarrierEval(formulas[i]);
+        this.processBarrierEval(formulas[i], context);
       }
     } finally {
       this._barrierEvalRunning = false;
     }
 };
 
-Game_Battler.prototype.processBarrierEval = function(formula) {
+Game_Battler.prototype.processBarrierEval = function(formula, context) {
     if (formula === '') return;
     this.initAbsorptionBarrier();
     var a = this;
@@ -1044,19 +1093,40 @@ Game_Battler.prototype.processBarrierEval = function(formula) {
     var target = this;
     var s = $gameSwitches._data;
     var v = $gameVariables._data;
-    var barrier_value = this.barrierPoints();
-    var origValue = barrier_value;
+    var preAbsorb = !!(context && context.preAbsorb);
+    var before = context ? context.before : this.barrierPoints();
+    var barrier_value = (context && context.projectedBarrier !== undefined) ?
+      context.projectedBarrier : this.barrierPoints();
+    var origBarrier = barrier_value;
+    var damage_value = context ? context.damageValue : 0;
+    var origDamage = damage_value;
+    var change_value = barrier_value - before;
+    var origChange = change_value;
     try {
       eval(formula);
     } catch (e) {
       Yanfly.Util.displayError(e, formula, 'BARRIER TIMING CUSTOM CODE ERROR');
     }
-    barrier_value = Math.floor(barrier_value);
-    if (barrier_value < 0) barrier_value = 0;
+    var changed = (change_value !== origChange) ||
+      (barrier_value !== origBarrier);
+    var newValue = (change_value !== origChange) ? (before + change_value) :
+      barrier_value;
+    newValue = Math.floor(newValue);
+    if (newValue < 0) newValue = 0;
     var maxValue = this.barrierMaxValue();
-    if (maxValue >= 0 && barrier_value > maxValue) barrier_value = maxValue;
-    if (barrier_value !== origValue) {
-      this.setBarrierTotal(barrier_value);
+    if (maxValue >= 0 && newValue > maxValue) newValue = maxValue;
+    if (preAbsorb) {
+      if (changed) {
+        context.resolvedBarrier = newValue;
+        context.barrierResolved = true;
+        context.projectedBarrier = newValue;
+      }
+    } else if (newValue !== this.barrierPoints()) {
+      this.setBarrierTotal(newValue);
+    }
+    if (context && damage_value !== origDamage) {
+      context.damageValue = Math.max(0, Math.floor(damage_value));
+      context.damageModified = true;
     }
 };
 
@@ -1129,27 +1199,91 @@ Game_Battler.prototype.gainBarrier = function(value, turn) {
     this.applyBarrierMaxCap();
     var after = this.barrierPoints();
     if (after > before) {
-      if (before <= 0) this.runBarrierEval('freshApply');
-      this.runBarrierEval('apply');
+      var ctx = { damageValue: 0, before: before };
+      if (before <= 0) this.runBarrierEval('freshApply', ctx);
+      this.runBarrierEval('apply', ctx);
     } else if (after < before) {
-      this.runBarrierEval('reduce');
-      if (after <= 0) this.runBarrierEval('break');
+      var ctx2 = { damageValue: 0, before: before };
+      this.runBarrierEval('reduce', ctx2);
+      if (after <= 0) this.runBarrierEval('break', ctx2);
     }
 };
 
+// Reimplemented so the reduce/break eval timings fire BEFORE the barrier
+// absorbs. The eval may change damage_value (the incoming damage), barrier_value
+// or change_value; the actual absorption is then computed from those values.
 Yanfly.ABR_JakeMSGAdd.Game_Battler_loseBarrier =
     Game_Battler.prototype.loseBarrier;
 Game_Battler.prototype.loseBarrier = function(value, penRate, penFlat) {
+    if (penRate === undefined) penRate = 1;
+    if (penFlat === undefined) penFlat = 0;
+    value = Math.ceil(value);
+    if (value <= 0) return 0;
     this.initAbsorptionBarrier();
     var before = this.barrierPoints();
-    var result = Yanfly.ABR_JakeMSGAdd.Game_Battler_loseBarrier.call(this,
-      value, penRate, penFlat);
-    var after = this.barrierPoints();
-    if (after < before) {
-      this.runBarrierEval('reduce');
-      if (after <= 0) this.runBarrierEval('break');
+    if (before <= 0) return value;
+    var calcValue = Math.ceil(value * penRate - penFlat);
+    if (calcValue < 0) calcValue = 0;
+    var projAbsorbed = Math.min(before, calcValue);
+    var projAfter = before - projAbsorbed;
+    var context = {
+      preAbsorb: true,
+      before: before,
+      projectedBarrier: projAfter,
+      damageValue: value
+    };
+    if (projAbsorbed > 0) {
+      this.runBarrierEval('reduce', context);
+      if (projAfter <= 0) this.runBarrierEval('break', context);
     }
-    return result;
+    return this.jakeApplyBarrierAbsorption('default', context, value, penRate,
+      penFlat, before);
+};
+
+// Resolves a barrier's absorption after its pre-absorb eval has run, applies it,
+// shows the barrier-damage popup, and returns the leftover damage to pass on.
+Game_Battler.prototype.jakeApplyBarrierAbsorption = function(channel, context,
+    value, penRate, penFlat, before) {
+    var damage = context.damageModified ? context.damageValue : value;
+    var finalBarrier;
+    if (context.barrierResolved) {
+      finalBarrier = context.resolvedBarrier;
+    } else {
+      var cv = Math.ceil(damage * penRate - penFlat);
+      if (cv < 0) cv = 0;
+      finalBarrier = before - Math.min(before, cv);
+    }
+    finalBarrier = Math.max(0, Math.floor(finalBarrier));
+    var max = (channel === 'default') ? this.barrierMaxValue() :
+      this.cBarrierMaxValue(channel);
+    if (max >= 0 && finalBarrier > max) finalBarrier = max;
+    var absorbed = before - finalBarrier;
+    if (absorbed !== 0) {
+      if (channel === 'default') this.setBarrierTotal(finalBarrier);
+      else this.setCBarrierTotal(channel, finalBarrier);
+    }
+    if (absorbed > 0) this.jakeShowBarrierDamagePopup(absorbed, channel);
+    var leftover = damage - Math.max(0, absorbed);
+    if (leftover < 0) leftover = 0;
+    return leftover;
+};
+
+Game_Battler.prototype.jakeShowBarrierDamagePopup = function(amount, channel) {
+    if (channel === 'default') this.startBarrierAnimation();
+    else this.startCBarrierAnimation(channel);
+    if (Imported.YEP_BattleEngineCore) {
+      var saved = JsonEx.makeDeepCopy(this._result);
+      this._result = new Game_ActionResult();
+      this._result.hpDamage = amount;
+      this._result._barrierAffected = true;
+      if (channel !== 'default') {
+        this._result._jakeCBarrierPopup =
+          Yanfly.ABR_JakeMSGAdd.channelConfig(channel).popup;
+      }
+      this._result.hpAffected = true;
+      this.startDamagePopup();
+      this._result = saved;
+    }
 };
 
 //=============================================================================
@@ -1223,61 +1357,42 @@ Game_Battler.prototype.gainCBarrier = function(id, value, turn) {
     this.refresh();
     var after = this.cBarrierPoints(id);
     if (after > before) {
-      if (before <= 0) this.runCBarrierEval(id, 'freshApply');
-      this.runCBarrierEval(id, 'apply');
+      var ctx = { damageValue: 0, before: before };
+      if (before <= 0) this.runCBarrierEval(id, 'freshApply', ctx);
+      this.runCBarrierEval(id, 'apply', ctx);
     } else if (after < before) {
-      this.runCBarrierEval(id, 'reduce');
-      if (after <= 0) this.runCBarrierEval(id, 'break');
+      var ctx2 = { damageValue: 0, before: before };
+      this.runCBarrierEval(id, 'reduce', ctx2);
+      if (after <= 0) this.runCBarrierEval(id, 'break', ctx2);
     }
 };
 
+// Like loseBarrier, the reduce/break eval timings fire BEFORE this Custom
+// Barrier absorbs; the absorption is then computed from the (possibly modified)
+// damage_value / barrier_value / change_value.
 Game_Battler.prototype.loseCBarrier = function(id, value, penRate, penFlat) {
     if (penRate === undefined) penRate = 1;
     if (penFlat === undefined) penFlat = 0;
     value = Math.ceil(value);
     if (value <= 0) return 0;
-    var d = this.customBarrierData(id);
     var before = this.cBarrierPoints(id);
-    var initValue = value;
-    var result = JsonEx.makeDeepCopy(this._result);
+    if (before <= 0) return value;
     var calcValue = Math.ceil(value * penRate - penFlat);
-    this._result = new Game_ActionResult();
-    for (var i = 0; i < d.turnBarrier.length; ++i) {
-      d.turnBarrier[i] = d.turnBarrier[i] || 0;
-      var reduction = Math.min(d.turnBarrier[i], calcValue);
-      if (reduction > 0) {
-        d.turnBarrier[i] -= reduction;
-        this._result.hpDamage += reduction;
-        value -= reduction;
-        calcValue -= reduction;
-      }
-      if (value <= 0) break;
+    if (calcValue < 0) calcValue = 0;
+    var projAbsorbed = Math.min(before, calcValue);
+    var projAfter = before - projAbsorbed;
+    var context = {
+      preAbsorb: true,
+      before: before,
+      projectedBarrier: projAfter,
+      damageValue: value
+    };
+    if (projAbsorbed > 0) {
+      this.runCBarrierEval(id, 'reduce', context);
+      if (projAfter <= 0) this.runCBarrierEval(id, 'break', context);
     }
-    var permReduction = Math.min(d.permBarrier, calcValue);
-    if (permReduction > 0) {
-      d.permBarrier -= permReduction;
-      this._result.hpDamage += permReduction;
-      value -= permReduction;
-      calcValue -= permReduction;
-    }
-    if (initValue !== value) {
-      this._barrierAltered = true;
-      this.startCBarrierAnimation(id);
-      if (Imported.YEP_BattleEngineCore) {
-        this._result._barrierAffected = true;
-        this._result._jakeCBarrierPopup =
-          Yanfly.ABR_JakeMSGAdd.channelConfig(id).popup;
-        this._result.hpAffected = true;
-        this.startDamagePopup();
-      }
-    }
-    this._result = result;
-    var after = this.cBarrierPoints(id);
-    if (after < before) {
-      this.runCBarrierEval(id, 'reduce');
-      if (after <= 0) this.runCBarrierEval(id, 'break');
-    }
-    return value;
+    return this.jakeApplyBarrierAbsorption(id, context, value, penRate, penFlat,
+      before);
 };
 
 Game_Battler.prototype.loseCBarrierTurn = function(id, value, turn) {
@@ -1393,21 +1508,21 @@ Game_Battler.prototype.getCBarrierEvalFormulas = function(id, timing) {
     return result;
 };
 
-Game_Battler.prototype.runCBarrierEval = function(id, timing) {
+Game_Battler.prototype.runCBarrierEval = function(id, timing, context) {
     if (this._barrierEvalRunning) return;
     var formulas = this.getCBarrierEvalFormulas(id, timing);
     if (!formulas || formulas.length === 0) return;
     this._barrierEvalRunning = true;
     try {
       for (var i = 0; i < formulas.length; ++i) {
-        this.processCBarrierEval(id, formulas[i]);
+        this.processCBarrierEval(id, formulas[i], context);
       }
     } finally {
       this._barrierEvalRunning = false;
     }
 };
 
-Game_Battler.prototype.processCBarrierEval = function(id, formula) {
+Game_Battler.prototype.processCBarrierEval = function(id, formula, context) {
     if (formula === '') return;
     var a = this;
     var b = this;
@@ -1416,20 +1531,41 @@ Game_Battler.prototype.processCBarrierEval = function(id, formula) {
     var target = this;
     var s = $gameSwitches._data;
     var v = $gameVariables._data;
-    var cBarrier_value = this.cBarrierPoints(id);
-    var origValue = cBarrier_value;
+    var preAbsorb = !!(context && context.preAbsorb);
+    var before = context ? context.before : this.cBarrierPoints(id);
+    var cBarrier_value = (context && context.projectedBarrier !== undefined) ?
+      context.projectedBarrier : this.cBarrierPoints(id);
+    var origBarrier = cBarrier_value;
+    var damage_value = context ? context.damageValue : 0;
+    var origDamage = damage_value;
+    var change_value = cBarrier_value - before;
+    var origChange = change_value;
     try {
       eval(formula);
     } catch (e) {
       Yanfly.Util.displayError(e, formula,
         'CUSTOM BARRIER TIMING CUSTOM CODE ERROR');
     }
-    cBarrier_value = Math.floor(cBarrier_value);
-    if (cBarrier_value < 0) cBarrier_value = 0;
+    var changed = (change_value !== origChange) ||
+      (cBarrier_value !== origBarrier);
+    var newValue = (change_value !== origChange) ? (before + change_value) :
+      cBarrier_value;
+    newValue = Math.floor(newValue);
+    if (newValue < 0) newValue = 0;
     var maxValue = this.cBarrierMaxValue(id);
-    if (maxValue >= 0 && cBarrier_value > maxValue) cBarrier_value = maxValue;
-    if (cBarrier_value !== origValue) {
-      this.setCBarrierTotal(id, cBarrier_value);
+    if (maxValue >= 0 && newValue > maxValue) newValue = maxValue;
+    if (preAbsorb) {
+      if (changed) {
+        context.resolvedBarrier = newValue;
+        context.barrierResolved = true;
+        context.projectedBarrier = newValue;
+      }
+    } else if (newValue !== this.cBarrierPoints(id)) {
+      this.setCBarrierTotal(id, newValue);
+    }
+    if (context && damage_value !== origDamage) {
+      context.damageValue = Math.max(0, Math.floor(damage_value));
+      context.damageModified = true;
     }
 };
 
