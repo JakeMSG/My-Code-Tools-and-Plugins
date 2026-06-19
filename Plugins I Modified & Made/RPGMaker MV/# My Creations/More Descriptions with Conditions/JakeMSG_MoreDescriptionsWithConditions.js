@@ -14,9 +14,11 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * even opening up the description in a new "detailed" window by keypress
  * (can set the key used by this in the Parameters)
  * @author JakeMSG
- * v1.0
+ * v1.2
  *
 ============ Change Log ============
+1.2 - 6.19th.2026
+ * Added the TP gauge (both with Plugin Parameters and notetags for it)
 1.1 - 3.16th.2026
  * Enemy target help now shows HP/MP gauges (per-parameter and per-enemy notetags; supports YEP_AbsorptionBarrier overlay)
  * Enemy expanded help (fullscreen) now displays enemy <Extended Description> with <Condition>/<Resume>
@@ -95,8 +97,8 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * 
  * 
  * ================ Enemy Targeting Description Gauges
- * ======== When targeting an enemy, the help window now shows that enemy's HP/MP gauges under the name and state icons
- * ======== Plugin params (below) toggle HP/MP globally; per-enemy notetags override them: <Show Description HP>, <Hide Description HP>, <Show Description MP>, <Hide Description MP>
+ * ======== When targeting an enemy, the help window now shows that enemy's HP/MP/TP gauges under the name and state icons
+ * ======== Plugin params (below) toggle HP/MP/TP globally; per-enemy notetags override them: <Show Description HP>, <Hide Description HP>, <Show Description MP>, <Hide Description MP>, <Show Description TP>, <Hide Description TP>
  * ======== If using YEP_AbsorptionBarrier, the barrier overlay and colors still draw on the HP gauge
  * ======== You can also set how many lines tall the targeting help window is via the "Number of Lines" enemy-targeting parameter
  * 
@@ -126,8 +128,17 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * ======== Enemy targeting Description
  * ==== Show Enemy HP (Default: true) — show the enemy HP gauge in the targeting help
  * ==== Show Enemy MP (Default: true) — show the enemy MP gauge in the targeting help
+ * ==== Show Enemy TP (Default: true) — show the enemy TP gauge in the targeting help
  * ==== Number of Lines (Default: 2) — number of visible lines in the targeting help window
- * ==== Per-enemy overrides via notetags: <Show Description HP>, <Hide Description HP>, <Show Description MP>, <Hide Description MP>
+ * ==== Per-enemy overrides via notetags: 
+ * <Show Description HP>
+ * <Hide Description HP> 
+ * 
+ * <Show Description MP> 
+ * <Hide Description MP>
+ * 
+ * <Show Description TP> 
+ * <Hide Description TP>
  * 
  * 
  * 
@@ -195,12 +206,20 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * @default true
  * @desc Show the enemy MP gauge in the enemy targeting description window.
  * 
+ * @param Show Enemy TP
+ * @parent ---Enemy targeting Description---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @default true
+ * @desc Show the enemy TP gauge in the enemy targeting description window.
+ * 
  * @param Number of Lines
  * @parent ---Enemy targeting Description---
  * @type number
  * @min -9999
  * @max 9999
- * @default 2
+ * @default 4
  * @desc Number of visible lines in the enemy targeting help window.
  * 
  */
@@ -212,6 +231,7 @@ var JakeMSG_MoreDescriptionsWithConditions_Params = PluginManager.parameters('Ja
 var JakeMSG_MoreDescriptionsWithConditions_Key = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Key for Expand Description'] || 219);
 var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyHp = eval(String(JakeMSG_MoreDescriptionsWithConditions_Params['Show Enemy HP'] || 'true'));
 var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyMp = eval(String(JakeMSG_MoreDescriptionsWithConditions_Params['Show Enemy MP'] || 'true'));
+var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyTp = eval(String(JakeMSG_MoreDescriptionsWithConditions_Params['Show Enemy TP'] || 'true'));
 var JakeMSG_MoreDescriptionsWithConditions_DefaultLines = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Description Window number of Lines'] || 2);
 var JakeMSG_MoreDescriptionsWithConditions_EnemyLines = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Number of Lines'] || 2);
 
@@ -270,6 +290,7 @@ DataManager.processJakeMSGMoreDescEnemyNotetags = function(group) {
         if (!obj) continue;
         obj.showDescHp = JakeMSG_MoreDescriptionsWithConditions_ShowEnemyHp;
         obj.showDescMp = JakeMSG_MoreDescriptionsWithConditions_ShowEnemyMp;
+        obj.showDescTp = JakeMSG_MoreDescriptionsWithConditions_ShowEnemyTp;
         var notedata = obj.note.split(/[\r\n]+/);
         for (var i = 0; i < notedata.length; i++) {
             var line = notedata[i];
@@ -281,6 +302,10 @@ DataManager.processJakeMSGMoreDescEnemyNotetags = function(group) {
                 obj.showDescMp = true;
             } else if (line.match(/<(?:HIDE DESCRIPTION MP)>/i)) {
                 obj.showDescMp = false;
+            } else if (line.match(/<(?:SHOW DESCRIPTION TP)>/i)) {
+                obj.showDescTp = true;
+            } else if (line.match(/<(?:HIDE DESCRIPTION TP)>/i)) {
+                obj.showDescTp = false;
             }
         }
     }
@@ -416,7 +441,7 @@ Window_Help.prototype.jakeMSGExpandedText = function() {
     return this._text || '';
 };
 
-// ======== Enemy target description: add HP/MP gauges under name + state icons
+// ======== Enemy target description: add HP/MP/TP gauges under name + state icons
 JakeMSG_MoreDescriptionsWithConditions_Window_Help_drawBattler = Window_Help.prototype.drawBattler || function(battler) {
     if (battler && battler.name) {
         var wy = (this.contents.height - this.lineHeight()) / 2;
@@ -459,6 +484,10 @@ Window_Help.prototype.drawJakeMSGEnemyGauges = function(battler, startY) {
     }
     if (enemyData.showDescMp) {
         this.drawJakeMSGEnemyMp(battler, x, y, w);
+        y += this.lineHeight();
+    }
+    if (enemyData.showDescTp) {
+        this.drawJakeMSGEnemyTp(battler, x, y, w);
     }
 };
 
@@ -480,6 +509,16 @@ Window_Help.prototype.drawJakeMSGEnemyMp = function(enemy, x, y, width) {
     this.changeTextColor(this.systemColor());
     this.drawText(TextManager.mpA, x, y, 44);
     this.drawCurrentAndMax(enemy.mp, enemy.mmp, x, y, width, this.mpColor(enemy), this.normalColor());
+};
+
+Window_Help.prototype.drawJakeMSGEnemyTp = function(enemy, x, y, width) {
+    var maxTp = enemy.maxTp ? enemy.maxTp() : 100;
+    var rate = enemy.tpRate ? enemy.tpRate() : (maxTp > 0 ? enemy.tp / maxTp : 0);
+    this.drawGauge(x, y, width, rate, this.tpGaugeColor1(), this.tpGaugeColor2());
+    this.changeTextColor(this.systemColor());
+    this.drawText(TextManager.tpA, x, y, 44);
+    this.changeTextColor(this.tpColor(enemy));
+    this.drawText(enemy.tp, x + width - 64, y, 64, 'right');
 };
 
 
