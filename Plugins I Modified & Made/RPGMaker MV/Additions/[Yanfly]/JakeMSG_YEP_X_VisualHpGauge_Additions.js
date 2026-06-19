@@ -1,5 +1,5 @@
 //=============================================================================
-// Addition to YEP plugin "BuffsStates Core", made by JakeMSG
+// Addition to YEP plugin "Visual HP Gauge", made by JakeMSG
 // JakeMSG_YEP_X_VisualHpGauge_Additions.js
 //=============================================================================
 
@@ -8,18 +8,27 @@ Imported.JakeMSG_YEP_X_VisualHpGauge_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.VHG_JakeMSGAdd = Yanfly.VHG_JakeMSGAdd || {};
-Yanfly.VHG_JakeMSGAdd.version = 1.0;
+Yanfly.VHG_JakeMSGAdd.version = 1.1;
 
 //=============================================================================
 /*:
- * @plugindesc v1.0 (Requires YEP_X_VisualHpGauge.js) Add MP gauge mirroring Visual HP Gauge settings
+ * @plugindesc v1.1 (Requires YEP_X_VisualHpGauge.js) Adds MP/TP gauges, shared ordering, and enemy override settings
  * @author JakeMSG
- * v1.0
+ * v1.1
+ *
+ * ============ Change Log ============
+ * 1.1 - 6.19th.2026
+ * * Added TP gauge support that mirrors MP gauge behavior and visuals
+ * * Added global bar positioning/order settings for HP/MP/TP
+ * * Added optional hide behavior for bars with max value 0
+ * * Added enemy notetag override block for plugin parameters
+ * * Gauge text font size now applies to TP text too
+ * * Added <Hide/Show MP Gauge> and <Hide/Show TP Gauge> notetags
+ * * Enemy override block now also supports HP settings from YEP_X_VisualHpGauge
  * 
-============ Change Log ============
-1.0 - 3.16th.2026
- * Added MP gauge that mirrors HP gauge settings and visuals
-====================================
+ * 1.0 - 3.16th.2026
+ * * Added MP gauge that mirrors HP gauge settings and visuals
+ * ====================================
  *
  * @help
  * ============================================================================
@@ -28,30 +37,95 @@ Yanfly.VHG_JakeMSGAdd.version = 1.0;
  *
  * This plugin requires YEP_X_VisualHpGauge.
  * Make sure this plugin is located under YEP_X_VisualHpGauge in the plugin list.
- * 
- * Fixes the Max display (for both the original plugin and this one), that 
- * would not show depending on the size wrappings
  *
- * Adds an MP gauge that follows the same visibility rules as the HP gauge
- * (Display Actor / Defeat First / Always Visible), with its own appearance
- * and text display parameters grouped under "Visual MP gauge". When both HP
- * and MP gauges are drawn to the same side (both above or both below), the
- * "Below the HP gauge" parameter chooses whether MP is stacked above or below.
- * MP defaults: Color1=22, Color2=23.
+ * This plugin extends the original Visual HP Gauge with configurable MP and TP
+ * enemy gauges, keeps text rendering readable when showing current/max values,
+ * and applies one shared placement/order system across HP/MP/TP bars.
+ *
+ * ============================================================================
+ * Plugin Parameters
+ * ============================================================================
+ * ==================================== MP/TP Gauges
+ * ======== There are parameters for each, resembling those for HP gauge from the original plugin
  * 
- * Also adds a parameter to set the font size of the text in the gauges (labels and values).
- * 
+ * ==================================== All Bars Settings
+ * ======== "Bars positioning" controls whether all three bars are shown above or below
+ *   the battler. This setting overrides YEP_X_VisualHpGauge's "Gauge Position".
+ * ======== "Bars order" decides top-to-bottom order inside the gauge window.
+ *   Accepted tokens: HP, MP, TP.
+ *   Split tokens with commas, spaces, or both.
+ *   Example: "TP HP MP" or "MP, HP, TP".
+ * ======== "Don't show bars with a Max of 0" hides only the individual gauge(s) whose
+ *   max stat is 0 (HP max 0 hides HP bar, MP max 0 hides MP bar, TP max 0 hides
+ *   TP bar), while leaving other bars visible.
+ * ======== "Gauge Text Font Size" applies to HP, MP, and TP gauge labels/values.
+ *
+ * ============================================================================
+ * Notetags
+ * ============================================================================
+ * ==================================== Hide/Show Notetags
+ * ========Class and Enemy notetags:
+ * <Hide MP Gauge>
+ * <Show MP Gauge>
+ * <Hide TP Gauge>
+ * <Show TP Gauge>
+ * ==== These mirror YEP_X_VisualHpGauge's HP hide/show notetag behavior, but for
+ * MP/TP gauges respectively.
+ * ==================================== Enemy Notetag Overrides
+ * ======== Place the following notetag block in an enemy's notebox:
+ * <VisualGauge Override Settings>
+ * Parameter Name: Value
+ * Parameter Name: Value; Another Parameter: Value
+ * </VisualGauge Override Settings>
+ * ======== Multiple entries can be split by:
+ * ==== New lines
+ * ==== Semicolons (;)
+ * ==== Or both
+ * ======== "Parameter Name" can be any parameter from this plugin
+ * (for example: Bars positioning, Bars order, Show TP, TP Color 1, etc.)
+ * ======== Parameters can also be HP parameters from YEP_X_VisualHpGauge
+ * (for example: Minimum Gauge Width, Gauge Height, Back Color, HP Color 1,
+ * HP Color 2, Gauge Duration, Y Buffer, Show HP, Show Value, Show Max).
+ * ======== The enemy will then use those values instead of plugin defaults.
+ *
  * 
  * 
  * 
  * ============================================================================
  * Param Declarations
  * ============================================================================
+ *
+ * @param ---All bars Settings---
+ * @default
+ *
  * @param Gauge Text Font Size
+ * @parent ---All bars Settings---
  * @type number
  * @min 1
  * @default 20
- * @desc Font size used for HP/MP gauge text (labels and values) in this window.
+ * @desc Font size used for HP/MP/TP gauge text (labels and values) in this window.
+ *
+ * @param Bars positioning
+ * @parent ---All bars Settings---
+ * @type select
+ * @option Above
+ * @option Below
+ * @default Below
+ * @desc Show all bars above or below battler. Overrides base plugin HP gauge position.
+ *
+ * @param Bars order
+ * @parent ---All bars Settings---
+ * @type text
+ * @default HP, MP, TP
+ * @desc Top-to-bottom bar order. Include HP/MP/TP split by commas, spaces, or both.
+ *
+ * @param Don't show bars with a Max of 0
+ * @parent ---All bars Settings---
+ * @type boolean
+ * @on True
+ * @off False
+ * @default true
+ * @desc If true, any bar with max value 0 is hidden.
  *
  * @param ---Visual MP gauge---
  * @default
@@ -85,7 +159,7 @@ Yanfly.VHG_JakeMSGAdd.version = 1.0;
  * @type number
  * @min 0
  * @max 31
- * @default 22
+ * @default 9
  * @desc Text color index for MP gauge gradient color 1.
  *
  * @param MP Color 2
@@ -93,7 +167,7 @@ Yanfly.VHG_JakeMSGAdd.version = 1.0;
  * @type number
  * @min 0
  * @max 31
- * @default 23
+ * @default 22
  * @desc Text color index for MP gauge gradient color 2.
  *
  * @param MP Gauge Duration
@@ -103,21 +177,13 @@ Yanfly.VHG_JakeMSGAdd.version = 1.0;
  * @default 30
  * @desc Frames the MP gauge remains visible after change.
  *
- * @param MP Gauge Position
- * @parent ---MP Appearance---
- * @type boolean
- * @on Above
- * @off Below
- * @default false
- * @desc Show MP gauge above (true) or below (false) the battler.
- *
  * @param MP Y Buffer
  * @parent ---MP Appearance---
  * @type number
  * @min -9999
  * @max 9999
  * @default -16
- * @desc Y offset applied to MP gauge positioning.
+ * @desc Y offset used by MP when computing shared bar positioning.
  *
  * @param MP Use Thick Gauges
  * @parent ---MP Appearance---
@@ -126,14 +192,6 @@ Yanfly.VHG_JakeMSGAdd.version = 1.0;
  * @off Normal
  * @default true
  * @desc Use thick gauge style for MP gauge when CoreEngine thick gauges are on.
- *
- * @param Below the HP gauge
- * @parent ---MP Appearance---
- * @type boolean
- * @on Below HP
- * @off Above HP
- * @default true
- * @desc When HP/MP share the same side, place MP below (true) or above (false) HP.
  *
  * @param ---MP Text Display---
  * @parent ---Visual MP gauge---
@@ -162,6 +220,100 @@ Yanfly.VHG_JakeMSGAdd.version = 1.0;
  * @off NO
  * @default false
  * @desc Show the MP max value (if value shown).
+ *
+ * @param ---Visual TP gauge---
+ * @default
+ *
+ * @param ---TP Appearance---
+ * @parent ---Visual TP gauge---
+ * @default
+ *
+ * @param Minimum TP Gauge Width
+ * @parent ---TP Appearance---
+ * @type number
+ * @min 1
+ * @default 144
+ * @desc Minimum width in pixels for TP gauges.
+ *
+ * @param TP Gauge Height
+ * @parent ---TP Appearance---
+ * @type number
+ * @min 1
+ * @default 18
+ * @desc Height in pixels for TP gauges.
+ *
+ * @param TP Back Color
+ * @parent ---TP Appearance---
+ * @type number
+ * @default 19
+ * @desc Text color index used for TP gauge background.
+ *
+ * @param TP Color 1
+ * @parent ---TP Appearance---
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 3
+ * @desc Text color index for TP gauge gradient color 1.
+ *
+ * @param TP Color 2
+ * @parent ---TP Appearance---
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 11
+ * @desc Text color index for TP gauge gradient color 2.
+ *
+ * @param TP Gauge Duration
+ * @parent ---TP Appearance---
+ * @type number
+ * @min 0
+ * @default 30
+ * @desc Frames the TP gauge remains visible after change.
+ *
+ * @param TP Y Buffer
+ * @parent ---TP Appearance---
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default -16
+ * @desc Y offset used by TP when computing shared bar positioning.
+ *
+ * @param TP Use Thick Gauges
+ * @parent ---TP Appearance---
+ * @type boolean
+ * @on Thick
+ * @off Normal
+ * @default true
+ * @desc Use thick gauge style for TP gauge when CoreEngine thick gauges are on.
+ *
+ * @param ---TP Text Display---
+ * @parent ---Visual TP gauge---
+ * @default
+ *
+ * @param Show TP
+ * @parent ---TP Text Display---
+ * @type boolean
+ * @on YES
+ * @off NO
+ * @default false
+ * @desc Show the TP label on the gauge.
+ *
+ * @param Show TP Value
+ * @parent ---TP Text Display---
+ * @type boolean
+ * @on YES
+ * @off NO
+ * @default false
+ * @desc Show the TP value on the gauge.
+ *
+ * @param Show TP Max
+ * @parent ---TP Text Display---
+ * @type boolean
+ * @on YES
+ * @off NO
+ * @default false
+ * @desc Show the TP max value (if value shown).
  */
 //=============================================================================
 
@@ -173,90 +325,528 @@ if (Imported.YEP_X_VisualHpGauge) {
 Yanfly.Parameters = PluginManager.parameters('JakeMSG_YEP_X_VisualHpGauge_Additions');
 Yanfly.Param = Yanfly.Param || {};
 
+Yanfly.VHG_JakeMSGAdd.readBool = function(value, fallback) {
+    if (value === undefined || value === null || value === '') return fallback;
+    var text = String(value).trim().toLowerCase();
+    if (['true', 'on', 'yes', '1'].contains(text)) return true;
+    if (['false', 'off', 'no', '0'].contains(text)) return false;
+    return fallback;
+};
+
+Yanfly.VHG_JakeMSGAdd.readBarsPosition = function(value, fallback) {
+    if (value === undefined || value === null || value === '') return fallback;
+    var text = String(value).trim().toLowerCase();
+    if (text === 'above') return true;
+    if (text === 'below') return false;
+    return this.readBool(text, fallback);
+};
+
+Yanfly.VHG_JakeMSGAdd.normalizeParamName = function(name) {
+    return String(name || '').replace(/\s+/g, ' ').trim().toUpperCase();
+};
+
+Yanfly.VHG_JakeMSGAdd.parseBarsOrder = function(value) {
+    var tokens = String(value || '')
+        .toUpperCase()
+        .replace(/,/g, ' ')
+        .split(/\s+/)
+        .filter(function(token) {
+            return !!token;
+        });
+    var order = [];
+    for (var i = 0; i < tokens.length; i++) {
+        var token = tokens[i];
+        if (['HP', 'MP', 'TP'].contains(token) && !order.contains(token)) {
+            order.push(token);
+        }
+    }
+    ['HP', 'MP', 'TP'].forEach(function(token) {
+        if (!order.contains(token)) order.push(token);
+    });
+    return order;
+};
+
+Yanfly.VHG_JakeMSGAdd.castOverrideValue = function(type, rawValue, fallback) {
+    var value = String(rawValue || '').trim();
+    if (type === 'number') {
+        var num = Number(value);
+        return isNaN(num) ? fallback : num;
+    }
+    if (type === 'bool') {
+        return this.readBool(value, fallback);
+    }
+    if (type === 'barsPosition') {
+        return this.readBarsPosition(value, fallback);
+    }
+    if (type === 'barsOrder') {
+        return value || fallback;
+    }
+    return value || fallback;
+};
+
 Yanfly.Param.VHGTextFontSize = Number(Yanfly.Parameters['Gauge Text Font Size'] || 20);
+Yanfly.Param.VMGAllBarsPosition = Yanfly.VHG_JakeMSGAdd.readBarsPosition(
+    Yanfly.Parameters['Bars positioning'],
+    false
+);
+Yanfly.Param.VMGAllBarsOrder = String(Yanfly.Parameters['Bars order'] || 'HP, MP, TP');
+Yanfly.Param.VMGHideZeroMax = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters["Don't show bars with a Max of 0"],
+    true
+);
+
+// overwrite base plugin HP position setting with this plugin's all-bar setting
+Yanfly.Param.VHGGaugePos = Yanfly.Param.VMGAllBarsPosition;
 
 // Visual MP Gauge > Appearance
-Yanfly.Param.VMGMinMpWidth   = Number(Yanfly.Parameters['Minimum MP Gauge Width'] || 144);
-Yanfly.Param.VMGGaugeHeight  = Number(Yanfly.Parameters['MP Gauge Height'] || 18);
-Yanfly.Param.VMGBackColor    = Number(Yanfly.Parameters['MP Back Color'] || 19);
-Yanfly.Param.VMGMpColor1     = Number(Yanfly.Parameters['MP Color 1'] || 22);
-Yanfly.Param.VMGMpColor2     = Number(Yanfly.Parameters['MP Color 2'] || 23);
-Yanfly.Param.VMGDuration     = Number(Yanfly.Parameters['MP Gauge Duration'] || 30);
-Yanfly.Param.VMGGaugePos     = eval(String(Yanfly.Parameters['MP Gauge Position'] || 'false'));
-Yanfly.Param.VMGBufferY      = Number(Yanfly.Parameters['MP Y Buffer'] || -16);
-Yanfly.Param.VMGThick        = eval(String(Yanfly.Parameters['MP Use Thick Gauges'] || 'true'));
-Yanfly.Param.VMGBelowHp      = eval(String(Yanfly.Parameters['Below the HP gauge'] || 'true'));
+Yanfly.Param.VMGMinMpWidth = Number(Yanfly.Parameters['Minimum MP Gauge Width'] || 144);
+Yanfly.Param.VMGGaugeHeight = Number(Yanfly.Parameters['MP Gauge Height'] || 18);
+Yanfly.Param.VMGBackColor = Number(Yanfly.Parameters['MP Back Color'] || 19);
+Yanfly.Param.VMGMpColor1 = Number(Yanfly.Parameters['MP Color 1'] || 22);
+Yanfly.Param.VMGMpColor2 = Number(Yanfly.Parameters['MP Color 2'] || 23);
+Yanfly.Param.VMGDuration = Number(Yanfly.Parameters['MP Gauge Duration'] || 30);
+Yanfly.Param.VMGBufferY = Number(Yanfly.Parameters['MP Y Buffer'] || -16);
+Yanfly.Param.VMGThick = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters['MP Use Thick Gauges'],
+    true
+);
 
 // Visual MP Gauge > Text Display
-Yanfly.Param.VMGShowMP       = eval(String(Yanfly.Parameters['Show MP'] || 'false'));
-Yanfly.Param.VMGShowValue    = eval(String(Yanfly.Parameters['Show MP Value'] || 'false'));
-Yanfly.Param.VMGShowMax      = eval(String(Yanfly.Parameters['Show MP Max'] || 'false'));
+Yanfly.Param.VMGShowMP = Yanfly.VHG_JakeMSGAdd.readBool(Yanfly.Parameters['Show MP'], false);
+Yanfly.Param.VMGShowValue = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters['Show MP Value'],
+    false
+);
+Yanfly.Param.VMGShowMax = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters['Show MP Max'],
+    false
+);
+
+// Visual TP Gauge > Appearance
+Yanfly.Param.VMTMinTpWidth = Number(Yanfly.Parameters['Minimum TP Gauge Width'] || 144);
+Yanfly.Param.VMTGaugeHeight = Number(Yanfly.Parameters['TP Gauge Height'] || 18);
+Yanfly.Param.VMTBackColor = Number(Yanfly.Parameters['TP Back Color'] || 19);
+Yanfly.Param.VMTTpColor1 = Number(Yanfly.Parameters['TP Color 1'] || 28);
+Yanfly.Param.VMTTpColor2 = Number(Yanfly.Parameters['TP Color 2'] || 29);
+Yanfly.Param.VMTDuration = Number(Yanfly.Parameters['TP Gauge Duration'] || 30);
+Yanfly.Param.VMTBufferY = Number(Yanfly.Parameters['TP Y Buffer'] || -16);
+Yanfly.Param.VMTThick = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters['TP Use Thick Gauges'],
+    true
+);
+
+// Visual TP Gauge > Text Display
+Yanfly.Param.VMTShowTP = Yanfly.VHG_JakeMSGAdd.readBool(Yanfly.Parameters['Show TP'], false);
+Yanfly.Param.VMTShowValue = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters['Show TP Value'],
+    false
+);
+Yanfly.Param.VMTShowMax = Yanfly.VHG_JakeMSGAdd.readBool(
+    Yanfly.Parameters['Show TP Max'],
+    false
+);
+
+Yanfly.VHG_JakeMSGAdd.OverrideParamInfo = {};
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo = function(paramName, key, type) {
+    var normalized = this.normalizeParamName(paramName);
+    this.OverrideParamInfo[normalized] = { key: key, type: type };
+};
+
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Text Font Size', 'VHGTextFontSize', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Bars positioning', 'VMGAllBarsPosition', 'barsPosition');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Bars order', 'VMGAllBarsOrder', 'barsOrder');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo("Don't show bars with a Max of 0", 'VMGHideZeroMax', 'bool');
+
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Always Visible', 'VHGAlwaysShow', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Minimum Gauge Width', 'VHGMinHpWidth', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Height', 'VHGGaugeHeight', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Back Color', 'VHGBackColor', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('HP Color 1', 'VHGHpColor1', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('HP Color 2', 'VHGHpColor2', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Duration', 'VHGGaugeDuration', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Position', 'VMGAllBarsPosition', 'barsPosition');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Y Buffer', 'VHGBufferY', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Use Thick Gauges', 'VHGThick', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show HP', 'VHGShowHP', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show Value', 'VHGShowValue', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show Max', 'VHGShowMax', 'bool');
+
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Minimum MP Gauge Width', 'VMGMinMpWidth', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Gauge Height', 'VMGGaugeHeight', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Back Color', 'VMGBackColor', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Color 1', 'VMGMpColor1', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Color 2', 'VMGMpColor2', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Gauge Duration', 'VMGDuration', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Y Buffer', 'VMGBufferY', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('MP Use Thick Gauges', 'VMGThick', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show MP', 'VMGShowMP', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show MP Value', 'VMGShowValue', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show MP Max', 'VMGShowMax', 'bool');
+
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Minimum TP Gauge Width', 'VMTMinTpWidth', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Gauge Height', 'VMTGaugeHeight', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Back Color', 'VMTBackColor', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Color 1', 'VMTTpColor1', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Color 2', 'VMTTpColor2', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Gauge Duration', 'VMTDuration', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Y Buffer', 'VMTBufferY', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('TP Use Thick Gauges', 'VMTThick', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show TP', 'VMTShowTP', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show TP Value', 'VMTShowValue', 'bool');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show TP Max', 'VMTShowMax', 'bool');
 
 //=============================================================================
 // DataManager
 //=============================================================================
 
+Yanfly.VHG_JakeMSGAdd.DataManager_isDatabaseLoaded = DataManager.isDatabaseLoaded;
+DataManager.isDatabaseLoaded = function() {
+    if (!Yanfly.VHG_JakeMSGAdd.DataManager_isDatabaseLoaded.call(this)) return false;
+    if (!Yanfly._loaded_JakeMSG_YEP_X_VisualHpGauge_Additions) {
+        this.processJakeMSGGaugeVisibilityNotetags($dataClasses);
+        this.processJakeMSGGaugeVisibilityNotetags($dataEnemies);
+        this.processJakeMSGVisualGaugeOverrideNotetags($dataEnemies);
+        Yanfly._loaded_JakeMSG_YEP_X_VisualHpGauge_Additions = true;
+    }
+    return true;
+};
+
+DataManager.processJakeMSGGaugeVisibilityNotetags = function(group) {
+    for (var n = 1; n < group.length; n++) {
+        var obj = group[n];
+        if (!obj) continue;
+        var notedata = obj.note ? obj.note.split(/[\r\n]+/) : [];
+        obj.hideMpGauge = false;
+        obj.showMpGauge = false;
+        obj.hideTpGauge = false;
+        obj.showTpGauge = false;
+        for (var i = 0; i < notedata.length; i++) {
+            var line = notedata[i];
+            if (line.match(/<(?:HIDE MP GAUGE)>/i)) {
+                obj.hideMpGauge = true;
+            } else if (line.match(/<(?:SHOW MP GAUGE)>/i)) {
+                obj.showMpGauge = true;
+            } else if (line.match(/<(?:HIDE TP GAUGE)>/i)) {
+                obj.hideTpGauge = true;
+            } else if (line.match(/<(?:SHOW TP GAUGE)>/i)) {
+                obj.showTpGauge = true;
+            }
+        }
+    }
+};
+
+DataManager.processJakeMSGVisualGaugeOverrideNotetags = function(group) {
+    for (var n = 1; n < group.length; n++) {
+        var obj = group[n];
+        if (!obj) continue;
+        obj.jakeMSGVisualGaugeOverrides = {};
+        var notedata = obj.note ? obj.note.split(/[\r\n]+/) : [];
+        var evalMode = false;
+        var blockLines = [];
+        for (var i = 0; i < notedata.length; i++) {
+            var line = notedata[i];
+            if (line.match(/<(?:VISUALGAUGE OVERRIDE SETTINGS)>/i)) {
+                evalMode = true;
+                blockLines = [];
+                continue;
+            }
+            if (line.match(/<\/(?:VISUALGAUGE OVERRIDE SETTINGS)>/i)) {
+                evalMode = false;
+                this.applyJakeMSGVisualGaugeOverrideBlock(obj, blockLines.join('\n'));
+                blockLines = [];
+                continue;
+            }
+            if (evalMode) blockLines.push(line);
+        }
+        if (evalMode && blockLines.length > 0) {
+            this.applyJakeMSGVisualGaugeOverrideBlock(obj, blockLines.join('\n'));
+        }
+    }
+};
+
+DataManager.applyJakeMSGVisualGaugeOverrideBlock = function(obj, blockText) {
+    var entries = String(blockText || '').split(/[\r\n;]+/);
+    for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i].trim();
+        if (!entry) continue;
+        var match = entry.match(/^([^:]+):\s*(.+)$/);
+        if (!match) continue;
+        var paramName = match[1].trim();
+        var rawValue = match[2].trim();
+        this.applyJakeMSGVisualGaugeOverrideValue(obj, paramName, rawValue);
+    }
+};
+
+DataManager.applyJakeMSGVisualGaugeOverrideValue = function(obj, paramName, rawValue) {
+    var normalized = Yanfly.VHG_JakeMSGAdd.normalizeParamName(paramName);
+    var info = Yanfly.VHG_JakeMSGAdd.OverrideParamInfo[normalized];
+    if (!info) return;
+    var fallback = Yanfly.Param[info.key];
+    var parsed = Yanfly.VHG_JakeMSGAdd.castOverrideValue(info.type, rawValue, fallback);
+    obj.jakeMSGVisualGaugeOverrides[info.key] = parsed;
+};
 
 //=============================================================================
 // Game_Battler
 //=============================================================================
 
+Game_Battler.prototype.jakeMSGVisualGaugeParam = function(key) {
+    return Yanfly.Param[key];
+};
+
+Game_Battler.prototype.jakeMSGVisualGaugeOverride = function(key) {
+    return undefined;
+};
+
+Game_Enemy.prototype.jakeMSGVisualGaugeParam = function(key) {
+    var enemyData = this.enemy ? this.enemy() : null;
+    var overrides = enemyData && enemyData.jakeMSGVisualGaugeOverrides;
+    if (overrides && overrides.hasOwnProperty(key)) {
+        return overrides[key];
+    }
+    return Game_Battler.prototype.jakeMSGVisualGaugeParam.call(this, key);
+};
+
+Game_Enemy.prototype.jakeMSGVisualGaugeOverride = function(key) {
+    var enemyData = this.enemy ? this.enemy() : null;
+    var overrides = enemyData && enemyData.jakeMSGVisualGaugeOverrides;
+    if (overrides && overrides.hasOwnProperty(key)) return overrides[key];
+    return undefined;
+};
+
 Game_Battler.prototype.mpGaugeVisible = function() {
-    // mirror hp gauge visibility rules (Display Actor / Defeat First / Always Visible handled in base window logic)
     if (this.isHidden()) return false;
     return this.hpGaugeVisible ? this.hpGaugeVisible() : true;
 };
 
 Game_Battler.prototype.mpGaugeWidth = function() {
-    var width = Math.max(this.spriteWidth(), Yanfly.Param.VMGMinMpWidth);
+    var minWidth = Number(this.jakeMSGVisualGaugeParam('VMGMinMpWidth') || 0);
+    var width = Math.max(this.spriteWidth(), minWidth);
     return (width & 1) ? width + 1 : width;
 };
 
 Game_Battler.prototype.mpGaugeHeight = function() {
-    return Yanfly.Param.VMGGaugeHeight;
+    return Number(this.jakeMSGVisualGaugeParam('VMGGaugeHeight') || 0);
 };
 
 Game_Battler.prototype.mpGaugeBackColor = function() {
-    return Yanfly.Param.VMGBackColor;
+    return Number(this.jakeMSGVisualGaugeParam('VMGBackColor') || 0);
 };
 
 Game_Battler.prototype.mpGaugeColor1 = function() {
-    return Yanfly.Param.VMGMpColor1;
+    return Number(this.jakeMSGVisualGaugeParam('VMGMpColor1') || 0);
 };
 
 Game_Battler.prototype.mpGaugeColor2 = function() {
-    return Yanfly.Param.VMGMpColor2;
+    return Number(this.jakeMSGVisualGaugeParam('VMGMpColor2') || 0);
+};
+
+Game_Battler.prototype.tpGaugeVisible = function() {
+    if (this.isHidden()) return false;
+    return this.hpGaugeVisible ? this.hpGaugeVisible() : true;
+};
+
+Game_Battler.prototype.tpGaugeWidth = function() {
+    var minWidth = Number(this.jakeMSGVisualGaugeParam('VMTMinTpWidth') || 0);
+    var width = Math.max(this.spriteWidth(), minWidth);
+    return (width & 1) ? width + 1 : width;
+};
+
+Game_Battler.prototype.tpGaugeHeight = function() {
+    return Number(this.jakeMSGVisualGaugeParam('VMTGaugeHeight') || 0);
+};
+
+Game_Battler.prototype.tpGaugeBackColor = function() {
+    return Number(this.jakeMSGVisualGaugeParam('VMTBackColor') || 0);
+};
+
+Game_Battler.prototype.tpGaugeColor1 = function() {
+    return Number(this.jakeMSGVisualGaugeParam('VMTTpColor1') || 0);
+};
+
+Game_Battler.prototype.tpGaugeColor2 = function() {
+    return Number(this.jakeMSGVisualGaugeParam('VMTTpColor2') || 0);
+};
+
+Game_Actor.prototype.mpGaugeVisible = function() {
+    if (this.isHidden()) return false;
+    if (this.currentClass().showMpGauge) return true;
+    if (this.currentClass().hideMpGauge) return false;
+    return Game_Battler.prototype.mpGaugeVisible.call(this);
+};
+
+Game_Actor.prototype.tpGaugeVisible = function() {
+    if (this.isHidden()) return false;
+    if (this.currentClass().showTpGauge) return true;
+    if (this.currentClass().hideTpGauge) return false;
+    return Game_Battler.prototype.tpGaugeVisible.call(this);
+};
+
+Game_Enemy.prototype.mpGaugeVisible = function() {
+    if (this.isHidden()) return false;
+    if (this.enemy().hideMpGauge) return false;
+    if (BattleManager.isBattleTest()) return true;
+    if (this.enemy().showMpGauge) return true;
+    if (!$gameSystem.showHpGaugeEnemy(this._enemyId)) return false;
+    return Game_Battler.prototype.mpGaugeVisible.call(this);
+};
+
+Game_Enemy.prototype.tpGaugeVisible = function() {
+    if (this.isHidden()) return false;
+    if (this.enemy().hideTpGauge) return false;
+    if (BattleManager.isBattleTest()) return true;
+    if (this.enemy().showTpGauge) return true;
+    if (!$gameSystem.showHpGaugeEnemy(this._enemyId)) return false;
+    return Game_Battler.prototype.tpGaugeVisible.call(this);
+};
+
+Game_Enemy.prototype.hpGaugeWidth = function() {
+    if (this.enemy().hpGaugeWidth > 0) {
+        var width = this.enemy().hpGaugeWidth;
+    } else {
+        var width = this.spriteWidth();
+    }
+    width = Math.max(width, Number(this.jakeMSGVisualGaugeParam('VHGMinHpWidth') || 0));
+    return (width & 1) ? width + 1 : width;
+};
+
+var JakeMSG_VHG_Add_Game_Enemy_hpGaugeHeight = Game_Enemy.prototype.hpGaugeHeight;
+Game_Enemy.prototype.hpGaugeHeight = function() {
+    var override = this.jakeMSGVisualGaugeOverride('VHGGaugeHeight');
+    if (override !== undefined) return Number(override || 0);
+    return JakeMSG_VHG_Add_Game_Enemy_hpGaugeHeight.call(this);
+};
+
+var JakeMSG_VHG_Add_Game_Enemy_hpGaugeBackColor = Game_Enemy.prototype.hpGaugeBackColor;
+Game_Enemy.prototype.hpGaugeBackColor = function() {
+    var override = this.jakeMSGVisualGaugeOverride('VHGBackColor');
+    if (override !== undefined) return Number(override || 0);
+    return JakeMSG_VHG_Add_Game_Enemy_hpGaugeBackColor.call(this);
+};
+
+var JakeMSG_VHG_Add_Game_Enemy_hpGaugeColor1 = Game_Enemy.prototype.hpGaugeColor1;
+Game_Enemy.prototype.hpGaugeColor1 = function() {
+    var override = this.jakeMSGVisualGaugeOverride('VHGHpColor1');
+    if (override !== undefined) return Number(override || 0);
+    return JakeMSG_VHG_Add_Game_Enemy_hpGaugeColor1.call(this);
+};
+
+var JakeMSG_VHG_Add_Game_Enemy_hpGaugeColor2 = Game_Enemy.prototype.hpGaugeColor2;
+Game_Enemy.prototype.hpGaugeColor2 = function() {
+    var override = this.jakeMSGVisualGaugeOverride('VHGHpColor2');
+    if (override !== undefined) return Number(override || 0);
+    return JakeMSG_VHG_Add_Game_Enemy_hpGaugeColor2.call(this);
 };
 
 //=============================================================================
 // Window_VisualHPGauge
 //=============================================================================
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_initialize = Window_VisualHPGauge.prototype.initialize;
+var JakeMSG_VHG_Add_Window_VisualHPGauge_initialize = Window_VisualHPGauge.prototype.initialize;
 Window_VisualHPGauge.prototype.initialize = function() {
     JakeMSG_VHG_Add_Window_VisualHPGauge_initialize.call(this);
     this._currentMpValue = 0;
     this._displayedMpValue = 0;
     this._mpDropSpeed = 0;
+    this._currentTpValue = 0;
+    this._displayedTpValue = 0;
+    this._tpDropSpeed = 0;
 };
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_setBattler = Window_VisualHPGauge.prototype.setBattler;
+var JakeMSG_VHG_Add_Window_VisualHPGauge_setBattler = Window_VisualHPGauge.prototype.setBattler;
 Window_VisualHPGauge.prototype.setBattler = function(battler) {
     JakeMSG_VHG_Add_Window_VisualHPGauge_setBattler.call(this, battler);
     this._currentMpValue = this._battler ? this._battler.mp : 0;
     this._displayedMpValue = this._battler ? this._battler.mp : 0;
+    this._currentTpValue = this._battler ? this._battler.tp : 0;
+    this._displayedTpValue = this._battler ? this._battler.tp : 0;
 };
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_updateWindowSize = Window_VisualHPGauge.prototype.updateWindowSize;
+Window_VisualHPGauge.prototype.jakeMSGGaugeParam = function(key) {
+    if (this._battler && this._battler.jakeMSGVisualGaugeParam) {
+        return this._battler.jakeMSGVisualGaugeParam(key);
+    }
+    return Yanfly.Param[key];
+};
+
+Window_VisualHPGauge.prototype.jakeMSGHideZeroMaxBars = function() {
+    return !!this.jakeMSGGaugeParam('VMGHideZeroMax');
+};
+
+Window_VisualHPGauge.prototype.hpGaugeVisible = function() {
+    if (!this._battler) return false;
+    if (!this._battler.hpGaugeVisible()) return false;
+    if (this.jakeMSGHideZeroMaxBars() && this._battler.mhp <= 0) return false;
+    return true;
+};
+
+Window_VisualHPGauge.prototype.mpGaugeVisible = function() {
+    if (!this._battler) return false;
+    if (!this._battler.mpGaugeVisible()) return false;
+    if (this.jakeMSGHideZeroMaxBars() && this._battler.mmp <= 0) return false;
+    return true;
+};
+
+Window_VisualHPGauge.prototype.tpGaugeVisible = function() {
+    if (!this._battler) return false;
+    if (!this._battler.tpGaugeVisible()) return false;
+    var tpMax = this._battler.maxTp ? this._battler.maxTp() : 0;
+    if (this.jakeMSGHideZeroMaxBars() && tpMax <= 0) return false;
+    return true;
+};
+
+Window_VisualHPGauge.prototype.jakeMSGVisibleBarsInOrder = function() {
+    var rawOrder = this.jakeMSGGaugeParam('VMGAllBarsOrder');
+    var order = Yanfly.VHG_JakeMSGAdd.parseBarsOrder(rawOrder);
+    var result = [];
+    for (var i = 0; i < order.length; i++) {
+        var token = order[i];
+        if (token === 'HP' && this.hpGaugeVisible()) {
+            result.push('hp');
+        } else if (token === 'MP' && this.mpGaugeVisible()) {
+            result.push('mp');
+        } else if (token === 'TP' && this.tpGaugeVisible()) {
+            result.push('tp');
+        }
+    }
+    return result;
+};
+
+Window_VisualHPGauge.prototype.jakeMSGAnyGaugeVisible = function() {
+    return this.hpGaugeVisible() || this.mpGaugeVisible() || this.tpGaugeVisible();
+};
+
+Window_VisualHPGauge.prototype.jakeMSGGaugeWidthFor = function(entry) {
+    if (!this._battler) return 0;
+    var width = 0;
+    if (entry === 'hp') {
+        width = this._battler.hpGaugeWidth();
+    } else if (entry === 'mp') {
+        width = this._battler.mpGaugeWidth();
+    } else if (entry === 'tp') {
+        width = this._battler.tpGaugeWidth();
+    }
+    return Math.max(0, width);
+};
+
 Window_VisualHPGauge.prototype.updateWindowSize = function() {
-    var mpEnabled = this.mpGaugeVisible();
-    var gaugeCount = mpEnabled ? 2 : 1;
-    var spriteWidth = Math.max(this._battler ? this._battler.hpGaugeWidth() : 0, mpEnabled && this._battler ? this._battler.mpGaugeWidth() : 0);
+    if (!this._battler) return;
+    var bars = this.jakeMSGVisibleBarsInOrder();
+    var gaugeCount = Math.max(1, bars.length);
+    var widths = [];
+    if (this.hpGaugeVisible()) widths.push(this._battler.hpGaugeWidth());
+    if (this.mpGaugeVisible()) widths.push(this._battler.mpGaugeWidth());
+    if (this.tpGaugeVisible()) widths.push(this._battler.tpGaugeWidth());
+    if (widths.length <= 0) widths.push(this._battler.hpGaugeWidth());
+    var spriteWidth = Math.max.apply(null, widths);
     var width = spriteWidth + this.standardPadding() * 2;
     width = Math.min(width, Graphics.boxWidth + this.standardPadding() * 2);
-    var hpH = this._battler ? this._battler.hpGaugeHeight() : this.gaugeHeight();
-    var mpH = mpEnabled && this._battler ? this._battler.mpGaugeHeight() : 0;
-    var maxGaugeH = mpEnabled ? Math.max(hpH, mpH) : hpH;
+    var heights = [];
+    if (this.hpGaugeVisible()) heights.push(this._battler.hpGaugeHeight());
+    if (this.mpGaugeVisible()) heights.push(this._battler.mpGaugeHeight());
+    if (this.tpGaugeVisible()) heights.push(this._battler.tpGaugeHeight());
+    if (heights.length <= 0) heights.push(this.gaugeHeight());
+    var maxGaugeH = Math.max.apply(null, heights);
     var height = Math.max(this.lineHeight() * gaugeCount, maxGaugeH * gaugeCount + 4);
     height += this.standardPadding() * 2;
     if (width === this.width && height === this.height) return;
@@ -267,20 +857,28 @@ Window_VisualHPGauge.prototype.updateWindowSize = function() {
     this.makeWindowBoundaries();
 };
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_updateHpPosition = Window_VisualHPGauge.prototype.updateHpPosition;
 Window_VisualHPGauge.prototype.updateHpPosition = function() {
     if (!this._battler) return;
-    JakeMSG_VHG_Add_Window_VisualHPGauge_updateHpPosition.call(this);
-    // keep visible when MP changes too
+    var durationRaw = Number(this.jakeMSGGaugeParam('VHGGaugeDuration') || 0);
+    var duration = Math.max(1, durationRaw);
+    if (this._currentHpValue !== this._battler.hp) {
+        this._visibleCounter = Math.max(this._visibleCounter, durationRaw);
+        this._currentHpValue = this._battler.hp;
+        var difference = Math.abs(this._displayedValue - this._battler.hp);
+        this._dropSpeed = Math.ceil(difference / duration);
+    }
+    this.updateDisplayCounter();
 };
 
 Window_VisualHPGauge.prototype.updateMpPosition = function() {
     if (!this._battler) return;
+    var durationRaw = Number(this.jakeMSGGaugeParam('VMGDuration') || 0);
+    var duration = Math.max(1, durationRaw);
     if (this._currentMpValue !== this._battler.mp) {
-        this._visibleCounter = Math.max(this._visibleCounter, Yanfly.Param.VMGDuration);
+        this._visibleCounter = Math.max(this._visibleCounter, durationRaw);
         this._currentMpValue = this._battler.mp;
         var difference = Math.abs(this._displayedMpValue - this._battler.mp);
-        this._mpDropSpeed = Math.ceil(difference / Math.max(1, Yanfly.Param.VMGDuration));
+        this._mpDropSpeed = Math.ceil(difference / duration);
         this._requestRefresh = true;
     }
     if (this._displayedMpValue === this._currentMpValue) return;
@@ -294,32 +892,45 @@ Window_VisualHPGauge.prototype.updateMpPosition = function() {
     this._requestRefresh = true;
 };
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_updateWindowAspects = Window_VisualHPGauge.prototype.updateWindowAspects;
+Window_VisualHPGauge.prototype.updateTpPosition = function() {
+    if (!this._battler) return;
+    var durationRaw = Number(this.jakeMSGGaugeParam('VMTDuration') || 0);
+    var duration = Math.max(1, durationRaw);
+    if (this._currentTpValue !== this._battler.tp) {
+        this._visibleCounter = Math.max(this._visibleCounter, durationRaw);
+        this._currentTpValue = this._battler.tp;
+        var difference = Math.abs(this._displayedTpValue - this._battler.tp);
+        this._tpDropSpeed = Math.ceil(difference / duration);
+        this._requestRefresh = true;
+    }
+    if (this._displayedTpValue === this._currentTpValue) return;
+    var d = this._tpDropSpeed;
+    var c = this._currentTpValue;
+    if (this._displayedTpValue > this._currentTpValue) {
+        this._displayedTpValue = Math.max(this._displayedTpValue - d, c);
+    } else if (this._displayedTpValue < this._currentTpValue) {
+        this._displayedTpValue = Math.min(this._displayedTpValue + d, c);
+    }
+    this._requestRefresh = true;
+};
+
+var JakeMSG_VHG_Add_Window_VisualHPGauge_updateWindowAspects = Window_VisualHPGauge.prototype.updateWindowAspects;
 Window_VisualHPGauge.prototype.updateWindowAspects = function() {
     JakeMSG_VHG_Add_Window_VisualHPGauge_updateWindowAspects.call(this);
     this.updateMpPosition();
+    this.updateTpPosition();
 };
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_updateWindowPosition = Window_VisualHPGauge.prototype.updateWindowPosition;
 Window_VisualHPGauge.prototype.updateWindowPosition = function() {
     if (!this._battler) return;
     var battler = this._battler;
-    var hpAbove = Yanfly.Param.VHGGaugePos;
-    var mpAbove = Yanfly.Param.VMGGaugePos;
-    var anchorAbove = hpAbove || mpAbove;
-    var buffer = 0;
-    if (anchorAbove) {
-        if (hpAbove && mpAbove) {
-            buffer = Math.min(Yanfly.Param.VHGBufferY, Yanfly.Param.VMGBufferY);
-        } else if (hpAbove) {
-            buffer = Yanfly.Param.VHGBufferY;
-        } else {
-            buffer = Yanfly.Param.VMGBufferY;
-        }
-    } else {
-        // both below
-        buffer = Math.max(Yanfly.Param.VHGBufferY, Yanfly.Param.VMGBufferY);
-    }
+    var anchorAbove = !!this.jakeMSGGaugeParam('VMGAllBarsPosition');
+    var bufferValues = [];
+    if (this.hpGaugeVisible()) bufferValues.push(Number(this.jakeMSGGaugeParam('VHGBufferY') || 0));
+    if (this.mpGaugeVisible()) bufferValues.push(Number(this.jakeMSGGaugeParam('VMGBufferY') || 0));
+    if (this.tpGaugeVisible()) bufferValues.push(Number(this.jakeMSGGaugeParam('VMTBufferY') || 0));
+    if (bufferValues.length <= 0) bufferValues.push(Yanfly.Param.VHGBufferY);
+    var buffer = anchorAbove ? Math.min.apply(null, bufferValues) : Math.max.apply(null, bufferValues);
 
     this.x = battler.spritePosX();
     this.x -= Math.ceil(this.width / 2);
@@ -335,66 +946,79 @@ Window_VisualHPGauge.prototype.updateWindowPosition = function() {
     this.y += buffer;
 };
 
-JakeMSG_VHG_Add_Window_VisualHPGauge_isShowWindow = Window_VisualHPGauge.prototype.isShowWindow;
 Window_VisualHPGauge.prototype.isShowWindow = function() {
-    var baseVisible = JakeMSG_VHG_Add_Window_VisualHPGauge_isShowWindow.call(this);
-    if (baseVisible) return true;
-    // also keep visible while MP value is animating
-    if (this._currentMpValue !== this._displayedMpValue) return true;
-    return false;
-};
-
-Window_VisualHPGauge.prototype.mpGaugeVisible = function() {
-    if (!this._battler) return false;
-    if (!this._battler.mpGaugeVisible()) return false;
-    return true;
+    if (!this._battler.isAppeared()) return false;
+    if (!this.jakeMSGAnyGaugeVisible()) return false;
+    if (!!this.jakeMSGGaugeParam('VHGAlwaysShow') && !this._battler.isDead()) return true;
+    if (this.hpGaugeVisible() && this._currentHpValue !== this._displayedValue) return true;
+    if (this.mpGaugeVisible() && this._currentMpValue !== this._displayedMpValue) return true;
+    if (this.tpGaugeVisible() && this._currentTpValue !== this._displayedTpValue) return true;
+    if (this._battler.isSelected()) return true;
+    --this._visibleCounter;
+    return this._visibleCounter > 0;
 };
 
 Window_VisualHPGauge.prototype.refresh = function() {
     this.contents.clear();
     if (!this._battler) return;
     this._requestRefresh = false;
-
-    var mpEnabled = this.mpGaugeVisible();
+    var bars = this.jakeMSGVisibleBarsInOrder();
+    if (bars.length <= 0) return;
     var lineH = this.lineHeight();
     var pad = this.textPadding();
+    var innerWidth = this.contents.width - pad * 2;
     var prevFontSize = this.contents.fontSize;
-    this.contents.fontSize = Yanfly.Param.VHGTextFontSize;
-    var order = this.mpGaugeDrawOrder();
-    for (var i = 0; i < order.length; i++) {
-        var entry = order[i];
+    this.contents.fontSize = Number(this.jakeMSGGaugeParam('VHGTextFontSize') || 20);
+    for (var i = 0; i < bars.length; i++) {
+        var entry = bars[i];
+        var y = pad + lineH * i;
+        var barWidth = this.jakeMSGGaugeWidthFor(entry);
+        barWidth = Math.min(innerWidth, Math.max(1, barWidth));
+        var x = pad + Math.max(0, Math.floor((innerWidth - barWidth) / 2));
         if (entry === 'hp') {
-            this.drawActorHp(this._battler, pad, pad + lineH * i, this.contents.width - pad * 2);
-        } else if (entry === 'mp' && mpEnabled) {
-            this.drawJakeMSGActorMp(this._battler, pad, pad + lineH * i, this.contents.width - pad * 2);
+            this.drawActorHp(this._battler, x, y, barWidth);
+        } else if (entry === 'mp') {
+            this.drawJakeMSGActorMp(this._battler, x, y, barWidth);
+        } else if (entry === 'tp') {
+            this.drawJakeMSGActorTp(this._battler, x, y, barWidth);
         }
     }
     this.contents.fontSize = prevFontSize;
 };
 
-Window_VisualHPGauge.prototype.mpGaugeDrawOrder = function() {
-    var mpAbove = Yanfly.Param.VMGGaugePos;
-    var hpAbove = Yanfly.Param.VHGGaugePos;
-    var samePos = (mpAbove === hpAbove);
-    if (!this.mpGaugeVisible()) return ['hp'];
-    if (!samePos) {
-        return mpAbove ? ['mp', 'hp'] : ['hp', 'mp'];
-    }
-    // same position: decide stacking by Below HP flag
-    if (Yanfly.Param.VMGBelowHp) {
-        return hpAbove ? ['hp', 'mp'] : ['hp', 'mp']; // below hp means hp then mp
+Window_VisualHPGauge.prototype.drawActorHp = function(actor, x, y, width) {
+    width = width || 186;
+    var color1 = this.hpGaugeColor1();
+    var color2 = this.hpGaugeColor2();
+    var rate = actor.mhp > 0 ? this._displayedValue / actor.mhp : 0;
+    if (Imported.YEP_AbsorptionBarrier && actor.barrierPoints() > 0) {
+        this.drawBarrierGauge(actor, x, y, width);
     } else {
-        return hpAbove ? ['mp', 'hp'] : ['mp', 'hp'];
+        this.drawGauge(x, y, width, rate, color1, color2);
+    }
+    var showHp = !!this.jakeMSGGaugeParam('VHGShowHP');
+    var showValue = !!this.jakeMSGGaugeParam('VHGShowValue');
+    if (showHp) {
+        this.changeTextColor(this.systemColor());
+        this.drawText(TextManager.hpA, x, y, 44);
+    }
+    if (showValue) {
+        var val = this._displayedValue;
+        var max = actor.mhp;
+        var w = width;
+        var color = this.hpColor(actor);
+        this.drawCurrentAndMax(val, max, x, y, w, color, this.normalColor());
     }
 };
 
 Window_VisualHPGauge.prototype.drawJakeMSGActorMp = function(actor, x, y, width) {
     width = width || 186;
-    var rate = actor.mmp > 0 ? this._displayedMpValue / actor.mmp : 0;
+    var maxMp = actor.mmp;
+    var rate = maxMp > 0 ? this._displayedMpValue / maxMp : 0;
     var backColor = this.textColor(actor.mpGaugeBackColor());
     var color1 = this.textColor(actor.mpGaugeColor1());
     var color2 = this.textColor(actor.mpGaugeColor2());
-    var useThick = !!Yanfly.Param.VMGThick;
+    var useThick = !!this.jakeMSGGaugeParam('VMGThick');
     var canUseBase = (useThick === !!Yanfly.Param.VHGThick);
     if (canUseBase) {
         var drawGaugeFn = this.drawGauge;
@@ -409,31 +1033,79 @@ Window_VisualHPGauge.prototype.drawJakeMSGActorMp = function(actor, x, y, width)
         this.jakeMSGDrawSimpleGauge(x, y, width, rate, backColor, color1, color2, actor.mpGaugeHeight());
     }
 
-    if (Yanfly.Param.VMGShowMP) {
+    var showLabel = !!this.jakeMSGGaugeParam('VMGShowMP');
+    var showValue = !!this.jakeMSGGaugeParam('VMGShowValue');
+    var showMax = !!this.jakeMSGGaugeParam('VMGShowMax');
+    if (showLabel) {
         this.changeTextColor(this.systemColor());
         this.drawText(TextManager.mpA, x, y, 44);
     }
-    if (Yanfly.Param.VMGShowValue) {
+    if (showValue) {
         var val = this._displayedMpValue;
-        var max = actor.mmp;
+        var max = maxMp;
         var w = width;
         var color = this.mpColor(actor);
-        var labelWidth = Yanfly.Param.VMGShowMP ? this.textWidth(TextManager.mpA) : 0;
+        var labelWidth = showLabel ? this.textWidth(TextManager.mpA) : 0;
         this.drawJakeMSGCurrentAndMax(val, max, x, y, w, color, this.normalColor(), {
-            showMax: Yanfly.Param.VMGShowMax,
+            showMax: showMax,
             labelWidth: labelWidth,
-            noMaxAlign: Yanfly.Param.VMGShowMP ? 'right' : 'center'
+            noMaxAlign: showLabel ? 'right' : 'center'
+        });
+    }
+};
+
+Window_VisualHPGauge.prototype.drawJakeMSGActorTp = function(actor, x, y, width) {
+    width = width || 186;
+    var maxTp = actor.maxTp ? actor.maxTp() : 0;
+    var rate = maxTp > 0 ? this._displayedTpValue / maxTp : 0;
+    var backColor = this.textColor(actor.tpGaugeBackColor());
+    var color1 = this.textColor(actor.tpGaugeColor1());
+    var color2 = this.textColor(actor.tpGaugeColor2());
+    var useThick = !!this.jakeMSGGaugeParam('VMTThick');
+    var canUseBase = (useThick === !!Yanfly.Param.VHGThick);
+    if (canUseBase) {
+        var drawGaugeFn = this.drawGauge;
+        var oldBack = this.gaugeBackColor;
+        var oldHeight = this.gaugeHeight;
+        this.gaugeBackColor = function() { return backColor; };
+        this.gaugeHeight = function() { return actor.tpGaugeHeight(); };
+        drawGaugeFn.call(this, x, y, width, rate, color1, color2);
+        this.gaugeBackColor = oldBack;
+        this.gaugeHeight = oldHeight;
+    } else {
+        this.jakeMSGDrawSimpleGauge(x, y, width, rate, backColor, color1, color2, actor.tpGaugeHeight());
+    }
+
+    var showLabel = !!this.jakeMSGGaugeParam('VMTShowTP');
+    var showValue = !!this.jakeMSGGaugeParam('VMTShowValue');
+    var showMax = !!this.jakeMSGGaugeParam('VMTShowMax');
+    if (showLabel) {
+        this.changeTextColor(this.systemColor());
+        this.drawText(TextManager.tpA, x, y, 44);
+    }
+    if (showValue) {
+        var val = this._displayedTpValue;
+        var max = maxTp;
+        var w = width;
+        var color = this.tpColor(actor);
+        var labelWidth = showLabel ? this.textWidth(TextManager.tpA) : 0;
+        this.drawJakeMSGCurrentAndMax(val, max, x, y, w, color, this.normalColor(), {
+            showMax: showMax,
+            labelWidth: labelWidth,
+            noMaxAlign: showLabel ? 'right' : 'center'
         });
     }
 };
 
 // use flexible width so max values always render when requested
 Window_VisualHPGauge.prototype.drawCurrentAndMax = function(current, max, x, y, width, color1, color2) {
-    var labelWidth = Yanfly.Param.VHGShowHP ? this.textWidth(TextManager.hpA) : 0;
+    var showHp = !!this.jakeMSGGaugeParam('VHGShowHP');
+    var showMax = !!this.jakeMSGGaugeParam('VHGShowMax');
+    var labelWidth = showHp ? this.textWidth(TextManager.hpA) : 0;
     this.drawJakeMSGCurrentAndMax(current, max, x, y, width, color1, color2, {
-        showMax: Yanfly.Param.VHGShowMax,
+        showMax: showMax,
         labelWidth: labelWidth,
-        noMaxAlign: Yanfly.Param.VHGShowHP ? 'right' : 'center'
+        noMaxAlign: showHp ? 'right' : 'center'
     });
 };
 

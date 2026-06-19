@@ -8,16 +8,19 @@ Imported.JakeMSG_YEP_X_InBattleStatus_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.InBattleStatus_JakeMSGAdd = Yanfly.InBattleStatus_JakeMSGAdd || {};
-Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
+Yanfly.InBattleStatus_JakeMSGAdd.version = 1.3;
 
 //=============================================================================
  /*:
- * @plugindesc v1.0 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status 
+ * @plugindesc v1.3 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status 
  * command to view enemy troop status effects, buffs, and debuffs.
  * @author JakeMSG
- * v1.2
+ * v1.3
  * 
 ============ Change Log ============
+1.3 - 6.19th.2026
+ * Added parameters/notetags to show/hide enemy TP gauge.
+ * Enabled HP/MP/TP show/hide notetags also for actors (not just for enemies) in ally In-Battle Status window.
 1.2 - 6.1st.2026
  * Added option to group the in battle status commands together in the Party Command Window (via Plugin Parameters)
  * Made scrolling through the enemy status menu a bit more intuitive
@@ -114,6 +117,15 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * @desc Show the enemy's MP in the status window by default?
  * NO - false     YES - true
  * @default true
+ *
+ * @param Show Enemy TP
+ * @parent ---Enemy Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the enemy's TP in the status window by default?
+ * NO - false     YES - true
+ * @default true
  * 
  * @param ---All Status Commands (Ally+Enemy)---
  * @default
@@ -161,16 +173,21 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.0;
  * You can use the following notetags to adjust how the in-battle status window
  * displays information for certain enemies.
  *
- * Enemy Notetags:
+ * Actor/Enemy Notetags:
  *
  *   <Show Status HP>
  *   <Hide Status HP>
- *   - This will show or hide the HP gauge for the enemy in the in-battle
+ *   - This will show or hide the HP gauge for the battler in the in-battle
  *   status window regardless of the default plugin settings.
  *
  *   <Show Status MP>
  *   <Hide Status MP>
- *   - This will show or hide the MP gauge for the enemy in the in-battle
+ *   - This will show or hide the MP gauge for the battler in the in-battle
+ *   status window regardless of the default plugin settings.
+ *
+ *   <Show Status TP>
+ *   <Hide Status TP>
+ *   - This will show or hide the TP gauge for the battler in the in-battle
  *   status window regardless of the default plugin settings.
  *
  * ============================================================================
@@ -213,6 +230,7 @@ Yanfly.Param.EnemyIBSHealthyHelp = String(Yanfly.Parameters['Enemy Healthy Help'
 
 Yanfly.Param.ShowEnemyHP = eval(String(Yanfly.Parameters['Show Enemy HP']));
 Yanfly.Param.ShowEnemyMP = eval(String(Yanfly.Parameters['Show Enemy MP']));
+Yanfly.Param.ShowEnemyTP = eval(String(Yanfly.Parameters['Show Enemy TP'] || 'true'));
 Yanfly.Param.GroupStatusCommands =
   eval(String(Yanfly.Parameters['Group the Status Commands']));
 Yanfly.Param.ParentStatusCmdText =
@@ -232,18 +250,32 @@ DataManager.isDatabaseLoaded = function() {
   if (!Yanfly.InBattleStatus_JakeMSGAdd.DataManager_isDatabaseLoaded.call(this)) return false;
   if (!Yanfly.InBattleStatus_JakeMSGAdd.ProcesJakeMSGAddEnemyNotetags) {
     this.processJakeMSGAddEnemyNotetags($dataEnemies);
+    this.processJakeMSGAddActorNotetags($dataActors);
     Yanfly.InBattleStatus_JakeMSGAdd.ProcesJakeMSGAddEnemyNotetags = true;
   }
 	return true;
 };
 
 DataManager.processJakeMSGAddEnemyNotetags = function(group) {
+	this.processJakeMSGAddGaugeNotetags(group, Yanfly.Param.ShowEnemyHP,
+    Yanfly.Param.ShowEnemyMP, Yanfly.Param.ShowEnemyTP);
+};
+
+DataManager.processJakeMSGAddActorNotetags = function(group) {
+  this.processJakeMSGAddGaugeNotetags(group, true, true,
+    !!Yanfly.Param.MenuTpGauge);
+};
+
+DataManager.processJakeMSGAddGaugeNotetags = function(group, defaultHp,
+  defaultMp, defaultTp) {
 	for (var n = 1; n < group.length; n++) {
 		var obj = group[n];
-		var notedata = obj.note.split(/[\r\n]+/);
+		if (!obj) continue;
+		var notedata = (obj.note || '').split(/[\r\n]+/);
 
-    obj.showIBSHp = Yanfly.Param.ShowEnemyHP;
-    obj.showIBSMp = Yanfly.Param.ShowEnemyMP;
+    obj.showIBSHp = defaultHp;
+    obj.showIBSMp = defaultMp;
+    obj.showIBSTp = defaultTp;
 
 		for (var i = 0; i < notedata.length; i++) {
 			var line = notedata[i];
@@ -255,6 +287,10 @@ DataManager.processJakeMSGAddEnemyNotetags = function(group) {
         obj.showIBSMp = true;
       } else if (line.match(/<(?:HIDE STATUS MP)>/i)) {
         obj.showIBSMp = false;
+      } else if (line.match(/<(?:SHOW STATUS TP)>/i)) {
+        obj.showIBSTp = true;
+      } else if (line.match(/<(?:HIDE STATUS TP)>/i)) {
+        obj.showIBSTp = false;
       }
 		}
 	}
@@ -436,6 +472,10 @@ Window_EnemyInBattleStatus.prototype.refresh = function() {
     this.drawEnemyMp(this._battler, x2, y, w);
     y += this.lineHeight();
   }
+  if (this._battler.enemy().showIBSTp) {
+    this.drawEnemyTp(this._battler, x2, y, w);
+    y += this.lineHeight();
+  }
   w = this.contents.width - x;
   y = Math.ceil(this.lineHeight() * 4.5);
   var h = this.contents.height - y;
@@ -491,6 +531,15 @@ Window_EnemyInBattleStatus.prototype.drawEnemyMp = function(enemy, x, y, width) 
     this.mpColor(enemy), this.normalColor());
 };
 
+Window_EnemyInBattleStatus.prototype.drawEnemyTp = function(enemy, x, y, width) {
+  var rate = enemy.tpRate();
+  this.drawGauge(x, y, width, rate, this.tpGaugeColor1(), this.tpGaugeColor2());
+  this.changeTextColor(this.systemColor());
+  this.drawText(TextManager.tpA, x, y, 44);
+  this.changeTextColor(this.tpColor(enemy));
+  this.drawText(Yanfly.Util.toGroup(enemy.tp), x + width - 64, y, 64, 'right');
+};
+
 Window_EnemyInBattleStatus.prototype.drawParam = function(paramId, dx, dy, dw, dh) {
   this.drawDarkRect(dx, dy, dw, dh);
   var level = this._battler._buffs[paramId];
@@ -510,6 +559,77 @@ Window_EnemyInBattleStatus.prototype.drawDarkRect = function(dx, dy, dw, dh) {
   this.changePaintOpacity(false);
   this.contents.fillRect(dx + 1, dy + 1, dw - 2, dh - 2, color);
   this.changePaintOpacity(true);
+};
+
+//=============================================================================
+// Window_InBattleStatus
+//=============================================================================
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_InBattleStatus_refresh =
+  Window_InBattleStatus.prototype.refresh;
+Window_InBattleStatus.prototype.refresh = function() {
+  this.contents.clear();
+  if (!this._battler) return;
+  var x = this.standardPadding() + eval(Yanfly.Param.IBSStatusListWidth);
+  this.drawActorFace(this._battler, x, 0, Window_Base._faceWidth);
+  var x2 = x + Window_Base._faceWidth + this.standardPadding();
+  var w = this.contents.width - x2;
+  this.drawActorSimpleStatusWithGaugeNotetags(this._battler, x2, 0, w);
+  w = this.contents.width - x;
+  var y = Math.ceil(this.lineHeight() * 4.5);
+  var h = this.contents.height - y;
+  if (h >= this.lineHeight() * 6) {
+    for (var i = 2; i < 8; ++i) {
+      this.drawParam(i, x, y, w, this.lineHeight());
+      y += this.lineHeight();
+    }
+  } else {
+    w = Math.floor(w / 2);
+    x2 = x;
+    for (var j = 2; j < 8; ++j) {
+      this.drawParam(j, x2, y, w, this.lineHeight());
+      if (j % 2 === 0) {
+        x2 += w;
+      } else {
+        x2 = x;
+        y += this.lineHeight();
+      }
+    }
+  }
+};
+
+Window_InBattleStatus.prototype.actorGaugeSettings = function(actor) {
+  var data = actor && actor.actor ? actor.actor() : null;
+  return {
+    showHp: data && data.showIBSHp !== undefined ? data.showIBSHp : true,
+    showMp: data && data.showIBSMp !== undefined ? data.showIBSMp : true,
+    showTp: data && data.showIBSTp !== undefined ? data.showIBSTp :
+      !!Yanfly.Param.MenuTpGauge
+  };
+};
+
+Window_InBattleStatus.prototype.drawActorSimpleStatusWithGaugeNotetags =
+  function(actor, x, y, width) {
+  var lineHeight = this.lineHeight();
+  var x2 = x + 180;
+  var width2 = Math.max(96, width - 180 - this.textPadding());
+  var gaugeSettings = this.actorGaugeSettings(actor);
+  this.drawActorName(actor, x, y);
+  this.drawActorLevel(actor, x, y + lineHeight * 1);
+  this.drawActorIcons(actor, x, y + lineHeight * 2);
+  this.drawActorClass(actor, x2, y, width2);
+  var gaugeY = y + lineHeight;
+  if (gaugeSettings.showHp) {
+    this.drawActorHp(actor, x2, gaugeY, width2);
+    gaugeY += lineHeight;
+  }
+  if (gaugeSettings.showMp) {
+    this.drawActorMp(actor, x2, gaugeY, width2);
+    gaugeY += lineHeight;
+  }
+  if (gaugeSettings.showTp) {
+    this.drawActorTp(actor, x2, gaugeY, width2);
+  }
 };
 
 //=============================================================================
