@@ -8,7 +8,7 @@ Imported.JakeMSG_YEP_BuffsStatesCore_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.BuffsStates_JakeMSGAdd = Yanfly.BuffsStates_JakeMSGAdd || {};
-Yanfly.BuffsStates_JakeMSGAdd.version = 1.3;
+Yanfly.BuffsStates_JakeMSGAdd.version = 1.4;
 
 //=============================================================================
 /*:
@@ -16,9 +16,15 @@ Yanfly.BuffsStates_JakeMSGAdd.version = 1.3;
  * BuffsStates Core yanfly Plugin, such as multiple counters per state and new AuxVal value
  * (for background logic, not shown on screen)
  * @author JakeMSG
- * v1.3
+ * v1.4
  * 
 ============ Change Log ============
+1.4 - 6.19th.2026
+ * Added a new State notetag, <Force Position ID: X>, to control manual
+state ordering in visual state lists (value can also be 0 or negative)
+ * Added display-order support for this notetag in YEP_BuffsStatesCore normal
+state icon flow, Olivia_StateTooltipDisplay popout, YEP_X_InBattleStatus actor
+state list, and JakeMSG_YEP_X_InBattleStatus_Additions enemy state list.
 1.3 - 3.23th.2026
  * Fixed regression where the original YEP normal State Counter (counter index 0)
 could fail to render in actor icon displays when this addon was enabled.
@@ -103,6 +109,36 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  * - For battler-owned operations (turn edits), name resolves only among states
  *   currently on that battler.
  * - If multiple owned states share the same name, the highest State ID is used.
+ *
+ * ================================
+ * State Force Position (List Order)
+ * ================================
+ *
+ * New State notetag:
+ *   <Force Position ID: X>
+ *
+ * This lets a state use a manual position ID for visual ordering.
+ * X can be any integer (negative, zero, or positive).
+ *
+ * Rules:
+ * - Without this notetag, the state uses its own database State ID as its
+ *   position ID.
+ * - With this notetag, the state uses X as its position ID.
+ * - States are ordered from low to high position ID.
+ * - If two states share the same position ID, the state using
+ *   <Force Position ID: X> is shown first.
+ * - If both states are forced to the same position ID, the lower real
+ *   database State ID is shown first.
+ *
+ * Display scope:
+ * - YEP_BuffsStatesCore normal state icon/view flow.
+ * - Olivia_StateTooltipDisplay state tooltip popout.
+ * - YEP_X_InBattleStatus actor state list.
+ * - JakeMSG_YEP_X_InBattleStatus_Additions enemy state list.
+ *
+ * Example:
+ * - If State 30 has <Force Position ID: 10>, it appears before normal
+ *   State 10 in those state display lists.
  * 
  * ================================
  * React/Respond Effect Locals
@@ -362,7 +398,7 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  * Extra Lunatic Timing Notetags
  * ================================
  *
- * New custom timing notetags for states (each has a pair to end the eval block, with a matching tag with "/" 
+ * New custom eval timing notetags for states (each has a pair to end the eval block, with a matching tag with "/" 
  * at the beginning, like in the original plugin):
  *
  * Regen / Degen:
@@ -512,10 +548,87 @@ Yanfly.BuffsStates_JakeMSGAdd.getStateData = function(stateId) {
     preview._jakePrefixText = Yanfly.BuffsStates_JakeMSGAdd.nextTurnPrefix();
     preview._jakeBaseNameText = String(baseState.name || '');
     preview._jakeOriginalState = baseState;
+    preview.forcePositionId = Number(baseState.forcePositionId || 0);
+    preview.hasForcePositionId = !!baseState.hasForcePositionId;
 
     this._nextTurnStateCache[stateId] = preview;
     $dataStates[stateId] = preview;
     return preview;
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.getStateDisplayOrderInfo = function(stateOrId) {
+    var state = null;
+    var stateId = 0;
+
+    if (stateOrId && typeof stateOrId === 'object') {
+        state = stateOrId;
+        stateId = Number(state.id || 0);
+    } else {
+        stateId = Number(stateOrId || 0);
+    }
+
+    if (!state) state = Yanfly.BuffsStates_JakeMSGAdd.getStateData(stateId);
+
+    var baseStateId = Yanfly.BuffsStates_JakeMSGAdd.nextTurnBaseStateId(stateId);
+    if (baseStateId <= 0) baseStateId = Math.abs(stateId || 0);
+
+    var hasForcedPosition = !!(state && state.hasForcePositionId);
+    var forcePositionId = hasForcedPosition ? Number(state.forcePositionId) : 0;
+    if (!isFinite(forcePositionId)) {
+        hasForcedPosition = false;
+        forcePositionId = 0;
+    }
+
+    var positionId = hasForcedPosition ? forcePositionId : baseStateId;
+
+    return {
+        state: state,
+        stateId: stateId,
+        baseStateId: baseStateId,
+        positionId: positionId,
+        forced: hasForcedPosition,
+        nextTurn: stateId < 0
+    };
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.compareStatesByDisplayOrder = function(a, b) {
+    var left = Yanfly.BuffsStates_JakeMSGAdd.getStateDisplayOrderInfo(a);
+    var right = Yanfly.BuffsStates_JakeMSGAdd.getStateDisplayOrderInfo(b);
+
+    if (left.positionId !== right.positionId) {
+        return left.positionId - right.positionId;
+    }
+    if (left.forced !== right.forced) {
+        return left.forced ? -1 : 1;
+    }
+    if (left.baseStateId !== right.baseStateId) {
+        return left.baseStateId - right.baseStateId;
+    }
+    if (left.nextTurn !== right.nextTurn) {
+        return left.nextTurn ? 1 : -1;
+    }
+    return left.stateId - right.stateId;
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay = function(states) {
+    if (!states || states.length <= 0) return [];
+    var result = states.slice();
+    result.sort(function(a, b) {
+        return Yanfly.BuffsStates_JakeMSGAdd.compareStatesByDisplayOrder(a, b);
+    });
+    return result;
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview = function(battler) {
+    if (!battler) return [];
+    var states = battler.states ? battler.states().slice() : [];
+    if (battler.getNextTurnPreviewStates) {
+        var previews = battler.getNextTurnPreviewStates();
+        for (var i = 0; i < previews.length; i++) {
+            if (previews[i]) states.push(previews[i]);
+        }
+    }
+    return Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay(states);
 };
 
 //=============================================================================
@@ -677,6 +790,8 @@ DataManager.processBSCNotetags1 = function(group) {
         for (var n = 1; n < group.length; n++) {
                 var state = group[n];
                 if (!state) continue;
+                state.forcePositionId = Number(state.forcePositionId || 0);
+                state.hasForcePositionId = !!state.hasForcePositionId;
                 var map = Yanfly.BuffsStates_JakeMSGAdd._ensureStateCounterSettingsMap(state);
                 var notedata = state.note.split(/[\r\n]+/);
                 for (var i = 0; i < notedata.length; i++) {
@@ -732,6 +847,10 @@ DataManager.processBSCNotetags1 = function(group) {
                                 } else if (ruleVal === '2' || ruleVal === 'add') {
                                     state.reapplyRules = 2;
                                 }
+                        } else if (line.match(/<FORCE[ ]POSITION[ ]ID:[ ](-?\d+)>/i)) {
+                                var forcedPos = parseInt(RegExp.$1);
+                            state.forcePositionId = forcedPos;
+                            state.hasForcePositionId = true;
                         }
                 }
                 state.stateCounterSettings = map[0];
@@ -1000,8 +1119,7 @@ Game_BattlerBase.prototype.getNextTurnStateIds = function() {
         }
     }
     ids.sort(function(a, b) {
-        return Yanfly.BuffsStates_JakeMSGAdd.nextTurnBaseStateId(a) -
-            Yanfly.BuffsStates_JakeMSGAdd.nextTurnBaseStateId(b);
+        return Yanfly.BuffsStates_JakeMSGAdd.compareStatesByDisplayOrder(a, b);
     });
     return ids;
 };
@@ -1055,31 +1173,20 @@ Game_BattlerBase.prototype.removeStateNextTurn = function(stateRef) {
 
 Game_BattlerBase.prototype.getStateIconEntriesWithPreview = function() {
     var entries = [];
-    var states = this.states ? this.states() : [];
+    var previewOpacity = Yanfly.BuffsStates_JakeMSGAdd.nextTurnIconOpacity();
+    var states = Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview(this);
     for (var i = 0; i < states.length; i++) {
         var state = states[i];
         if (!state || state.iconIndex <= 0) continue;
+        var nextTurn = !!state._jakeNextTurnPreview ||
+            Yanfly.BuffsStates_JakeMSGAdd.isNextTurnStateId(state.id);
         entries.push({
             type: 'state',
             iconIndex: state.iconIndex,
-            opacity: 255,
+            opacity: nextTurn ? previewOpacity : 255,
             state: state,
             stateId: state.id,
-            nextTurn: false
-        });
-    }
-    var previewStates = this.getNextTurnPreviewStates();
-    var previewOpacity = Yanfly.BuffsStates_JakeMSGAdd.nextTurnIconOpacity();
-    for (var j = 0; j < previewStates.length; j++) {
-        var preview = previewStates[j];
-        if (!preview || preview.iconIndex <= 0) continue;
-        entries.push({
-            type: 'state',
-            iconIndex: preview.iconIndex,
-            opacity: previewOpacity,
-            state: preview,
-            stateId: preview.id,
-            nextTurn: true
+            nextTurn: nextTurn
         });
     }
     return entries;
@@ -1592,6 +1699,28 @@ Window_Base.prototype.drawActorIcons = function(actor, x, y, width) {
     this.resetTextColor();
 };
 
+Yanfly.BuffsStates_JakeMSGAdd.Game_BattlerBase_statesAndBuffs =
+    Game_BattlerBase.prototype.statesAndBuffs;
+Game_BattlerBase.prototype.statesAndBuffs = function() {
+    if (!Yanfly.BuffsStates_JakeMSGAdd.Game_BattlerBase_statesAndBuffs) {
+        return [];
+    }
+    var group = Yanfly.BuffsStates_JakeMSGAdd.Game_BattlerBase_statesAndBuffs.call(this);
+    if (!group || group.length <= 0) return [];
+
+    var states = [];
+    var buffs = [];
+    for (var i = 0; i < group.length; i++) {
+        if (typeof group[i] === 'number') {
+            buffs.push(group[i]);
+        } else {
+            states.push(group[i]);
+        }
+    }
+    states = Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay(states);
+    return states.concat(buffs);
+};
+
 //=============================================================================
 // Sprite_StateIcon
 //=============================================================================
@@ -1634,30 +1763,23 @@ if (Imported.YEP_X_InBattleStatus && typeof Window_InBattleStateList !== 'undefi
         Window_InBattleStateList.prototype.makeItemList;
     Window_InBattleStateList.prototype.makeItemList = function() {
         Yanfly.BuffsStates_JakeMSGAdd.Window_InBattleStateList_makeItemList.call(this);
-        if (!this._battler || !this._battler.getNextTurnPreviewStates) return;
+        if (!this._battler) return;
 
-        var previews = this._battler.getNextTurnPreviewStates();
-        if (!previews || previews.length <= 0) return;
-
-        if (this._data && this._data.length === 1 && this._data[0] === null) {
-            this._data = [];
-        }
-
-        var insertAt = this._data.length;
+        var buffEntries = [];
         for (var i = 0; i < this._data.length; i++) {
             if (typeof this._data[i] === 'string' && this._data[i].match(/BUFF[ ]\d+/i)) {
-                insertAt = i;
-                break;
+                buffEntries.push(this._data[i]);
             }
         }
 
-        for (var j = 0; j < previews.length; j++) {
-            var preview = previews[j];
-            if (!this.includes || !this.includes(preview)) continue;
-            this._data.splice(insertAt, 0, preview);
-            insertAt += 1;
+        var states = Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview(this._battler);
+        var stateEntries = [];
+        for (var j = 0; j < states.length; j++) {
+            if (!this.includes || !this.includes(states[j])) continue;
+            stateEntries.push(states[j]);
         }
 
+        this._data = stateEntries.concat(buffEntries);
         if (this._data.length <= 0) this._data.push(null);
     };
 }
@@ -1668,30 +1790,23 @@ if (Imported.JakeMSG_YEP_X_InBattleStatus_Additions &&
         Window_EnemyInBattleStateList.prototype.makeItemList;
     Window_EnemyInBattleStateList.prototype.makeItemList = function() {
         Yanfly.BuffsStates_JakeMSGAdd.Window_EnemyInBattleStateList_makeItemList.call(this);
-        if (!this._battler || !this._battler.getNextTurnPreviewStates) return;
+        if (!this._battler) return;
 
-        var previews = this._battler.getNextTurnPreviewStates();
-        if (!previews || previews.length <= 0) return;
-
-        if (this._data && this._data.length === 1 && this._data[0] === null) {
-            this._data = [];
-        }
-
-        var insertAt = this._data.length;
+        var buffEntries = [];
         for (var i = 0; i < this._data.length; i++) {
             if (typeof this._data[i] === 'string' && this._data[i].match(/BUFF[ ]\d+/i)) {
-                insertAt = i;
-                break;
+                buffEntries.push(this._data[i]);
             }
         }
 
-        for (var j = 0; j < previews.length; j++) {
-            var preview = previews[j];
-            if (!this.includes || !this.includes(preview)) continue;
-            this._data.splice(insertAt, 0, preview);
-            insertAt += 1;
+        var states = Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview(this._battler);
+        var stateEntries = [];
+        for (var j = 0; j < states.length; j++) {
+            if (!this.includes || !this.includes(states[j])) continue;
+            stateEntries.push(states[j]);
         }
 
+        this._data = stateEntries.concat(buffEntries);
         if (this._data.length <= 0) this._data.push(null);
     };
 }
@@ -1702,15 +1817,16 @@ if (Imported.Olivia_StateOlivia_StateTooltipDisplay &&
         Window_StateIconTooltip.prototype.setupStateText;
     Window_StateIconTooltip.prototype.setupStateText = function() {
         Yanfly.BuffsStates_JakeMSGAdd.Window_StateIconTooltip_setupStateText.call(this);
-        if (!this._battler || !this._battler.getNextTurnPreviewStates) return;
+        if (!this._battler) return;
 
-        var previews = this._battler.getNextTurnPreviewStates();
-        if (!previews || previews.length <= 0) return;
+        var states = Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview(this._battler);
         var textFmt = Olivia.StateTooltipDisplay.Window.textFmt;
         var durationFmt = Olivia.StateTooltipDisplay.Window.durationFmt;
 
-        for (var i = 0; i < previews.length; i++) {
-            var state = previews[i];
+        this._text = '';
+
+        for (var i = 0; i < states.length; i++) {
+            var state = states[i];
             if (!state) continue;
             if (Olivia.SetupStateIconTooltipDescription) {
                 Olivia.SetupStateIconTooltipDescription(state);
@@ -1722,7 +1838,8 @@ if (Imported.Olivia_StateOlivia_StateTooltipDisplay &&
             var iconText = '\\i[' + state.iconIndex + ']';
             var nameText = state.name;
             var descText = state.description;
-            var turns = this._battler.stateTurns ? this._battler.stateTurns(state.id) : (this._battler._stateTurns[state.id] || 0);
+            var turns = this._battler.stateTurns ? this._battler.stateTurns(state.id) :
+                ((this._battler._stateTurns && this._battler._stateTurns[state.id]) || 0);
             var turnsText = durationFmt.format(turns);
             if (turns <= 0) turnsText = '';
             if (state.autoRemovalTiming <= 0) turnsText = '';
