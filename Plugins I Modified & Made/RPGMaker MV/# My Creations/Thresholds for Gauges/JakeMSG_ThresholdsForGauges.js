@@ -13,9 +13,11 @@ JakeMSG.ThresholdsForGauges = JakeMSG.ThresholdsForGauges || {};
 /*:
  * @plugindesc v1.0 Adds customizable threshold lines and script timings to battle gauges.
  * @author JakeMSG
- * v1.0
+ * v1.1
  *
 ============ Change Log ============
+1.1 - 6.25th.2026
+ * Fixed a crash upon Saving
 1.0 - 6.23rd.2026
  * initial release
 ====================================
@@ -575,6 +577,7 @@ $.defineHidden = function(obj, key, value, writable) {
 $.bindThresholdAccessors = function(thresh, battler) {
     var gaugeType = thresh._gaugeType;
     var customId = thresh._customBarrierId;
+    // Non-enumerable so JsonEx.save does not invoke battler-dependent getters mid-encode.
     Object.defineProperty(thresh, 'currentVal', {
         get: function() {
             return $.getGaugeValue(battler, gaugeType, customId);
@@ -582,7 +585,7 @@ $.bindThresholdAccessors = function(thresh, battler) {
         set: function(value) {
             $.setGaugeValue(battler, gaugeType, customId, value);
         },
-        enumerable: true,
+        enumerable: false,
         configurable: true
     });
     Object.defineProperty(thresh, 'previousVal', {
@@ -592,7 +595,7 @@ $.bindThresholdAccessors = function(thresh, battler) {
         set: function(value) {
             thresh._previousVal = Number(value) || 0;
         },
-        enumerable: true,
+        enumerable: false,
         configurable: true
     });
     Object.defineProperty(thresh, 'rawThreshold', {
@@ -602,9 +605,71 @@ $.bindThresholdAccessors = function(thresh, battler) {
         set: function(value) {
             $.setRawThreshold(thresh, battler, value);
         },
-        enumerable: true,
+        enumerable: false,
         configurable: true
     });
+};
+
+$.syncThresholdSaveEntry = function(battler, thresh) {
+    if (!battler || !thresh || !thresh._accessKey) return;
+    if (!battler._tfgThresholdData) {
+        battler._tfgThresholdData = {};
+    }
+    var entry = {};
+    for (var i = 0; i < $.PROPERTY_NAMES.length; i++) {
+        var prop = $.PROPERTY_NAMES[i];
+        if (thresh[prop] !== undefined) {
+            entry[prop] = thresh[prop];
+        }
+    }
+    battler._tfgThresholdData[thresh._accessKey] = entry;
+};
+
+$.applyThresholdSaveData = function(battler) {
+    var saved = battler._tfgThresholdData;
+    var map = battler._thresholdMap;
+    if (!saved || !map) return;
+    for (var key in saved) {
+        if (!saved.hasOwnProperty(key)) continue;
+        var thresh = map[key];
+        if (!thresh) continue;
+        var entry = saved[key];
+        for (var i = 0; i < $.PROPERTY_NAMES.length; i++) {
+            var prop = $.PROPERTY_NAMES[i];
+            if (entry[prop] !== undefined) {
+                thresh[prop] = entry[prop];
+            }
+        }
+    }
+};
+
+$.setThresholdMap = function(battler, map) {
+    Object.defineProperty(battler, '_thresholdMap', {
+        value: map,
+        writable: true,
+        enumerable: false,
+        configurable: true
+    });
+};
+
+$.restoreBattlerThresholds = function(battler) {
+    if (!battler) return;
+    if (!battler._tfgThresholdData) {
+        battler._tfgThresholdData = {};
+    }
+    $.refreshThresholdMap(battler, true);
+    $.applyThresholdSaveData(battler);
+    $.snapshotGaugeValues(battler);
+};
+
+$.restoreAllActorThresholds = function() {
+    if (!$gameActors) return;
+    for (var i = 1; i < $gameActors._data.length; i++) {
+        var actor = $gameActors._data[i];
+        if (actor) {
+            $.restoreBattlerThresholds(actor);
+        }
+    }
 };
 
 $.createRuntimeThreshold = function(battler, def) {
@@ -639,10 +704,12 @@ $.createRuntimeThreshold = function(battler, def) {
     $.defineHidden(thresh, 'propertySet', function(name, value) {
         thresh[name] = value;
         if (name === 'Threshold') thresh._tfgThresholdPending = true;
+        $.syncThresholdSaveEntry(battler, thresh);
         return value;
     }, false);
 
     $.bindThresholdAccessors(thresh, battler);
+    $.syncThresholdSaveEntry(battler, thresh);
     return thresh;
 };
 
@@ -661,7 +728,8 @@ $.refreshThresholdMap = function(battler, replace) {
             map[thresh._accessKey] = thresh;
         }
     }
-    battler._thresholdMap = map;
+    $.setThresholdMap(battler, map);
+    $.applyThresholdSaveData(battler);
     return map;
 };
 
@@ -683,8 +751,9 @@ $.installBattlerThresholdMember = function() {
     var JakeTFG_Battler_initMembers = Game_Battler.prototype.initMembers;
     Game_Battler.prototype.initMembers = function() {
         JakeTFG_Battler_initMembers.call(this);
-        this._thresholdMap = null;
-        this._tfgPrevGauge = null;
+        this._tfgThresholdData = {};
+        $.defineHidden(this, '_thresholdMap', null);
+        $.defineHidden(this, '_tfgPrevGauge', null);
     };
 
     Object.defineProperty(Game_Battler.prototype, 'thresholds', {
@@ -692,10 +761,10 @@ $.installBattlerThresholdMember = function() {
             return $.ensureThresholdMap(this);
         },
         set: function(value) {
-            this._thresholdMap = value;
+            $.setThresholdMap(this, value);
         },
         configurable: true,
-        enumerable: true
+        enumerable: false
     });
 
     Game_Battler.prototype._jakeTFGThresholdMemberInstalled = true;
@@ -1097,6 +1166,38 @@ if (typeof Scene_Map !== 'undefined') {
         }
     };
 }
+
+$.syncAllThresholdSaveData = function(battler) {
+    var map = battler._thresholdMap;
+    if (!map) return;
+    for (var key in map) {
+        if (map.hasOwnProperty(key)) {
+            $.syncThresholdSaveEntry(battler, map[key]);
+        }
+    }
+};
+
+$.syncAllActorThresholdSaveData = function() {
+    if (!$gameActors) return;
+    for (var i = 1; i < $gameActors._data.length; i++) {
+        var actor = $gameActors._data[i];
+        if (actor) {
+            $.syncAllThresholdSaveData(actor);
+        }
+    }
+};
+
+var JakeTFG_DataManager_makeSaveContents = DataManager.makeSaveContents;
+DataManager.makeSaveContents = function() {
+    $.syncAllActorThresholdSaveData();
+    return JakeTFG_DataManager_makeSaveContents.call(this);
+};
+
+var JakeTFG_DataManager_extractSaveContents = DataManager.extractSaveContents;
+DataManager.extractSaveContents = function(contents) {
+    JakeTFG_DataManager_extractSaveContents.call(this, contents);
+    $.restoreAllActorThresholds();
+};
 
 var JakeTFG_Scene_Boot_start = Scene_Boot.prototype.start;
 Scene_Boot.prototype.start = function() {
