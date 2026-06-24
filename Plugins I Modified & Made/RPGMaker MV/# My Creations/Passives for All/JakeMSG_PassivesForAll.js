@@ -14,9 +14,11 @@ JakeMSG.PassivesForAll = JakeMSG.PassivesForAll || {};
  /*:
  * @plugindesc Adds passive eval timings for owned data entries + visual passives menus in battle.
  * @author JakeMSG
- * v1.1
+ * v1.2
  *
 ============ Change Log ============
+1.2 - 6.25th.2026
+ * Fixed a crash upon Saving
 1.1 - 6.19th.2026
  * Added plugin parameters for setting the size settings for the Description (Help) Window in both menus
  * Removed the stats showing for Party and Enemies (this is already done by the "YEP_X_InBattleStatus" and "JakeMSG_X_InBattleStatus_Additions" plugins)
@@ -1279,6 +1281,9 @@ $.isTitleSceneActive = function() {
 };
 
 $.shouldRunTimingEvals = function() {
+    if ($.saveSerializationActive) {
+        return false;
+    }
     return !$.isTitleSceneActive();
 };
 
@@ -1517,7 +1522,7 @@ $.partyOwnedCount = function(item) {
         var members = $.partyMembersForIndex();
         for (var i = 0; i < members.length; i++) {
             var actor = members[i];
-            if (!actor || !actor.equips) {
+            if (!actor || !actor.equips || !Array.isArray(actor._equips)) {
                 continue;
             }
             var equips = actor.equips();
@@ -2018,7 +2023,7 @@ $.stringifyHookHandlers.Game_BattlerBase_eraseState = function(original, args) {
 
 $.stringifyHookHandlers.Game_BattlerBase_clearStates = function(original, args) {
     // During initMembers, state containers may not exist yet. Avoid alias-chain recursion.
-    if (!this._states || !this._stateTurns) {
+    if (!Array.isArray(this._states) || !this._stateTurns) {
         this._states = [];
         this._stateTurns = {};
         if (this._stateSteps !== undefined) {
@@ -2150,6 +2155,25 @@ $.installStringifyHooks = function() {
 };
 
 $.installStringifyHooks();
+
+$.wrapSaveSerialization = function(methodName) {
+    var original = DataManager[methodName];
+    if (!original || original._jakePFASaveSerializationWrapped) {
+        return;
+    }
+    DataManager[methodName] = function() {
+        $.saveSerializationActive = true;
+        try {
+            return original.apply(this, arguments);
+        } finally {
+            $.saveSerializationActive = false;
+        }
+    };
+    DataManager[methodName]._jakePFASaveSerializationWrapped = true;
+};
+
+$.wrapSaveSerialization('saveGameWithoutRescue');
+$.wrapSaveSerialization('loadGameWithoutRescue');
 
 //=============================================================================
 // Battle command UI helpers
