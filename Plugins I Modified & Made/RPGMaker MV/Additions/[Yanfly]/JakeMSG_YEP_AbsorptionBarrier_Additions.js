@@ -15,9 +15,11 @@ Yanfly.ABR_JakeMSGAdd.version = 1.0;
  * @plugindesc (Requires YEP_AbsorptionBarrier.js) Additions to the Absorption Barrier
  * yanfly Plugin
  * @author JakeMSG
- * v1.0
+ * v1.1
  * 
 ============ Change Log ============
+1.1 - 6.25th.2026
+ * Added a fix for a possible crash upon Saving
 1.0 - 6.19th.2026
  * initial release
 ====================================
@@ -1020,6 +1022,9 @@ Game_BattlerBase.prototype.clearAbsorptionBarrier = function() {
 Yanfly.ABR_JakeMSGAdd.Game_BattlerBase_states =
     Game_BattlerBase.prototype.states;
 Game_BattlerBase.prototype.states = function() {
+    if (!Array.isArray(this._states)) {
+        this._states = [];
+    }
     var array = Yanfly.ABR_JakeMSGAdd.Game_BattlerBase_states.call(this);
     var ids = Yanfly.ABR_JakeMSGAdd.customIds();
     if (ids.length <= 0 || !this.cBarrierPoints) return array;
