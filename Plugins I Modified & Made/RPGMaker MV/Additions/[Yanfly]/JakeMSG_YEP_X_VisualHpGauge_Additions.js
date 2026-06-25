@@ -8,23 +8,32 @@ Imported.JakeMSG_YEP_X_VisualHpGauge_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.VHG_JakeMSGAdd = Yanfly.VHG_JakeMSGAdd || {};
-Yanfly.VHG_JakeMSGAdd.version = 1.1;
+Yanfly.VHG_JakeMSGAdd.version = 1.2;
 
 //=============================================================================
 /*:
- * @plugindesc v1.1 (Requires YEP_X_VisualHpGauge.js) Adds MP/TP gauges, shared ordering, and enemy override settings
+ * @plugindesc v1.2 (Requires YEP_X_VisualHpGauge.js) Adds MP/TP gauges, shared ordering, and enemy override settings
  * @author JakeMSG
- * v1.1
+ * v1.2
  *
  * ============ Change Log ============
+ * 1.2 - 6.25th.2026
+ * Renamed "Bars order" to "Bars Shown & Order"
+ * Bars omitted from that parameter now stay hidden by default
+ * Enemy show-notetags can force omitted bars to appear
+ * Forced missing bars use fallback order HP, MP, TP
+ * Added global "Y Buffer" under All Bars Settings for whole shown bar group
+ * Added plugin-side "HP Gauge Height" parameter wiring
+ * "HP Gauge Height" now overwrites base plugin "Gauge Height" behavior
+ *
  * 1.1 - 6.19th.2026
- * * Added TP gauge support that mirrors MP gauge behavior and visuals
- * * Added global bar positioning/order settings for HP/MP/TP
- * * Added optional hide behavior for bars with max value 0
- * * Added enemy notetag override block for plugin parameters
- * * Gauge text font size now applies to TP text too
- * * Added <Hide/Show MP Gauge> and <Hide/Show TP Gauge> notetags
- * * Enemy override block now also supports HP settings from YEP_X_VisualHpGauge
+ * Added TP gauge support that mirrors MP gauge behavior and visuals
+ * Added global bar positioning/order settings for HP/MP/TP
+ * Added optional hide behavior for bars with max value 0
+ * Added enemy notetag override block for plugin parameters
+ * Gauge text font size now applies to TP text too
+ * Added <Hide/Show MP Gauge> and <Hide/Show TP Gauge> notetags
+ * Enemy override block now also supports HP settings from YEP_X_VisualHpGauge
  * 
  * 1.0 - 3.16th.2026
  * * Added MP gauge that mirrors HP gauge settings and visuals
@@ -51,10 +60,17 @@ Yanfly.VHG_JakeMSGAdd.version = 1.1;
  * ==================================== All Bars Settings
  * ======== "Bars positioning" controls whether all three bars are shown above or below
  *   the battler. This setting overrides YEP_X_VisualHpGauge's "Gauge Position".
- * ======== "Bars order" decides top-to-bottom order inside the gauge window.
+ * ======== "Y Buffer" applies one shared Y offset to whole shown bar group.
+ *   Positive moves down, negative moves up, for both Above and Below modes.
+ * ======== "Bars Shown & Order" decides which bars are shown and their
+ * top-to-bottom order inside the gauge window.
  *   Accepted tokens: HP, MP, TP.
  *   Split tokens with commas, spaces, or both.
  *   Example: "TP HP MP" or "MP, HP, TP".
+ *   Any bar not listed here is hidden by default.
+ *   Exception: if an enemy has a "Show <bar> Gauge" notetag, missing bars can
+ *   still appear for that enemy, and missing forced bars use fallback order
+ *   HP -> MP -> TP.
  * ======== "Don't show bars with a Max of 0" hides only the individual gauge(s) whose
  *   max stat is 0 (HP max 0 hides HP bar, MP max 0 hides MP bar, TP max 0 hides
  *   TP bar), while leaving other bars visible.
@@ -82,10 +98,10 @@ Yanfly.VHG_JakeMSGAdd.version = 1.1;
  * ==== Semicolons (;)
  * ==== Or both
  * ======== "Parameter Name" can be any parameter from this plugin
- * (for example: Bars positioning, Bars order, Show TP, TP Color 1, etc.)
+ * (for example: Bars positioning, Bars Shown & Order, Show TP, TP Color 1, etc.)
  * ======== Parameters can also be HP parameters from YEP_X_VisualHpGauge
  * (for example: Minimum Gauge Width, Gauge Height, Back Color, HP Color 1,
- * HP Color 2, Gauge Duration, Y Buffer, Show HP, Show Value, Show Max).
+ * HP Color 2, Gauge Duration, HP Y Buffer, Show HP, Show Value, Show Max).
  * ======== The enemy will then use those values instead of plugin defaults.
  *
  * 
@@ -113,11 +129,19 @@ Yanfly.VHG_JakeMSGAdd.version = 1.1;
  * @default Below
  * @desc Show all bars above or below battler. Overrides base plugin HP gauge position.
  *
- * @param Bars order
+ * @param Y Buffer
+ * @parent ---All bars Settings---
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default -16
+ * @desc Shared Y offset for whole shown bar group (works for both Above and Below).
+ *
+ * @param Bars Shown & Order
  * @parent ---All bars Settings---
  * @type text
  * @default HP, MP, TP
- * @desc Top-to-bottom bar order. Include HP/MP/TP split by commas, spaces, or both.
+ * @desc Bars to show + top-to-bottom order. Include HP/MP/TP split by commas/spaces.
  *
  * @param Don't show bars with a Max of 0
  * @parent ---All bars Settings---
@@ -127,6 +151,20 @@ Yanfly.VHG_JakeMSGAdd.version = 1.1;
  * @default true
  * @desc If true, any bar with max value 0 is hidden.
  *
+ * @param ---Visual HP gauge---
+ * @default
+ * 
+ * @param ---HP Appearance---
+ * @parent ---Visual HP gauge---
+ * @default
+ * 
+ * @param HP Gauge Height
+ * @parent ---HP Appearance---
+ * @type number
+ * @min 1
+ * @default 18
+ * @desc Height in pixels for HP gauges (overwrites YEP_X_VisualHpGauge's HP Gauge Height)
+ * 
  * @param ---Visual MP gauge---
  * @default
  *
@@ -360,9 +398,6 @@ Yanfly.VHG_JakeMSGAdd.parseBarsOrder = function(value) {
             order.push(token);
         }
     }
-    ['HP', 'MP', 'TP'].forEach(function(token) {
-        if (!order.contains(token)) order.push(token);
-    });
     return order;
 };
 
@@ -389,7 +424,12 @@ Yanfly.Param.VMGAllBarsPosition = Yanfly.VHG_JakeMSGAdd.readBarsPosition(
     Yanfly.Parameters['Bars positioning'],
     false
 );
-Yanfly.Param.VMGAllBarsOrder = String(Yanfly.Parameters['Bars order'] || 'HP, MP, TP');
+Yanfly.Param.VMGAllBarsBufferY = Number(Yanfly.Parameters['Y Buffer'] || -16);
+Yanfly.Param.VMGAllBarsOrder = String(
+    Yanfly.Parameters['Bars Shown & Order'] ||
+    Yanfly.Parameters['Bars order'] ||
+    'HP, MP, TP'
+);
 Yanfly.Param.VMGHideZeroMax = Yanfly.VHG_JakeMSGAdd.readBool(
     Yanfly.Parameters["Don't show bars with a Max of 0"],
     true
@@ -397,6 +437,12 @@ Yanfly.Param.VMGHideZeroMax = Yanfly.VHG_JakeMSGAdd.readBool(
 
 // overwrite base plugin HP position setting with this plugin's all-bar setting
 Yanfly.Param.VHGGaugePos = Yanfly.Param.VMGAllBarsPosition;
+Yanfly.Param.VHGBufferY = Yanfly.Param.VMGAllBarsBufferY;
+Yanfly.Param.VHGGaugeHeight = Number(
+    Yanfly.Parameters['HP Gauge Height'] ||
+    Yanfly.Param.VHGGaugeHeight ||
+    18
+);
 
 // Visual MP Gauge > Appearance
 Yanfly.Param.VMGMinMpWidth = Number(Yanfly.Parameters['Minimum MP Gauge Width'] || 144);
@@ -454,18 +500,21 @@ Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo = function(paramName, key, type) {
 
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Text Font Size', 'VHGTextFontSize', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Bars positioning', 'VMGAllBarsPosition', 'barsPosition');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Y Buffer', 'VMGAllBarsBufferY', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Bars Shown & Order', 'VMGAllBarsOrder', 'barsOrder');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Bars order', 'VMGAllBarsOrder', 'barsOrder');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo("Don't show bars with a Max of 0", 'VMGHideZeroMax', 'bool');
 
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Always Visible', 'VHGAlwaysShow', 'bool');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Minimum Gauge Width', 'VHGMinHpWidth', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Height', 'VHGGaugeHeight', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('HP Gauge Height', 'VHGGaugeHeight', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Back Color', 'VHGBackColor', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('HP Color 1', 'VHGHpColor1', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('HP Color 2', 'VHGHpColor2', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Duration', 'VHGGaugeDuration', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Gauge Position', 'VMGAllBarsPosition', 'barsPosition');
-Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Y Buffer', 'VHGBufferY', 'number');
+Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('HP Y Buffer', 'VHGBufferY', 'number');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Use Thick Gauges', 'VHGThick', 'bool');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show HP', 'VHGShowHP', 'bool');
 Yanfly.VHG_JakeMSGAdd.addOverrideParamInfo('Show Value', 'VHGShowValue', 'bool');
@@ -795,25 +844,58 @@ Window_VisualHPGauge.prototype.tpGaugeVisible = function() {
     return true;
 };
 
+Window_VisualHPGauge.prototype.jakeMSGBarVisible = function(entry) {
+    if (entry === 'hp') return this.hpGaugeVisible();
+    if (entry === 'mp') return this.mpGaugeVisible();
+    if (entry === 'tp') return this.tpGaugeVisible();
+    return false;
+};
+
+Window_VisualHPGauge.prototype.jakeMSGIsEnemyForceShowBar = function(entry) {
+    if (!this._battler || !this._battler.isEnemy || !this._battler.isEnemy()) return false;
+    var enemyData = this._battler.enemy ? this._battler.enemy() : null;
+    if (!enemyData) return false;
+    if (entry === 'hp') return !!enemyData.showHpGauge;
+    if (entry === 'mp') return !!enemyData.showMpGauge;
+    if (entry === 'tp') return !!enemyData.showTpGauge;
+    return false;
+};
+
 Window_VisualHPGauge.prototype.jakeMSGVisibleBarsInOrder = function() {
     var rawOrder = this.jakeMSGGaugeParam('VMGAllBarsOrder');
-    var order = Yanfly.VHG_JakeMSGAdd.parseBarsOrder(rawOrder);
-    var result = [];
-    for (var i = 0; i < order.length; i++) {
-        var token = order[i];
-        if (token === 'HP' && this.hpGaugeVisible()) {
-            result.push('hp');
-        } else if (token === 'MP' && this.mpGaugeVisible()) {
-            result.push('mp');
-        } else if (token === 'TP' && this.tpGaugeVisible()) {
-            result.push('tp');
+    var tokenOrder = Yanfly.VHG_JakeMSGAdd.parseBarsOrder(rawOrder);
+    var order = [];
+    var seen = {};
+    for (var i = 0; i < tokenOrder.length; i++) {
+        var token = tokenOrder[i];
+        var bar = token.toLowerCase();
+        if (!['hp', 'mp', 'tp'].contains(bar)) continue;
+        if (seen[bar]) continue;
+        seen[bar] = true;
+        order.push(bar);
+    }
+
+    // Missing bars are hidden by default, unless enemy show-notetag force-shows them.
+    var fallbackOrder = ['hp', 'mp', 'tp'];
+    for (var n = 0; n < fallbackOrder.length; n++) {
+        var missingBar = fallbackOrder[n];
+        if (seen[missingBar]) continue;
+        if (!this.jakeMSGIsEnemyForceShowBar(missingBar)) continue;
+        seen[missingBar] = true;
+        order.push(missingBar);
+    }
+
+    var visibleOrder = [];
+    for (var j = 0; j < order.length; j++) {
+        if (this.jakeMSGBarVisible(order[j])) {
+            visibleOrder.push(order[j]);
         }
     }
-    return result;
+    return visibleOrder;
 };
 
 Window_VisualHPGauge.prototype.jakeMSGAnyGaugeVisible = function() {
-    return this.hpGaugeVisible() || this.mpGaugeVisible() || this.tpGaugeVisible();
+    return this.jakeMSGVisibleBarsInOrder().length > 0;
 };
 
 Window_VisualHPGauge.prototype.jakeMSGGaugeWidthFor = function(entry) {
@@ -829,22 +911,30 @@ Window_VisualHPGauge.prototype.jakeMSGGaugeWidthFor = function(entry) {
     return Math.max(0, width);
 };
 
+Window_VisualHPGauge.prototype.jakeMSGGaugeHeightFor = function(entry) {
+    if (!this._battler) return this.gaugeHeight();
+    if (entry === 'hp') return this._battler.hpGaugeHeight();
+    if (entry === 'mp') return this._battler.mpGaugeHeight();
+    if (entry === 'tp') return this._battler.tpGaugeHeight();
+    return this.gaugeHeight();
+};
+
 Window_VisualHPGauge.prototype.updateWindowSize = function() {
     if (!this._battler) return;
     var bars = this.jakeMSGVisibleBarsInOrder();
     var gaugeCount = Math.max(1, bars.length);
     var widths = [];
-    if (this.hpGaugeVisible()) widths.push(this._battler.hpGaugeWidth());
-    if (this.mpGaugeVisible()) widths.push(this._battler.mpGaugeWidth());
-    if (this.tpGaugeVisible()) widths.push(this._battler.tpGaugeWidth());
+    for (var i = 0; i < bars.length; i++) {
+        widths.push(this.jakeMSGGaugeWidthFor(bars[i]));
+    }
     if (widths.length <= 0) widths.push(this._battler.hpGaugeWidth());
     var spriteWidth = Math.max.apply(null, widths);
     var width = spriteWidth + this.standardPadding() * 2;
     width = Math.min(width, Graphics.boxWidth + this.standardPadding() * 2);
     var heights = [];
-    if (this.hpGaugeVisible()) heights.push(this._battler.hpGaugeHeight());
-    if (this.mpGaugeVisible()) heights.push(this._battler.mpGaugeHeight());
-    if (this.tpGaugeVisible()) heights.push(this._battler.tpGaugeHeight());
+    for (var j = 0; j < bars.length; j++) {
+        heights.push(this.jakeMSGGaugeHeightFor(bars[j]));
+    }
     if (heights.length <= 0) heights.push(this.gaugeHeight());
     var maxGaugeH = Math.max.apply(null, heights);
     var height = Math.max(this.lineHeight() * gaugeCount, maxGaugeH * gaugeCount + 4);
@@ -925,12 +1015,7 @@ Window_VisualHPGauge.prototype.updateWindowPosition = function() {
     if (!this._battler) return;
     var battler = this._battler;
     var anchorAbove = !!this.jakeMSGGaugeParam('VMGAllBarsPosition');
-    var bufferValues = [];
-    if (this.hpGaugeVisible()) bufferValues.push(Number(this.jakeMSGGaugeParam('VHGBufferY') || 0));
-    if (this.mpGaugeVisible()) bufferValues.push(Number(this.jakeMSGGaugeParam('VMGBufferY') || 0));
-    if (this.tpGaugeVisible()) bufferValues.push(Number(this.jakeMSGGaugeParam('VMTBufferY') || 0));
-    if (bufferValues.length <= 0) bufferValues.push(Yanfly.Param.VHGBufferY);
-    var buffer = anchorAbove ? Math.min.apply(null, bufferValues) : Math.max.apply(null, bufferValues);
+    var buffer = Number(this.jakeMSGGaugeParam('VMGAllBarsBufferY') || 0);
 
     this.x = battler.spritePosX();
     this.x -= Math.ceil(this.width / 2);
@@ -948,11 +1033,12 @@ Window_VisualHPGauge.prototype.updateWindowPosition = function() {
 
 Window_VisualHPGauge.prototype.isShowWindow = function() {
     if (!this._battler.isAppeared()) return false;
-    if (!this.jakeMSGAnyGaugeVisible()) return false;
+    var bars = this.jakeMSGVisibleBarsInOrder();
+    if (bars.length <= 0) return false;
     if (!!this.jakeMSGGaugeParam('VHGAlwaysShow') && !this._battler.isDead()) return true;
-    if (this.hpGaugeVisible() && this._currentHpValue !== this._displayedValue) return true;
-    if (this.mpGaugeVisible() && this._currentMpValue !== this._displayedMpValue) return true;
-    if (this.tpGaugeVisible() && this._currentTpValue !== this._displayedTpValue) return true;
+    if (bars.contains('hp') && this._currentHpValue !== this._displayedValue) return true;
+    if (bars.contains('mp') && this._currentMpValue !== this._displayedMpValue) return true;
+    if (bars.contains('tp') && this._currentTpValue !== this._displayedTpValue) return true;
     if (this._battler.isSelected()) return true;
     --this._visibleCounter;
     return this._visibleCounter > 0;
