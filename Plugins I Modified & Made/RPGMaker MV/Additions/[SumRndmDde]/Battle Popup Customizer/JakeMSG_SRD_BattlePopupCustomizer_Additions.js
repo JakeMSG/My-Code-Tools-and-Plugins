@@ -8,16 +8,18 @@ Imported.JakeMSG_SRD_BattlePopupCustomizer_Additions = true;
 
 var SRD = SRD || {};
 SRD.BattlePopupCustomizer_JakeMSGAdd = SRD.BattlePopupCustomizer_JakeMSGAdd || {};
-SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.0;
+SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.1;
 
 //=============================================================================
 /*:
  * @plugindesc (Requires SRD_BattlePopupCustomizer.js) Additions to the Battle Popup Customizer
  *  SRD Plugin
  * @author JakeMSG
- * v1.0
+ * v1.1
  *
 ============ Change Log ============
+1.1 - 6.25th.2026
+ * Added Popout Offsets (plugin parameters and Actor/Enemy notetags)
 1.0 - 3.13th.2026
  * initial release
 ====================================
@@ -77,13 +79,78 @@ SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.0;
  * );
  *
  * 
+ * ================================
+ * Popout Offsets
+ * ================================
+ *
+ * Plugin parameters under "Popout Offsets" shift where battle popouts appear
+ * relative to the battler they belong to. Offsets are measured in pixels.
+ * Negative values are allowed.
+ *
+ * - Actor-affecting Popouts: applies to popouts shown on party members
+ *   (actors). This includes Non-Sideview battles whenever actor popouts are
+ *   displayed (for example with front-view actor sprites or animations enabled).
+ * - Enemy-affecting Popouts: applies to popouts shown on enemies.
+ *
+ * Each axis (X and Y) can be configured separately in the plugin parameters.
+ *
+ * ================================
+ * Notetags - Popout Offset Override
+ * ================================
+ *
+ * Place these in an Actor or Enemy notebox to override the plugin parameter
+ * offsets for that specific database entry only. Each tag overrides one axis;
+ * the other axis still uses the matching plugin parameter unless it also has
+ * a notetag.
+ *
+ * <Popout Offset X: n>
+ * <Popout Offset Y: n>
+ *
+ * n is a number in pixels. Negative values are allowed.
+ *
+ * Example (Actor notebox):
+ * <Popout Offset X: 12>
+ * <Popout Offset Y: -24>
+ *
  * 
  * ======================================
  * Param Declarations
  * ======================================
- * @param 
+ * @param ---- Popout Offsets ----
+ * @default
  * 
+ * @param -- Actor-affecting Popouts --
+ * @parent ---- Popout Offsets ----
+ * @default
  * 
+ * @param Actor X Offset
+ * @text X Offset
+ * @parent -- Actor-affecting Popouts --
+ * @desc The X offset of the popout for actor-affecting popouts.
+ * @default 0
+ * 
+ * @param Actor Y Offset
+ * @text Y Offset
+ * @parent -- Actor-affecting Popouts --
+ * @desc The Y offset of the popout for actor-affecting popouts.
+ * @default 0
+ *
+ * 
+ * @param -- Enemy-affecting Popouts --
+ * @parent ---- Popout Offsets ----
+ * @default
+ * 
+ * @param Enemy X Offset
+ * @text X Offset
+ * @parent -- Enemy-affecting Popouts --
+ * @desc The X offset of the popout for enemy-affecting popouts.
+ * @default 0
+ * 
+ * @param Enemy Y Offset
+ * @text Y Offset
+ * @parent -- Enemy-affecting Popouts --
+ * @desc The Y offset of the popout for enemy-affecting popouts.
+ * @default 0
  * 
  */
 //=============================================================================
@@ -99,6 +166,43 @@ var addOnParams = PluginManager.parameters('JakeMSG_SRD_BattlePopupCustomizer_Ad
 var baseCustomizer = SRD.BattlePopupCustomizer;
 
 _.nextTurnIconOpacity = Number(addOnParams['NextTurn Icon Opacity'] || 127);
+
+_.parseOffsetParam = function(value) {
+	var number = Number(value);
+	return isNaN(number) ? 0 : number;
+};
+
+_.actorPopoutOffsetX = _.parseOffsetParam(addOnParams['Actor X Offset']);
+_.actorPopoutOffsetY = _.parseOffsetParam(addOnParams['Actor Y Offset']);
+_.enemyPopoutOffsetX = _.parseOffsetParam(addOnParams['Enemy X Offset']);
+_.enemyPopoutOffsetY = _.parseOffsetParam(addOnParams['Enemy Y Offset']);
+
+_.getBattlerPopoutOffsets = function(battler) {
+	if (!battler) {
+		return { x: 0, y: 0 };
+	}
+	var defaultX;
+	var defaultY;
+	var dbObj;
+	if (battler.isActor()) {
+		defaultX = _.actorPopoutOffsetX;
+		defaultY = _.actorPopoutOffsetY;
+		dbObj = battler.actor();
+	} else if (battler.isEnemy()) {
+		defaultX = _.enemyPopoutOffsetX;
+		defaultY = _.enemyPopoutOffsetY;
+		dbObj = battler.enemy();
+	} else {
+		return { x: 0, y: 0 };
+	}
+	if (!dbObj) {
+		return { x: defaultX, y: defaultY };
+	}
+	return {
+		x: dbObj.jakeMSGPopoutOffsetX !== undefined ? dbObj.jakeMSGPopoutOffsetX : defaultX,
+		y: dbObj.jakeMSGPopoutOffsetY !== undefined ? dbObj.jakeMSGPopoutOffsetY : defaultY
+	};
+};
 
 _.parseLocation = function(value) {
 	var location = String(value || '0, 0').split(/\s*,\s*/);
@@ -547,6 +651,75 @@ Sprite_Damage.prototype.update = function() {
 		this.parent.removeChild(this);
 	}
 	};
+
+var _Sprite_Actor_damageOffsetX = Sprite_Actor.prototype.damageOffsetX;
+Sprite_Actor.prototype.damageOffsetX = function() {
+	var offset = _Sprite_Actor_damageOffsetX.call(this);
+	if (this._battler) {
+		offset += _.getBattlerPopoutOffsets(this._battler).x;
+	}
+	return offset;
+};
+
+var _Sprite_Actor_damageOffsetY = Sprite_Actor.prototype.damageOffsetY;
+Sprite_Actor.prototype.damageOffsetY = function() {
+	var offset = _Sprite_Actor_damageOffsetY.call(this);
+	if (this._battler) {
+		offset += _.getBattlerPopoutOffsets(this._battler).y;
+	}
+	return offset;
+};
+
+var _Sprite_Enemy_damageOffsetX = Sprite_Enemy.prototype.damageOffsetX;
+Sprite_Enemy.prototype.damageOffsetX = function() {
+	var offset = _Sprite_Enemy_damageOffsetX.call(this);
+	if (this._battler) {
+		offset += _.getBattlerPopoutOffsets(this._battler).x;
+	}
+	return offset;
+};
+
+var _Sprite_Enemy_damageOffsetY = Sprite_Enemy.prototype.damageOffsetY;
+Sprite_Enemy.prototype.damageOffsetY = function() {
+	var offset = _Sprite_Enemy_damageOffsetY.call(this);
+	if (this._battler) {
+		offset += _.getBattlerPopoutOffsets(this._battler).y;
+	}
+	return offset;
+};
+
+var _DataManager_isDatabaseLoaded = DataManager.isDatabaseLoaded;
+DataManager.isDatabaseLoaded = function() {
+	if (!_DataManager_isDatabaseLoaded.call(this)) {
+		return false;
+	}
+	if (!SRD.BattlePopupCustomizer_JakeMSGAdd._loadedPopoutOffsetNotetags) {
+		DataManager.processJakeMSGPopoutOffsetNotetags($dataActors);
+		DataManager.processJakeMSGPopoutOffsetNotetags($dataEnemies);
+		SRD.BattlePopupCustomizer_JakeMSGAdd._loadedPopoutOffsetNotetags = true;
+	}
+	return true;
+};
+
+DataManager.processJakeMSGPopoutOffsetNotetags = function(group) {
+	for (var index = 1; index < group.length; index++) {
+		var obj = group[index];
+		if (!obj) {
+			continue;
+		}
+		obj.jakeMSGPopoutOffsetX = undefined;
+		obj.jakeMSGPopoutOffsetY = undefined;
+		var notedata = obj.note ? obj.note.split(/[\r\n]+/) : [];
+		for (var lineIndex = 0; lineIndex < notedata.length; lineIndex++) {
+			var line = notedata[lineIndex];
+			if (line.match(/<Popout Offset X:\s*(-?\d+(?:\.\d+)?)\s*>/i)) {
+				obj.jakeMSGPopoutOffsetX = Number(RegExp.$1);
+			} else if (line.match(/<Popout Offset Y:\s*(-?\d+(?:\.\d+)?)\s*>/i)) {
+				obj.jakeMSGPopoutOffsetY = Number(RegExp.$1);
+			}
+		}
+	}
+};
 
 })(SRD.BattlePopupCustomizer_JakeMSGAdd);
 
