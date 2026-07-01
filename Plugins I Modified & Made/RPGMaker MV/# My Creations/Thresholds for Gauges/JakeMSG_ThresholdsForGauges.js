@@ -11,11 +11,15 @@ JakeMSG.ThresholdsForGauges = JakeMSG.ThresholdsForGauges || {};
 
 //=============================================================================
 /*:
- * @plugindesc v1.0 Adds customizable threshold lines and script timings to battle gauges.
+ * @plugindesc v1.2 Adds customizable threshold lines and script timings to battle gauges.
  * @author JakeMSG
- * v1.1
+ * v1.2
  *
 ============ Change Log ============
+1.2 - 7.1st.2026
+ * Fixed Barrier / Custom Barrier threshold triggers on initial application
+ * Fixed Barrier / Custom Barrier threshold line positions on combined HP gauges
+ * Percentage-only Barrier thresholds without a max no longer draw or trigger
 1.1 - 6.25th.2026
  * Fixed a crash upon Saving
 1.0 - 6.23rd.2026
@@ -144,17 +148,24 @@ JakeMSG.ThresholdsForGauges = JakeMSG.ThresholdsForGauges || {};
  * Each threshold is itself a keymap of property names to values. Properties
  * are readable and writable:
  *
- *   // Read a property
- *   var color = actor.thresholds['LowHP']['Color'];
+ *   // Read from a property
+ *   var color = battler.thresholds['LowHP']['Color'];
+ *   var color = battler.thresholds.LowHP.Color;
  *
- *   // Write a property
- *   actor.thresholds['LowHP']['Enabled'] = true;
+ *   // Write to a property
+ *   battler.thresholds['LowHP']['Enabled'] = true;
+ *   battler.thresholds.LowHP.Enabled = true;
  *
  * Helper variables from eval timings are also stored on the threshold object:
  *
- *   actor.thresholds['LowHP']['currentVal']
- *   actor.thresholds['LowHP']['previousVal']
- *   actor.thresholds['LowHP']['rawThreshold']
+ *   battler.thresholds['LowHP']['currentVal']
+ *   battler.thresholds.LowHP.currentVal    
+ * 
+ *   battler.thresholds['LowHP']['previousVal']
+ *   battler.thresholds.LowHP.previousVal
+ * 
+ *   battler.thresholds['LowHP']['rawThreshold']
+ *   battler.thresholds.LowHP.rawThreshold
  *
  * rawThreshold is the flat gauge position resolved from Threshold (including
  * percentage and combination values). Assigning a flat number to rawThreshold
@@ -188,7 +199,7 @@ JakeMSG.ThresholdsForGauges = JakeMSG.ThresholdsForGauges || {};
 (function($) {
 'use strict';
 
-$.version = 1.0;
+$.version = 1.2;
 
 //=============================================================================
 // Defaults and Constants
@@ -328,10 +339,32 @@ $.resolveThresholdPosition = function(thresholdObj, max) {
     return $.parseThresholdValue(thresholdObj['Threshold'], max);
 };
 
-$.getRawThreshold = function(thresh, battler) {
-    if (!thresh || !battler) return 0;
+$.thresholdHasPercentComponent = function(text) {
+    return /%|％/.test(String(text || ''));
+};
+
+$.hasResolvableThreshold = function(thresh, battler) {
+    if (!thresh || !battler) return false;
+    var gaugeType = thresh._gaugeType;
+    if (gaugeType !== 'Barrier' && gaugeType !== 'CustomBarrier') return true;
+    var text = thresh['Threshold'];
+    var definedMax = $.getGaugeMax(battler, gaugeType, thresh._customBarrierId);
+    if ($.thresholdHasPercentComponent(text) && definedMax <= 0) {
+        return false;
+    }
+    return true;
+};
+
+$.resolveThresholdForBattler = function(thresh, battler) {
+    if (!$.hasResolvableThreshold(thresh, battler)) return -1;
     var max = $.getGaugeMax(battler, thresh._gaugeType, thresh._customBarrierId);
     return $.resolveThresholdPosition(thresh, max);
+};
+
+$.getRawThreshold = function(thresh, battler) {
+    if (!thresh || !battler) return 0;
+    var resolved = $.resolveThresholdForBattler(thresh, battler);
+    return resolved < 0 ? 0 : resolved;
 };
 
 $.isFlatThresholdValue = function(value) {
@@ -891,9 +924,13 @@ $.evaluateCondition = function(thresh, battler) {
     }
 };
 
-$.thresholdCrossed = function(thresh, prev, cur, max) {
+$.thresholdCrossed = function(thresh, prev, cur, max, battler) {
+    if (battler && !$.hasResolvableThreshold(thresh, battler)) return false;
     var orientation = thresh['Thres. Orientation'];
-    var thresholdVal = $.resolveThresholdPosition(thresh, max);
+    var thresholdVal = battler ?
+        $.resolveThresholdForBattler(thresh, battler) :
+        $.resolveThresholdPosition(thresh, max);
+    if (thresholdVal < 0) return false;
     var prevO = $.orientedFill(prev, max, orientation);
     var curO = $.orientedFill(cur, max, orientation);
     if (prevO === curO) return false;
@@ -1019,7 +1056,8 @@ $.checkThresholdsForGauge = function(battler, gaugeType, customId, prev, cur) {
         thresh._previousVal = prev;
         thresh.currentVal = cur;
         if (!$.evaluateCondition(thresh, battler)) continue;
-        if (!$.thresholdCrossed(thresh, prev, cur, max)) continue;
+        if (!$.hasResolvableThreshold(thresh, battler)) continue;
+        if (!$.thresholdCrossed(thresh, prev, cur, max, battler)) continue;
         thresh._tfgLastFireFrame = frame;
         $.queueThresholdExecution(thresh, battler, prev, cur);
     }
@@ -1078,7 +1116,11 @@ $.wrapGaugeMutation = function(target, methodName, gaugeType, customIdFromArgs) 
             $.canTrackThresholdChanges()) {
             var cur = $.getGaugeValue(battler, gaugeType, customId);
             if (prev !== cur) {
-                $.checkThresholdsForGauge(battler, gaugeType, customId, prev, cur);
+                var skipCross = (gaugeType === 'Barrier' ||
+                    gaugeType === 'CustomBarrier') && prev === 0 && cur > 0;
+                if (!skipCross) {
+                    $.checkThresholdsForGauge(battler, gaugeType, customId, prev, cur);
+                }
                 $.storeGaugePrev(battler, gaugeType, customId, cur);
             }
         }
@@ -1210,9 +1252,14 @@ Scene_Boot.prototype.start = function() {
 //=============================================================================
 
 $.hpCombinedTotalMax = function(battler) {
+    return $.barrierGaugeLayout(battler).max;
+};
+
+$.barrierGaugeLayout = function(battler) {
     var mhp = Math.max(1, battler.mhp);
     var hp = Math.max(0, battler.hp);
-    var barrierTotal = 0;
+    var segments = [];
+    var totalBarrier = 0;
 
     if (Imported.JakeMSG_YEP_AbsorptionBarrier_Additions &&
         battler.cBarrierPoints && Yanfly.ABR_JakeMSGAdd &&
@@ -1221,56 +1268,66 @@ $.hpCombinedTotalMax = function(battler) {
         for (var i = 0; i < order.length; i++) {
             var ch = order[i];
             var pts = (ch === 'default') ?
-                (battler.barrierPoints ? battler.barrierPoints() : 0) :
-                battler.cBarrierPoints(ch);
-            if (pts > 0) barrierTotal += pts;
+                (battler.barrierPoints ? Math.max(0, battler.barrierPoints()) : 0) :
+                Math.max(0, battler.cBarrierPoints(ch));
+            if (pts > 0) {
+                segments.push({
+                    channel: ch,
+                    customId: ch === 'default' ? null : ch,
+                    pts: pts
+                });
+                totalBarrier += pts;
+            }
         }
     } else if (Imported.YEP_AbsorptionBarrier && battler.barrierPoints) {
-        barrierTotal = Math.max(0, battler.barrierPoints());
+        var bPts = Math.max(0, battler.barrierPoints());
+        if (bPts > 0) {
+            segments.push({ channel: 'default', customId: null, pts: bPts });
+            totalBarrier = bPts;
+        }
     }
 
-    if (hp + barrierTotal > mhp) return hp + barrierTotal;
-    return mhp;
+    var total = hp + totalBarrier;
+    var max = total > mhp ? total : mhp;
+    var cum = hp;
+    for (var j = 0; j < segments.length; j++) {
+        var seg = segments[j];
+        seg.startRate = cum / max;
+        cum += seg.pts;
+        seg.endRate = cum / max;
+        seg.widthRate = seg.endRate - seg.startRate;
+    }
+    return { mhp: mhp, hp: hp, max: max, segments: segments };
 };
 
-$.barrierZoneOnCombinedGauge = function(battler, totalMax) {
-    var mhp = Math.max(1, battler.mhp);
-    var hp = Math.max(0, battler.hp);
-    var barrierMax = $.getGaugeMax(battler, 'Barrier');
-    var barrierPts = (battler.barrierPoints) ? Math.max(0, battler.barrierPoints()) : 0;
-    var scaleMax = barrierMax > 0 ? barrierMax : Math.max(1, barrierPts);
-    var barUnits = barrierMax > 0 ? barrierMax : barrierPts;
-    if (barUnits <= 0) {
-        return { start: 1, width: 0, max: scaleMax };
+$.findBarrierSegment = function(battler, gaugeType, customId) {
+    var layout = $.barrierGaugeLayout(battler);
+    for (var i = 0; i < layout.segments.length; i++) {
+        var seg = layout.segments[i];
+        if (gaugeType === 'Barrier' && seg.channel === 'default') return seg;
+        if (gaugeType === 'CustomBarrier' &&
+            Number(seg.customId) === Number(customId)) {
+            return seg;
+        }
     }
-    if (hp + barrierPts > mhp) {
-        return {
-            start: mhp / totalMax,
-            width: barUnits / totalMax,
-            max: scaleMax
-        };
-    }
-    return {
-        start: hp / mhp,
-        width: barUnits / mhp,
-        max: scaleMax
-    };
+    return null;
 };
 
-$.customBarrierZoneOnCombinedGauge = function(battler, customId, totalMax, zoneStart) {
-    var cMax = $.getGaugeMax(battler, 'CustomBarrier', customId);
-    var cPts = (battler.cBarrierPoints) ?
-        Math.max(0, battler.cBarrierPoints(customId)) : 0;
-    var barUnits = cMax > 0 ? cMax : cPts;
-    var scaleMax = cMax > 0 ? cMax : Math.max(1, cPts);
-    if (barUnits <= 0) {
-        return { start: zoneStart, width: 0, max: scaleMax };
-    }
-    return {
-        start: zoneStart,
-        width: barUnits / totalMax,
-        max: scaleMax
-    };
+$.barrierThresholdMarkerRate = function(thresh, battler) {
+    if (!$.hasResolvableThreshold(thresh, battler)) return -1;
+    var gaugeType = thresh._gaugeType;
+    var customId = thresh._customBarrierId;
+    var seg = $.findBarrierSegment(battler, gaugeType, customId);
+    if (!seg || seg.widthRate <= 0 || seg.pts <= 0) return -1;
+
+    var definedMax = $.getGaugeMax(battler, gaugeType, customId);
+    var resolveMax = definedMax > 0 ? definedMax : 0;
+    var thresholdVal = $.resolveThresholdPosition(thresh, resolveMax);
+    var displayScale = definedMax > 0 ? definedMax : seg.pts;
+    if (displayScale <= 0) return -1;
+    var orient = thresh['Thres. Orientation'];
+    var oriented = $.orientedFill(thresholdVal, displayScale, orient);
+    return seg.startRate + seg.widthRate * (oriented / displayScale);
 };
 
 $.thresholdMarkerRate = function(thresh, battler, drawMode) {
@@ -1295,47 +1352,9 @@ $.thresholdMarkerRate = function(thresh, battler, drawMode) {
         return oVal / max;
     }
 
-    if (gaugeType === 'Barrier' && drawMode === 'hpCombined') {
-        var total = $.hpCombinedTotalMax(battler);
-        var zone = $.barrierZoneOnCombinedGauge(battler, total);
-        if (zone.width <= 0) return -1;
-        var bVal = $.resolveThresholdPosition(thresh, zone.max);
-        var bOrient = $.orientedFill(bVal, zone.max, orient);
-        return zone.start + zone.width * (bOrient / zone.max);
-    }
-
-    if (gaugeType === 'CustomBarrier' && drawMode === 'hpCombined') {
-        var totalMax = $.hpCombinedTotalMax(battler);
-        var mhpVal = Math.max(1, battler.mhp);
-        var hpVal = Math.max(0, battler.hp);
-        var cursor = hpVal / totalMax;
-        if (hpVal + $.getGaugeValue(battler, 'Barrier') <= mhpVal &&
-            totalMax === mhpVal) {
-            cursor = hpVal / mhpVal;
-        }
-
-        if (Imported.JakeMSG_YEP_AbsorptionBarrier_Additions &&
-            Yanfly.ABR_JakeMSGAdd && Yanfly.ABR_JakeMSGAdd.channelVisualOrder &&
-            battler.cBarrierPoints) {
-            var order = Yanfly.ABR_JakeMSGAdd.channelVisualOrder();
-            for (var i = 0; i < order.length; i++) {
-                var ch = order[i];
-                if (ch === 'default') {
-                    var defaultZone = $.barrierZoneOnCombinedGauge(battler, totalMax);
-                    cursor = defaultZone.start + defaultZone.width;
-                    continue;
-                }
-                var cZone = $.customBarrierZoneOnCombinedGauge(battler, ch, totalMax, cursor);
-                if (Number(thresh._customBarrierId) === Number(ch)) {
-                    if (cZone.width <= 0) return -1;
-                    var cVal = $.resolveThresholdPosition(thresh, cZone.max);
-                    var cOrient = $.orientedFill(cVal, cZone.max, orient);
-                    return cZone.start + cZone.width * (cOrient / cZone.max);
-                }
-                cursor = cZone.start + cZone.width;
-            }
-        }
-        return -1;
+    if ((gaugeType === 'Barrier' || gaugeType === 'CustomBarrier') &&
+        drawMode === 'hpCombined') {
+        return $.barrierThresholdMarkerRate(thresh, battler);
     }
 
     return -1;
@@ -1393,6 +1412,7 @@ $.drawThresholdsForBattler = function(win, battler, dx, dy, dw, yB, drawMode,
         if (!$.thresholdMatchesDrawMode(thresh, drawMode, simpleGaugeType)) continue;
         if (!$.parseBoolean(thresh.Enabled, true)) continue;
         if ($.parseBoolean(thresh.Invisible, false)) continue;
+        if (!$.hasResolvableThreshold(thresh, battler)) continue;
         thresh.currentVal = $.getGaugeValue(battler, thresh._gaugeType,
             thresh._customBarrierId);
         if (!$.evaluateCondition(thresh, battler)) continue;
