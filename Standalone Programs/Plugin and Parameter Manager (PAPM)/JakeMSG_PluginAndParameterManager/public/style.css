@@ -1191,8 +1191,47 @@ button:focus {
 
 .schema-directive-row {
   display: grid;
-  grid-template-columns: 170px 1fr auto;
+  grid-template-columns: 10px 170px 1fr auto;
   gap: 6px;
+  align-items: start;
+}
+
+.schema-directive-row > .typed-grab-handle {
+  width: 10px;
+  min-width: 10px;
+  height: auto;
+  margin: 0;
+  align-self: stretch;
+  border-color: transparent;
+  background: transparent;
+}
+
+.schema-directive-row.selected {
+  box-shadow: 0 0 0 1px rgba(233, 124, 52, 0.82), 0 0 0 3px rgba(233, 124, 52, 0.2);
+  border-radius: 6px;
+}
+
+.schema-directive-row.dragging {
+  opacity: 0.62;
+}
+
+.schema-directive-row.drop-before {
+  outline: 1px dashed rgba(233, 124, 52, 0.84);
+  outline-offset: 2px;
+}
+
+.schema-directive-gap {
+  height: 7px;
+  border-top: 1px dashed transparent;
+  margin-left: 16px;
+}
+
+.schema-directive-gap:hover {
+  border-top-color: rgba(78, 146, 215, 0.72);
+}
+
+.schema-directive-gap.drop-before {
+  border-top-color: rgba(233, 124, 52, 0.86);
 }
 
 .schema-directive-row textarea {

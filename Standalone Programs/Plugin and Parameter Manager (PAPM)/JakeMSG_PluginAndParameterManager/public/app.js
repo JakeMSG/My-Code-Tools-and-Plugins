@@ -209,6 +209,7 @@
     structEntryClipboard: null,
     pluginEntryClipboard: null,
     schemaParamClipboard: null,
+    schemaDirectiveClipboard: null,
     structBlockClipboard: null,
 
     tagSuggest: {
@@ -224,6 +225,8 @@
     devSelectionByScope: {},
     paramSelectionByPlugin: {},
     paramSelectionAnchorByPlugin: {},
+    directiveSelectionByScope: {},
+    directiveSelectionAnchorByScope: {},
     editorDetailsOpenState: {},
     nextDevUid: 1,
 
@@ -246,6 +249,7 @@
   let savePluginsHotkeyTimer = null;
   const hotkeyHeldCodes = new Set();
   const listControlRegistry = new Map();
+  const directiveControlRegistry = new Map();
   let nextListControlId = 1;
   const SETTINGS_BUTTON_TOOLTIP_DELAY_MS = 2000;
   let settingsButtonTooltipTimer = null;
@@ -576,6 +580,7 @@
 
       pluginEntryClipboard: cloneJson(state.pluginEntryClipboard),
       schemaParamClipboard: cloneJson(state.schemaParamClipboard),
+      schemaDirectiveClipboard: cloneJson(state.schemaDirectiveClipboard),
       structBlockClipboard: cloneJson(state.structBlockClipboard),
 
       typedTreeOpenState: cloneJson(state.typedTreeOpenState),
@@ -669,6 +674,7 @@
 
     state.pluginEntryClipboard = cloneJson(source.pluginEntryClipboard || null);
     state.schemaParamClipboard = cloneJson(source.schemaParamClipboard || null);
+    state.schemaDirectiveClipboard = cloneJson(source.schemaDirectiveClipboard || null);
     state.structBlockClipboard = cloneJson(source.structBlockClipboard || null);
     state.dragSchemaSelectionUids = [];
     state.dragStructSchemaSelectionUids = [];
@@ -678,6 +684,8 @@
     state.devSelectionByScope = {};
     state.paramSelectionByPlugin = {};
     state.paramSelectionAnchorByPlugin = {};
+    state.directiveSelectionByScope = {};
+    state.directiveSelectionAnchorByScope = {};
     state.editorDetailsOpenState = cloneJson(source.editorDetailsOpenState || {});
     state.nextDevUid = Number(source.nextDevUid) > 0 ? Number(source.nextDevUid) : 1;
 
@@ -879,6 +887,16 @@
       return false;
     }
 
+    const scopeFromTarget = resolveSelectionScopeFromTarget(element);
+    const canUseDirectiveFallback = scopeFromTarget === 'editor'
+      || Boolean(element && element.closest('#developerDetails, #structDeveloperDetails'));
+
+    const directiveContext = resolveDirectiveControlContextFromTarget(element)
+      || (canUseDirectiveFallback ? resolveLastDirectiveSelectionContext() : null);
+    if (directiveContext && directiveContext.addEntry) {
+      return Boolean(directiveContext.addEntry(element));
+    }
+
     const listAddBtn = findListAddButtonFromTarget(element);
     if (listAddBtn) {
       listAddBtn.click();
@@ -1004,6 +1022,68 @@
     return context;
   }
 
+  function cleanupDirectiveControlRegistry() {
+    directiveControlRegistry.forEach((context, id) => {
+      if (!context || !context.wrapper || !context.wrapper.isConnected) {
+        directiveControlRegistry.delete(id);
+      }
+    });
+  }
+
+  function resolveDirectiveControlContextFromTarget(target) {
+    cleanupDirectiveControlRegistry();
+
+    const element = target instanceof Element
+      ? target
+      : (document.activeElement instanceof Element ? document.activeElement : null);
+    if (!element) return null;
+
+    const wrapper = element.closest('[data-directive-control-id]');
+    if (!(wrapper instanceof Element)) return null;
+
+    const controlId = cleanText(wrapper.dataset.directiveControlId || '');
+    if (!controlId) return null;
+
+    const context = directiveControlRegistry.get(controlId);
+    if (!context || context.wrapper !== wrapper) {
+      directiveControlRegistry.delete(controlId);
+      return null;
+    }
+
+    return context;
+  }
+
+  function resolveLastDirectiveSelectionContext() {
+    cleanupDirectiveControlRegistry();
+
+    if (state.lastSelectionScope !== 'editor') {
+      return null;
+    }
+
+    const source = state.lastEditorSelectionContext && typeof state.lastEditorSelectionContext === 'object'
+      ? state.lastEditorSelectionContext
+      : null;
+    if (!source || source.kind !== 'directive') {
+      return null;
+    }
+
+    const directiveControlId = cleanText(source.directiveControlId || '');
+    if (!directiveControlId) {
+      return null;
+    }
+
+    const context = directiveControlRegistry.get(directiveControlId);
+    if (!context || !context.wrapper || !context.wrapper.isConnected) {
+      return null;
+    }
+
+    if (!context.hasSelection || !context.hasSelection()) {
+      return null;
+    }
+
+    return context;
+  }
+
   function clearVisibleParamSelectionClasses() {
     if (!dom.paramsTree) return;
 
@@ -1044,6 +1124,8 @@
     if (!kind) return;
 
     const listControlId = kind === 'list' ? cleanText(source.listControlId || '') : '';
+    const directiveControlId = kind === 'directive' ? cleanText(source.directiveControlId || '') : '';
+    const directiveScopeKey = kind === 'directive' ? cleanText(source.scopeKey || '') : '';
     const devScope = kind === 'dev' ? cleanText(source.scope || '') : '';
     const devPluginKey = kind === 'dev' ? cleanText(source.pluginKey || '') : '';
     const paramPluginKey = kind === 'param' ? cleanText(source.pluginKey || '') : '';
@@ -1056,6 +1138,17 @@
 
       if (listContext && typeof listContext.clearSelection === 'function') {
         listContext.clearSelection();
+      }
+    });
+
+    cleanupDirectiveControlRegistry();
+    directiveControlRegistry.forEach((directiveContext, id) => {
+      if (kind === 'directive' && id === directiveControlId) {
+        return;
+      }
+
+      if (directiveContext && typeof directiveContext.clearSelection === 'function') {
+        directiveContext.clearSelection();
       }
     });
 
@@ -1091,6 +1184,22 @@
       state.paramSelectionByPlugin = {};
       state.paramSelectionAnchorByPlugin = {};
       clearVisibleParamSelectionClasses();
+    }
+
+    if (kind === 'directive' && directiveScopeKey) {
+      const keepSelection = uniqueStringList(state.directiveSelectionByScope[directiveScopeKey] || []);
+      const keepAnchor = cleanText(state.directiveSelectionAnchorByScope[directiveScopeKey] || '');
+
+      state.directiveSelectionByScope = keepSelection.length > 0
+        ? { [directiveScopeKey]: keepSelection }
+        : {};
+
+      state.directiveSelectionAnchorByScope = keepAnchor
+        ? { [directiveScopeKey]: keepAnchor }
+        : {};
+    } else {
+      state.directiveSelectionByScope = {};
+      state.directiveSelectionAnchorByScope = {};
     }
   }
 
@@ -1144,6 +1253,61 @@
     return Boolean(context.deleteSelection && context.deleteSelection(target));
   }
 
+  function handleDirectiveSelectionHotkey(target, hotkey) {
+    const normalizedHotkey = String(hotkey || '').toLowerCase();
+    if (normalizedHotkey !== 'a'
+      && normalizedHotkey !== 'c'
+      && normalizedHotkey !== 'x'
+      && normalizedHotkey !== 'v'
+      && normalizedHotkey !== 'd'
+      && normalizedHotkey !== 'q') {
+      return false;
+    }
+
+    let context = resolveDirectiveControlContextFromTarget(target);
+    if (!context) {
+      context = resolveLastDirectiveSelectionContext();
+    }
+    if (!context) return false;
+
+    const editingText = isPluginSelectionEditableTarget(target);
+    const hasSelection = Boolean(context.hasSelection && context.hasSelection());
+
+    if (normalizedHotkey === 'a') {
+      return Boolean(context.selectAllRows && context.selectAllRows(target));
+    }
+
+    if (normalizedHotkey === 'q') {
+      return Boolean(context.addEntry && context.addEntry(target));
+    }
+
+    if (normalizedHotkey === 'c') {
+      if (editingText && !hasSelection) {
+        return false;
+      }
+      return Boolean(context.copySelection && context.copySelection(target));
+    }
+
+    if (normalizedHotkey === 'x') {
+      if (editingText && !hasSelection) {
+        return false;
+      }
+      return Boolean(context.cutSelection && context.cutSelection(target));
+    }
+
+    if (normalizedHotkey === 'v') {
+      if (editingText && !hasSelection) {
+        return false;
+      }
+      if (context.hasClipboard && !context.hasClipboard()) {
+        return false;
+      }
+      return Boolean(context.pasteSelection && context.pasteSelection(target));
+    }
+
+    return Boolean(context.deleteSelection && context.deleteSelection(target));
+  }
+
   function setLastEditorSelectionContext(context) {
     const source = context && typeof context === 'object' ? context : null;
     if (!source) {
@@ -1167,6 +1331,29 @@
       state.lastEditorSelectionContext = {
         kind,
         listControlId
+      };
+      state.lastSelectionScope = 'editor';
+      return;
+    }
+
+    if (kind === 'directive') {
+      const directiveControlId = cleanText(source.directiveControlId || '');
+      const scopeKey = cleanText(source.scopeKey || '');
+      if (!directiveControlId || !scopeKey) {
+        state.lastEditorSelectionContext = null;
+        return;
+      }
+
+      keepOnlyLatestEditorSelection({
+        kind,
+        directiveControlId,
+        scopeKey
+      });
+
+      state.lastEditorSelectionContext = {
+        kind,
+        directiveControlId,
+        scopeKey
       };
       state.lastSelectionScope = 'editor';
       return;
@@ -1870,6 +2057,10 @@
   }
 
   function handleMultiSelectionDeleteHotkey(target) {
+    if (handleDirectiveSelectionHotkey(target, 'd')) {
+      return true;
+    }
+
     const listContext = resolveListControlContextFromTarget(target);
     if (listContext) {
       if (handleListSelectionHotkey(target, 'd')) {
@@ -2018,6 +2209,47 @@
     }
 
     return String(entry._uid);
+  }
+
+  function ensureSchemaDirectiveUid(directive) {
+    if (!directive || typeof directive !== 'object') return '';
+
+    if (!directive._uid) {
+      directive._uid = `dd${state.nextDevUid}`;
+      state.nextDevUid += 1;
+    }
+
+    return String(directive._uid);
+  }
+
+  function buildDirectiveSelectionScopeKey(scope, pluginKey, entryUid) {
+    return `${cleanText(scope || 'directive')}::${cleanText(pluginKey || '')}::${cleanText(entryUid || '')}`;
+  }
+
+  function getDirectiveSelectionUids(scope, pluginKey, entryUid) {
+    const key = buildDirectiveSelectionScopeKey(scope, pluginKey, entryUid);
+    return uniqueStringList(state.directiveSelectionByScope[key] || []);
+  }
+
+  function setDirectiveSelectionUids(scope, pluginKey, entryUid, directiveUids, options) {
+    const config = options && typeof options === 'object' ? options : {};
+    const key = buildDirectiveSelectionScopeKey(scope, pluginKey, entryUid);
+    const list = uniqueStringList(directiveUids || []);
+
+    if (list.length <= 0) {
+      delete state.directiveSelectionByScope[key];
+      if (!config.keepAnchor) {
+        delete state.directiveSelectionAnchorByScope[key];
+      }
+      return [];
+    }
+
+    state.directiveSelectionByScope[key] = list;
+    if (!config.keepAnchor) {
+      state.directiveSelectionAnchorByScope[key] = list[list.length - 1];
+    }
+
+    return list;
   }
 
   function buildDevEntryOpenKey(scope, pluginKey, entryUid) {
@@ -3777,10 +4009,13 @@
     state.fileListCache = {};
     state.pluginEntryClipboard = null;
     state.schemaParamClipboard = null;
+    state.schemaDirectiveClipboard = null;
     state.structBlockClipboard = null;
     state.devSelectionByScope = {};
     state.paramSelectionByPlugin = {};
     state.paramSelectionAnchorByPlugin = {};
+    state.directiveSelectionByScope = {};
+    state.directiveSelectionAnchorByScope = {};
     state.dragSchemaSelectionUids = [];
     state.dragStructSchemaSelectionUids = [];
 
@@ -7823,19 +8058,26 @@
     return structDraftEnsureBlockList(state.structSchemaDrafts[pluginKey]);
   }
 
-  function schemaDraftCloneDirectiveList(directives) {
+  function schemaDraftCloneDirectiveList(directives, keepUid) {
     const list = Array.isArray(directives) ? directives : [];
     const out = [];
+    const preserveUid = Boolean(keepUid);
 
     for (let i = 0; i < list.length; i += 1) {
       const source = list[i] && typeof list[i] === 'object' ? list[i] : {};
       const key = String(source.key === undefined || source.key === null ? '' : source.key).trim();
       if (!key) continue;
 
-      out.push({
+      const nextDirective = {
         key,
         value: source.value === undefined || source.value === null ? '' : String(source.value)
-      });
+      };
+
+      if (preserveUid && source._uid) {
+        nextDirective._uid = String(source._uid);
+      }
+
+      out.push(nextDirective);
     }
 
     return out;
@@ -7845,7 +8087,7 @@
     const source = entry && typeof entry === 'object' ? entry : {};
     const out = {
       name: String(source.name === undefined || source.name === null ? '' : source.name).trim(),
-      directives: schemaDraftCloneDirectiveList(source.directives)
+      directives: schemaDraftCloneDirectiveList(source.directives, false)
     };
 
     if (keepUid && source._uid) {
@@ -7858,7 +8100,7 @@
   function schemaDraftNormalizeEntryInPlace(entry, fallbackName) {
     const target = entry && typeof entry === 'object' ? entry : {};
     const name = String(target.name === undefined || target.name === null ? fallbackName || '' : target.name).trim();
-    const directives = schemaDraftCloneDirectiveList(target.directives);
+    const directives = schemaDraftCloneDirectiveList(target.directives, true);
 
     const withoutParam = directives.filter((directive) => {
       return String(directive.key || '').toLowerCase() !== 'param';
@@ -8118,6 +8360,7 @@
     container.innerHTML = '';
     container.dataset.devScope = scope;
     container.dataset.devPluginKey = pluginKey;
+    cleanupDirectiveControlRegistry();
 
     const depths = schemaDraftComputeDepths(entries);
     const validEntryUidSet = new Set(entries.map((entry) => ensureDraftEntryUid(entry)));
@@ -8222,6 +8465,88 @@
 
     function schemaClipboardCount() {
       return schemaClipboardEntries().length;
+    }
+
+    function directiveClipboardEntries() {
+      if (!state.schemaDirectiveClipboard || typeof state.schemaDirectiveClipboard !== 'object') {
+        return [];
+      }
+
+      if (!Array.isArray(state.schemaDirectiveClipboard.directives)) {
+        return [];
+      }
+
+      return state.schemaDirectiveClipboard.directives;
+    }
+
+    function directiveClipboardCount() {
+      return directiveClipboardEntries().length;
+    }
+
+    function directiveClipboardMode() {
+      if (!state.schemaDirectiveClipboard || typeof state.schemaDirectiveClipboard !== 'object') {
+        return 'copy';
+      }
+
+      return cleanText(state.schemaDirectiveClipboard.mode || 'copy') || 'copy';
+    }
+
+    function cloneDirectivePayload(directive) {
+      const source = directive && typeof directive === 'object' ? directive : {};
+      return {
+        key: source.key === undefined || source.key === null ? '' : String(source.key),
+        value: source.value === undefined || source.value === null ? '' : String(source.value)
+      };
+    }
+
+    function pasteDirectiveClipboardIntoEntries(entryUids) {
+      const clipboardDirectives = directiveClipboardEntries();
+      if (clipboardDirectives.length <= 0) {
+        showToast('Directive clipboard is empty.', 'bad');
+        return false;
+      }
+
+      const targetUids = uniqueStringList(entryUids || [])
+        .filter((uid) => validEntryUidSet.has(uid));
+      if (targetUids.length <= 0) {
+        showToast('Select parameter entry first.', 'bad');
+        return false;
+      }
+
+      let changedEntries = 0;
+      for (let i = 0; i < targetUids.length; i += 1) {
+        const uid = targetUids[i];
+        const index = entries.findIndex((candidate) => ensureDraftEntryUid(candidate) === uid);
+        if (index < 0) continue;
+
+        const targetEntry = entries[index];
+        const directives = Array.isArray(targetEntry.directives) ? targetEntry.directives : [];
+        const tail = directives.slice(1);
+        const clones = clipboardDirectives.map((directive) => cloneDirectivePayload(directive));
+        tail.push(...clones);
+
+        directives.splice(1, directives.length - 1, ...tail);
+        schemaDraftNormalizeEntryInPlace(targetEntry, targetEntry.name || 'Param');
+        changedEntries += 1;
+      }
+
+      if (changedEntries <= 0) {
+        showToast('Could not paste directives into current selection.', 'bad');
+        return true;
+      }
+
+      if (directiveClipboardMode() === 'cut') {
+        state.schemaDirectiveClipboard = null;
+      }
+
+      onDirty();
+      onRefresh();
+
+      const label = changedEntries > 1
+        ? `Pasted directives into ${changedEntries} parameters.`
+        : 'Pasted directives into parameter.';
+      showToast(label, 'good');
+      return true;
     }
 
     function hasActiveScopeSearch() {
@@ -8534,6 +8859,16 @@
           );
         }
 
+        const directiveCount = directiveClipboardCount();
+        if (directiveCount > 0) {
+          actions.push({
+            label: selectionCount > 1
+              ? 'Paste selected Directives inside of Them'
+              : 'Paste selected Directives inside of It',
+            action: () => pasteDirectiveClipboardIntoEntries(selectionUids)
+          });
+        }
+
         actions.push({
           label: selectionCount > 1 ? 'Delete Selected Parameters' : 'Delete Parameter',
           action: () => deleteSelection(selectionUids)
@@ -8710,11 +9045,487 @@
       body.appendChild(top);
 
       const directives = Array.isArray(entry.directives) ? entry.directives : [];
+      const directiveScopeKey = buildDirectiveSelectionScopeKey(scope, pluginKey, entryUid);
+      const directiveControlId = cleanText(`directive:${directiveScopeKey}`);
+      const directiveDragSourceKey = `${dragSourceKey}:directive:${entryUid}`;
+      body.dataset.directiveControlId = directiveControlId;
+
       for (let directiveIndex = 1; directiveIndex < directives.length; directiveIndex += 1) {
-        const directive = directives[directiveIndex];
+        ensureSchemaDirectiveUid(directives[directiveIndex]);
+      }
+
+      function getDirectiveRows() {
+        const out = [];
+
+        for (let directiveIndex = 1; directiveIndex < directives.length; directiveIndex += 1) {
+          const directive = directives[directiveIndex];
+          const directiveUid = ensureSchemaDirectiveUid(directive);
+          out.push({
+            directive,
+            directiveUid,
+            directiveIndex
+          });
+        }
+
+        return out;
+      }
+
+      function getDirectiveValidUidSet() {
+        return new Set(getDirectiveRows().map((row) => row.directiveUid));
+      }
+
+      let selectedDirectiveUids = getDirectiveSelectionUids(scope, pluginKey, entryUid)
+        .filter((uid) => getDirectiveValidUidSet().has(uid));
+      let directiveAnchorUid = cleanText(state.directiveSelectionAnchorByScope[directiveScopeKey] || '');
+
+      if (directiveAnchorUid && !getDirectiveValidUidSet().has(directiveAnchorUid)) {
+        directiveAnchorUid = '';
+      }
+
+      setDirectiveSelectionUids(scope, pluginKey, entryUid, selectedDirectiveUids, { keepAnchor: true });
+
+      if (directiveAnchorUid) {
+        state.directiveSelectionAnchorByScope[directiveScopeKey] = directiveAnchorUid;
+      } else {
+        delete state.directiveSelectionAnchorByScope[directiveScopeKey];
+      }
+
+      function applyDirectiveSelectionClasses() {
+        const selectedSet = new Set(selectedDirectiveUids);
+        const rows = body.querySelectorAll('.schema-directive-row[data-directive-uid]');
+
+        for (let i = 0; i < rows.length; i += 1) {
+          const row = rows[i];
+          if (!(row instanceof Element)) continue;
+          const rowUid = cleanText(row.dataset.directiveUid || '');
+          row.classList.toggle('selected', selectedSet.has(rowUid));
+        }
+      }
+
+      function setDirectiveSelection(nextUids, options) {
+        const config = options && typeof options === 'object' ? options : {};
+        const validSet = getDirectiveValidUidSet();
+
+        selectedDirectiveUids = setDirectiveSelectionUids(
+          scope,
+          pluginKey,
+          entryUid,
+          uniqueStringList(nextUids).filter((uid) => validSet.has(uid)),
+          { keepAnchor: true }
+        );
+
+        if (!config.keepAnchor) {
+          directiveAnchorUid = selectedDirectiveUids.length > 0
+            ? selectedDirectiveUids[selectedDirectiveUids.length - 1]
+            : '';
+        } else if (directiveAnchorUid && !validSet.has(directiveAnchorUid)) {
+          directiveAnchorUid = selectedDirectiveUids.length > 0
+            ? selectedDirectiveUids[selectedDirectiveUids.length - 1]
+            : '';
+        }
+
+        if (directiveAnchorUid) {
+          state.directiveSelectionAnchorByScope[directiveScopeKey] = directiveAnchorUid;
+        } else {
+          delete state.directiveSelectionAnchorByScope[directiveScopeKey];
+        }
+
+        if (selectedDirectiveUids.length > 0) {
+          setLastEditorSelectionContext({
+            kind: 'directive',
+            directiveControlId,
+            scopeKey: directiveScopeKey
+          });
+        }
+
+        return selectedDirectiveUids;
+      }
+
+      function selectedDirectiveUidsForRow(directiveUid) {
+        return selectedDirectiveUids.includes(directiveUid)
+          ? selectedDirectiveUids.slice()
+          : [directiveUid];
+      }
+
+      function selectDirectiveRangeTo(directiveUid) {
+        const targetUid = cleanText(directiveUid || '');
+        if (!targetUid) return;
+
+        const rows = getDirectiveRows();
+        const targetIndex = rows.findIndex((row) => row.directiveUid === targetUid);
+        if (targetIndex < 0) {
+          setDirectiveSelection([targetUid]);
+          return;
+        }
+
+        if (!directiveAnchorUid) {
+          setDirectiveSelection([targetUid]);
+          return;
+        }
+
+        const anchorIndex = rows.findIndex((row) => row.directiveUid === directiveAnchorUid);
+        if (anchorIndex < 0) {
+          setDirectiveSelection([targetUid]);
+          return;
+        }
+
+        const start = Math.min(anchorIndex, targetIndex);
+        const end = Math.max(anchorIndex, targetIndex);
+        const rangeUids = [];
+
+        for (let i = start; i <= end; i += 1) {
+          rangeUids.push(rows[i].directiveUid);
+        }
+
+        setDirectiveSelection(rangeUids, { keepAnchor: true });
+      }
+
+      function copyDirectiveSelection(directiveUids, isCut) {
+        const rows = getDirectiveRows();
+        const byUid = new Map(rows.map((row) => [row.directiveUid, row]));
+        const sourceUids = uniqueStringList(directiveUids)
+          .filter((uid) => byUid.has(uid));
+
+        if (sourceUids.length <= 0) {
+          showToast('Select directive(s) first.', 'bad');
+          return false;
+        }
+
+        const payload = sourceUids
+          .map((uid) => byUid.get(uid))
+          .filter(Boolean)
+          .map((row) => cloneDirectivePayload(row.directive));
+
+        if (payload.length <= 0) {
+          showToast('Select directive(s) first.', 'bad');
+          return false;
+        }
+
+        state.schemaDirectiveClipboard = {
+          mode: isCut ? 'cut' : 'copy',
+          directives: payload
+        };
+
+        if (!isCut) {
+          showToast(payload.length > 1 ? 'Directives copied.' : 'Directive copied.', 'good');
+          return true;
+        }
+
+        const removeSet = new Set(sourceUids);
+        const keepRows = rows.filter((row) => !removeSet.has(row.directiveUid));
+        directives.splice(1, directives.length - 1, ...keepRows.map((row) => row.directive));
+        setDirectiveSelection([]);
+        schemaDraftNormalizeEntryInPlace(entry, entry.name || 'Param');
+
+        onDirty();
+        onRefresh();
+        showToast(removeSet.size > 1 ? 'Directives cut.' : 'Directive cut.', 'good');
+        return true;
+      }
+
+      function pasteDirectiveSelection(insertIndex) {
+        const clipboard = directiveClipboardEntries();
+        if (clipboard.length <= 0) {
+          showToast('Directive clipboard is empty.', 'bad');
+          return false;
+        }
+
+        const rows = getDirectiveRows();
+        const safeIndex = Math.max(0, Math.min(rows.length, Number(insertIndex) || 0));
+        const tail = rows.map((row) => row.directive);
+        const clones = clipboard.map((directive) => cloneDirectivePayload(directive));
+
+        tail.splice(safeIndex, 0, ...clones);
+        directives.splice(1, directives.length - 1, ...tail);
+        schemaDraftNormalizeEntryInPlace(entry, entry.name || 'Param');
+
+        if (directiveClipboardMode() === 'cut') {
+          state.schemaDirectiveClipboard = null;
+        }
+
+        onDirty();
+        onRefresh();
+        showToast(clones.length > 1 ? 'Directives pasted.' : 'Directive pasted.', 'good');
+        return true;
+      }
+
+      function deleteDirectiveSelection(directiveUids) {
+        const rows = getDirectiveRows();
+        const removeSet = new Set(uniqueStringList(directiveUids));
+
+        if (removeSet.size <= 0) {
+          showToast('Select directive(s) first.', 'bad');
+          return false;
+        }
+
+        const keepRows = rows.filter((row) => !removeSet.has(row.directiveUid));
+        if (keepRows.length === rows.length) {
+          showToast('Select directive(s) first.', 'bad');
+          return false;
+        }
+
+        directives.splice(1, directives.length - 1, ...keepRows.map((row) => row.directive));
+        setDirectiveSelection([]);
+        schemaDraftNormalizeEntryInPlace(entry, entry.name || 'Param');
+
+        onDirty();
+        onRefresh();
+        showToast(removeSet.size > 1 ? 'Directives deleted.' : 'Directive deleted.', 'good');
+        return true;
+      }
+
+      function addDirectiveAt(insertIndex) {
+        const rows = getDirectiveRows();
+        const safeIndex = Math.max(0, Math.min(rows.length, Number(insertIndex) || 0));
+        const tail = rows.map((row) => row.directive);
+
+        tail.splice(safeIndex, 0, { key: 'desc', value: '' });
+        directives.splice(1, directives.length - 1, ...tail);
+        schemaDraftNormalizeEntryInPlace(entry, entry.name || 'Param');
+
+        onDirty();
+        onRefresh();
+        return true;
+      }
+
+      function moveDirectiveSelection(directiveUids, insertIndex) {
+        const rows = getDirectiveRows();
+        if (rows.length <= 0) return false;
+
+        const moveSet = new Set(uniqueStringList(directiveUids));
+        if (moveSet.size <= 0) return false;
+
+        const selectedRows = [];
+        const remainingRows = [];
+
+        for (let i = 0; i < rows.length; i += 1) {
+          if (moveSet.has(rows[i].directiveUid)) {
+            selectedRows.push(rows[i]);
+          } else {
+            remainingRows.push(rows[i]);
+          }
+        }
+
+        if (selectedRows.length <= 0) {
+          return false;
+        }
+
+        const safeIndex = Math.max(0, Math.min(rows.length, Number(insertIndex) || 0));
+        let selectedBeforeTarget = 0;
+        for (let i = 0; i < safeIndex; i += 1) {
+          if (moveSet.has(rows[i].directiveUid)) {
+            selectedBeforeTarget += 1;
+          }
+        }
+
+        const adjustedIndex = Math.max(0, Math.min(
+          remainingRows.length,
+          safeIndex - selectedBeforeTarget
+        ));
+
+        const reordered = remainingRows.slice();
+        reordered.splice(adjustedIndex, 0, ...selectedRows);
+
+        let changed = reordered.length !== rows.length;
+        if (!changed) {
+          for (let i = 0; i < rows.length; i += 1) {
+            if (rows[i].directiveUid !== reordered[i].directiveUid) {
+              changed = true;
+              break;
+            }
+          }
+        }
+
+        if (!changed) {
+          return false;
+        }
+
+        directives.splice(1, directives.length - 1, ...reordered.map((row) => row.directive));
+        schemaDraftNormalizeEntryInPlace(entry, entry.name || 'Param');
+        onDirty();
+        onRefresh();
+        return true;
+      }
+
+      function hasDirectiveDragSelection() {
+        return state.dragSource === directiveDragSourceKey
+          && Array.isArray(state.dragSchemaSelectionUids)
+          && state.dragSchemaSelectionUids.length > 0;
+      }
+
+      function buildDirectiveGap(insertIndex) {
+        const gap = document.createElement('div');
+        gap.className = 'schema-directive-gap';
+        gap.title = 'Double-click to insert new directive here.';
+
+        gap.addEventListener('dblclick', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          addDirectiveAt(insertIndex);
+        });
+
+        gap.addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const selectionCount = selectedDirectiveUids.length;
+          const clipboardCount = directiveClipboardCount();
+          showContextMenu(event, [
+            {
+              label: 'Insert New Directive Here',
+              action: () => addDirectiveAt(insertIndex)
+            },
+            {
+              label: selectionCount > 1 ? 'Cut Selected Directives' : 'Cut Selected Directive',
+              disabled: selectionCount <= 0,
+              action: () => copyDirectiveSelection(selectedDirectiveUids, true)
+            },
+            {
+              label: clipboardCount > 1 ? 'Paste Directives Here' : 'Paste Directive Here',
+              disabled: clipboardCount <= 0,
+              action: () => pasteDirectiveSelection(insertIndex)
+            }
+          ]);
+        });
+
+        gap.addEventListener('dragover', (event) => {
+          if (!hasDirectiveDragSelection()) return;
+          event.preventDefault();
+          autoScrollVerticalOnDrag(event, dom.editorContent);
+          gap.classList.add('drop-before');
+        });
+
+        gap.addEventListener('dragleave', () => {
+          gap.classList.remove('drop-before');
+        });
+
+        gap.addEventListener('drop', (event) => {
+          gap.classList.remove('drop-before');
+          if (!hasDirectiveDragSelection()) return;
+          event.preventDefault();
+
+          const moved = moveDirectiveSelection(state.dragSchemaSelectionUids, insertIndex);
+          state.dragSource = '';
+          state.dragSchemaSelectionUids = [];
+
+          if (!moved) {
+            showToast('Could not move selected directives.', 'bad');
+          }
+        });
+
+        return gap;
+      }
+
+      directiveControlRegistry.set(directiveControlId, {
+        id: directiveControlId,
+        scopeKey: directiveScopeKey,
+        wrapper: body,
+        hasSelection: () => selectedDirectiveUids.length > 0,
+        hasClipboard: () => directiveClipboardCount() > 0,
+        clearSelection: () => {
+          if (selectedDirectiveUids.length <= 0) return false;
+          setDirectiveSelection([]);
+          applyDirectiveSelectionClasses();
+          return true;
+        },
+        selectAllRows: () => {
+          const rows = getDirectiveRows();
+          if (rows.length <= 0) {
+            showToast('No directives to select.', 'bad');
+            return true;
+          }
+
+          setDirectiveSelection(rows.map((row) => row.directiveUid));
+          applyDirectiveSelectionClasses();
+          return true;
+        },
+        copySelection: () => {
+          const rows = getDirectiveRows();
+          const targetUids = selectedDirectiveUids.length > 0
+            ? selectedDirectiveUids.slice()
+            : (rows.length > 0 ? [rows[rows.length - 1].directiveUid] : []);
+          return copyDirectiveSelection(targetUids, false);
+        },
+        cutSelection: () => {
+          const rows = getDirectiveRows();
+          const targetUids = selectedDirectiveUids.length > 0
+            ? selectedDirectiveUids.slice()
+            : (rows.length > 0 ? [rows[rows.length - 1].directiveUid] : []);
+          return copyDirectiveSelection(targetUids, true);
+        },
+        pasteSelection: () => {
+          const rows = getDirectiveRows();
+          let insertIndex = rows.length;
+
+          if (selectedDirectiveUids.length > 0) {
+            const selectedSet = new Set(selectedDirectiveUids);
+            for (let i = 0; i < rows.length; i += 1) {
+              if (selectedSet.has(rows[i].directiveUid)) {
+                insertIndex = i + 1;
+              }
+            }
+          }
+
+          return pasteDirectiveSelection(insertIndex);
+        },
+        deleteSelection: () => {
+          if (selectedDirectiveUids.length <= 0) {
+            showToast('Select directive(s) first.', 'bad');
+            return true;
+          }
+          return deleteDirectiveSelection(selectedDirectiveUids);
+        },
+        addEntry: () => addDirectiveAt(getDirectiveRows().length)
+      });
+
+      body.appendChild(buildDirectiveGap(0));
+
+      const directiveRows = getDirectiveRows();
+      for (let rowIndex = 0; rowIndex < directiveRows.length; rowIndex += 1) {
+        const directive = directiveRows[rowIndex].directive;
+        const directiveUid = directiveRows[rowIndex].directiveUid;
 
         const row = document.createElement('div');
         row.className = 'schema-directive-row';
+        row.dataset.directiveUid = directiveUid;
+
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'typed-grab-handle';
+        dragHandle.title = 'Drag selected directive(s) to reorder.';
+        dragHandle.draggable = true;
+
+        dragHandle.addEventListener('mousedown', (event) => {
+          event.stopPropagation();
+          setDirectiveSelection(selectedDirectiveUidsForRow(directiveUid));
+          applyDirectiveSelectionClasses();
+        });
+
+        dragHandle.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+
+        dragHandle.addEventListener('dragstart', (event) => {
+          setDirectiveSelection(selectedDirectiveUidsForRow(directiveUid));
+          applyDirectiveSelectionClasses();
+
+          state.dragSource = directiveDragSourceKey;
+          state.dragSchemaSelectionUids = selectedDirectiveUidsForRow(directiveUid);
+          row.classList.add('dragging');
+
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+          }
+        });
+
+        dragHandle.addEventListener('dragend', () => {
+          row.classList.remove('dragging');
+
+          if (state.dragSource === directiveDragSourceKey) {
+            state.dragSource = '';
+            state.dragSchemaSelectionUids = [];
+          }
+        });
 
         const keyInput = document.createElement('input');
         keyInput.type = 'text';
@@ -8729,6 +9540,17 @@
         removeBtn.type = 'button';
         removeBtn.textContent = 'x';
 
+        function focusDirectiveRow() {
+          if (selectedDirectiveUids.includes(directiveUid)) {
+            return;
+          }
+          setDirectiveSelection([directiveUid]);
+          applyDirectiveSelectionClasses();
+        }
+
+        keyInput.addEventListener('focus', focusDirectiveRow);
+        valueInput.addEventListener('focus', focusDirectiveRow);
+
         keyInput.addEventListener('input', () => {
           directive.key = keyInput.value;
           onDirty();
@@ -8739,26 +9561,125 @@
           onDirty();
         });
 
-        removeBtn.addEventListener('click', () => {
-          directives.splice(directiveIndex, 1);
-          schemaDraftNormalizeEntryInPlace(entry, entry.name || 'Param');
-          onDirty();
-          onRefresh();
+        removeBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          deleteDirectiveSelection([directiveUid]);
         });
 
+        row.addEventListener('click', (event) => {
+          if (event.shiftKey) {
+            event.preventDefault();
+            event.stopPropagation();
+            selectDirectiveRangeTo(directiveUid);
+            applyDirectiveSelectionClasses();
+            return;
+          }
+
+          if (isMetaOrCtrlPressed(event)) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (selectedDirectiveUids.includes(directiveUid)) {
+              setDirectiveSelection(selectedDirectiveUids.filter((uid) => uid !== directiveUid), { keepAnchor: true });
+            } else {
+              directiveAnchorUid = directiveUid;
+              setDirectiveSelection(selectedDirectiveUids.concat(directiveUid), { keepAnchor: true });
+            }
+
+            applyDirectiveSelectionClasses();
+            return;
+          }
+
+          setDirectiveSelection([directiveUid]);
+          applyDirectiveSelectionClasses();
+        });
+
+        row.addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const scopedSelection = selectedDirectiveUidsForRow(directiveUid);
+          const selectionCount = scopedSelection.length;
+          const clipboardCount = directiveClipboardCount();
+          const rows = getDirectiveRows();
+          const rowCurrentIndex = rows.findIndex((item) => item.directiveUid === directiveUid);
+          const pasteIndex = rowCurrentIndex >= 0 ? rowCurrentIndex + 1 : rows.length;
+
+          setDirectiveSelection(scopedSelection, { keepAnchor: true });
+          applyDirectiveSelectionClasses();
+
+          showContextMenu(event, [
+            {
+              label: 'Insert New Directive Above',
+              action: () => addDirectiveAt(Math.max(0, rowCurrentIndex))
+            },
+            {
+              label: 'Insert New Directive Below',
+              action: () => addDirectiveAt(pasteIndex)
+            },
+            {
+              label: selectionCount > 1 ? 'Copy Selected Directives' : 'Copy Directive',
+              action: () => copyDirectiveSelection(scopedSelection, false)
+            },
+            {
+              label: selectionCount > 1 ? 'Cut Selected Directives' : 'Cut Directive',
+              action: () => copyDirectiveSelection(scopedSelection, true)
+            },
+            {
+              label: clipboardCount > 1 ? 'Paste Directives Below' : 'Paste Directive Below',
+              disabled: clipboardCount <= 0,
+              action: () => pasteDirectiveSelection(pasteIndex)
+            },
+            {
+              label: selectionCount > 1 ? 'Delete Selected Directives' : 'Delete Directive',
+              action: () => deleteDirectiveSelection(scopedSelection)
+            }
+          ]);
+        });
+
+        row.addEventListener('dragover', (event) => {
+          if (!hasDirectiveDragSelection()) return;
+          event.preventDefault();
+          autoScrollVerticalOnDrag(event, dom.editorContent);
+          row.classList.add('drop-before');
+        });
+
+        row.addEventListener('dragleave', () => {
+          row.classList.remove('drop-before');
+        });
+
+        row.addEventListener('drop', (event) => {
+          row.classList.remove('drop-before');
+          if (!hasDirectiveDragSelection()) return;
+          event.preventDefault();
+
+          const currentRows = getDirectiveRows();
+          const insertAt = currentRows.findIndex((item) => item.directiveUid === directiveUid);
+          const moved = moveDirectiveSelection(state.dragSchemaSelectionUids, Math.max(0, insertAt));
+          state.dragSource = '';
+          state.dragSchemaSelectionUids = [];
+
+          if (!moved) {
+            showToast('Could not move selected directives.', 'bad');
+          }
+        });
+
+        row.appendChild(dragHandle);
         row.appendChild(keyInput);
         row.appendChild(valueInput);
         row.appendChild(removeBtn);
         body.appendChild(row);
+        body.appendChild(buildDirectiveGap(rowIndex + 1));
       }
+
+      applyDirectiveSelectionClasses();
 
       const addDirective = document.createElement('button');
       addDirective.type = 'button';
       addDirective.textContent = '+ Add Directive';
       addDirective.addEventListener('click', () => {
-        directives.push({ key: 'desc', value: '' });
-        onDirty();
-        onRefresh();
+        addDirectiveAt(getDirectiveRows().length);
       });
 
       body.appendChild(addDirective);
@@ -9691,6 +10612,13 @@
   function remapPluginStateKey(oldKey, newKey) {
     if (!oldKey || !newKey || oldKey === newKey) return;
 
+    state.directiveSelectionByScope = {};
+    state.directiveSelectionAnchorByScope = {};
+    if (state.lastEditorSelectionContext
+      && state.lastEditorSelectionContext.kind === 'directive') {
+      state.lastEditorSelectionContext = null;
+    }
+
     if (Object.prototype.hasOwnProperty.call(state.pluginFolderMap, oldKey)) {
       state.pluginFolderMap[newKey] = state.pluginFolderMap[oldKey];
       delete state.pluginFolderMap[oldKey];
@@ -9896,6 +10824,13 @@
       delete state.paramSelectionAnchorByPlugin[key];
       clearPluginScopedOpenState(key);
     });
+
+    state.directiveSelectionByScope = {};
+    state.directiveSelectionAnchorByScope = {};
+    if (state.lastEditorSelectionContext
+      && state.lastEditorSelectionContext.kind === 'directive') {
+      state.lastEditorSelectionContext = null;
+    }
 
     state.openTabs = state.openTabs.filter((key) => !keySet.has(key));
     state.selectedPluginKeys = state.selectedPluginKeys.filter((key) => !keySet.has(key));
@@ -11066,6 +12001,11 @@
       if (!event.shiftKey
         && expandCollapseHotkey
         && handleExpandCollapseHotkey(event.target, expandCollapseHotkey)) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!event.shiftKey && handleDirectiveSelectionHotkey(event.target, hotkey)) {
         event.preventDefault();
         return;
       }
