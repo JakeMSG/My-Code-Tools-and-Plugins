@@ -1,0 +1,15 @@
+================ v1.3 - 7.2nd.2026
+======== Changed settings transfer file from "Settings.json" to "ProgramSettings.json"
+======== "Save plugins.js" now also toggles one trailing space before last "}" in data/System.json (MV: www/data/System.json, MZ: data/System.json) so editor detects change via data folder
+======== Added plugin-parameter operations in Plugins column context menu (multi-select supported): save selected plugin parameters to plugins.js, export selected plugin parameters to Parameters_<PluginName>.json, import selected plugin parameters from Parameters_<PluginName>.json
+======== Added Tab+S / Tab+Shift+S / Tab+Ctrl+S / Tab+Shift+Ctrl+S / Tab+Alt+S / Tab+Shift+Alt+S hotkeys for active-tab and opened-tab plugin parameter save/export/import operations
+======== Added plugins.js external modification detector (1-second polling + window-focus check) with popup options: Reload, Ignore, Reload EXCEPT the opened plugins
+================ v1.2 - 5.26th.2026
+======== Added "CTRL+E", "CTRL+W" and "CTRL+D" hotkeys, and their functions (and also right-click context menu functionality matching those hotkeys)
+======== Added multi-select support for entries in the "Editor" column (much like it was in the "Internal Folders" column), and support for multi-select operations for the entries within that column 
+======== Also added multi-select support to Directives of Parameters in the "Dev option" options in the "Editor" column, including the functionality support for manipulating them, and hotkey support
+================ v1.1 - 5.19th.2026
+======== Replaced the "Export Folders&Layout to another Game" with 2 buttons, "Export Settings" and "Import Settings", serving a similar function, but in a more organized fashion (allowing for easier tracking of such settings using an externally-made file)
+======== Added multi-select functionality in the 2 "Dev option" options for their elements, to help with faster editing (for Drag&Drop and Copy&Paste operations)
+================ v1.0 - 5.16th.2026
+======== Initial release!
