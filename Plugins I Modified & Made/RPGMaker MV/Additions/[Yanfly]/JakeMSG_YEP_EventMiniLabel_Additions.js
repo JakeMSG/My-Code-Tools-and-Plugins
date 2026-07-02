@@ -8,14 +8,17 @@ Imported.JakeMSG_YEP_EventMiniLabel_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.EML_JakeMSGAdd = Yanfly.EML_JakeMSGAdd || {};
-Yanfly.EML_JakeMSGAdd.version = 1.0;
+Yanfly.EML_JakeMSGAdd.version = 1.1;
 
 //=============================================================================
  /*:
- * @plugindesc v1.2 (Requires YEP_EventMiniLabel.js) Additions to YEP Event Mini Label.
+ * @plugindesc v1.1 (Requires YEP_EventMiniLabel.js) Additions to YEP Event Mini Label.
  * @author JakeMSG
  *
 ============ Change Log ============
+1.1 - 7.2nd.2026
+ * <Mini Label Angle: x> now rotates around the center (middle) of the mini
+   label instead of its top-left corner.
 1.0 - 3.15th.2026
  * initial release
 ====================================
@@ -56,6 +59,9 @@ Yanfly.EML_JakeMSGAdd.version = 1.0;
  *   - Rotates the mini label by x degrees.
  *   - Supports positive and negative values.
  *   - If omitted, angle defaults to 0.
+ *   - The rotation is performed around the center (middle) of the mini label,
+ *     so the label spins in place rather than swinging around its top-left
+ *     corner.
  * 
  */
 //=============================================================================
@@ -234,8 +240,18 @@ Yanfly.EML_JakeMSGAdd.Sprite_Character_positionMiniLabel =
 Sprite_Character.prototype.positionMiniLabel = function() {
     Yanfly.EML_JakeMSGAdd.Sprite_Character_positionMiniLabel.call(this);
     if (!this._miniLabel) return;
-    var degrees = this._miniLabel.miniLabelAngle();
-    this._miniLabel.rotation = degrees * Math.PI / 180;
+    var win = this._miniLabel;
+    var degrees = win.miniLabelAngle();
+    // Rotate around the center of the mini label instead of its top-left
+    // corner. Moving the pivot shifts where win.x/win.y map to, so we offset
+    // the position by the pivot (scaled) to keep the label visually in place.
+    var pivotX = win.width / 2;
+    var pivotY = win.height / 2;
+    win.pivot.x = pivotX;
+    win.pivot.y = pivotY;
+    win.x += pivotX * win.scale.x;
+    win.y += pivotY * win.scale.y;
+    win.rotation = degrees * Math.PI / 180;
 };
 
 //=============================================================================
