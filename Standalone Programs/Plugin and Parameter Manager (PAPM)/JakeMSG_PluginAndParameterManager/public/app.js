@@ -231,6 +231,7 @@
     nextDevUid: 1,
 
     uiZoomPercent: 100,
+    pluginsFileSignatureBaseline: '',
     lastSelectionScope: '',
     lastEditorSelectionContext: null,
 
@@ -254,6 +255,9 @@
   const SETTINGS_BUTTON_TOOLTIP_DELAY_MS = 2000;
   let settingsButtonTooltipTimer = null;
   let settingsButtonTooltipNode = null;
+  let externalPluginsCheckTimer = null;
+  let externalPluginsCheckInFlight = false;
+  let externalPluginsPromptOpen = false;
 
   function makePluginKey(plugin) {
     return `${String(plugin.name || '')}::${String(plugin.description || '')}`;
@@ -2755,6 +2759,88 @@
     );
   }
 
+  function normalizePluginsFileSignature(signature) {
+    const source = signature && typeof signature === 'object' ? signature : null;
+    if (!source || !source.exists) {
+      return 'missing';
+    }
+
+    const size = Number(source.size) || 0;
+    const mtimeMs = Number(source.mtimeMs) || 0;
+    return `${size}:${mtimeMs}`;
+  }
+
+  function setPluginsFileSignatureBaseline(signature) {
+    state.pluginsFileSignatureBaseline = normalizePluginsFileSignature(signature);
+  }
+
+  function formatPluginNameList(names, maxCount) {
+    const list = uniqueStringList(names || []);
+    if (list.length <= 0) {
+      return '(none)';
+    }
+
+    const limit = Math.max(1, Number(maxCount) || 4);
+    if (list.length <= limit) {
+      return list.join(', ');
+    }
+
+    const head = list.slice(0, limit).join(', ');
+    return `${head} (+${list.length - limit} more)`;
+  }
+
+  function getOpenedPluginKeysInOrder() {
+    const keys = uniqueStringList(state.openTabs || []);
+    return keys.filter((pluginKey) => getPluginIndexByKey(pluginKey) >= 0);
+  }
+
+  function getActiveEditorPluginKey() {
+    const key = cleanText(state.activeTab || '');
+    if (!key) return '';
+    return getPluginIndexByKey(key) >= 0 ? key : '';
+  }
+
+  function buildPluginParameterEntries(pluginKeys) {
+    const keys = sortPluginKeysByOrder(pluginKeys);
+    const out = [];
+
+    for (let i = 0; i < keys.length; i += 1) {
+      const pluginIndex = getPluginIndexByKey(keys[i]);
+      if (pluginIndex < 0) continue;
+
+      const plugin = state.plugins[pluginIndex] || {};
+      out.push({
+        key: keys[i],
+        name: String(plugin.name || '').trim(),
+        parameters: cloneJson(plugin.parameters && typeof plugin.parameters === 'object'
+          ? plugin.parameters
+          : {})
+      });
+    }
+
+    return out;
+  }
+
+  function findPluginIndexByKeyOrName(pluginKey, pluginName) {
+    const key = cleanText(pluginKey || '');
+    if (key) {
+      const byKey = getPluginIndexByKey(key);
+      if (byKey >= 0) return byKey;
+    }
+
+    const token = pluginNameToken(pluginName);
+    if (!token) return -1;
+
+    const matches = [];
+    for (let i = 0; i < state.plugins.length; i += 1) {
+      if (pluginNameToken(state.plugins[i] && state.plugins[i].name) === token) {
+        matches.push(i);
+      }
+    }
+
+    return matches.length === 1 ? matches[0] : -1;
+  }
+
   function cloneJson(value) {
     return JSON.parse(JSON.stringify(value));
   }
@@ -3978,6 +4064,7 @@
   function applySnapshot(snapshot) {
     state.project = snapshot.project || null;
     state.plugins = Array.isArray(snapshot.plugins) ? snapshot.plugins : [];
+    setPluginsFileSignatureBaseline(snapshot && snapshot.pluginsFileSignature);
 
     const normalized = normalizeIncomingState(snapshot);
     state.folders = normalized.folders;
@@ -5280,6 +5367,24 @@
             label: 'Paste Plugin Entry',
             disabled: !canPaste,
             action: () => pastePluginEntries(key)
+          },
+          {
+            label: selectedKeys.length > 1
+              ? "Save selected Plugins' parameters"
+              : "Save selected Plugin's parameters",
+            action: () => savePluginParametersForKeys(selectedKeys)
+          },
+          {
+            label: selectedKeys.length > 1
+              ? "Export selected Plugins' parameters"
+              : "Export selected Plugin's parameters",
+            action: () => exportPluginParametersForKeys(selectedKeys)
+          },
+          {
+            label: selectedKeys.length > 1
+              ? "Import selected Plugins' parameters"
+              : "Import selected Plugin's parameters",
+            action: () => importPluginParametersForKeys(selectedKeys)
           },
           {
             label: selectedKeys.length > 1 ? 'Open Selected In Tabs' : 'Open In Tab',
@@ -10859,12 +10964,240 @@
     }
 
     try {
-      await apiPost('/api/plugins/save', { plugins: state.plugins });
+      const result = await apiPost('/api/plugins/save', { plugins: state.plugins });
+      setPluginsFileSignatureBaseline(result && result.pluginsFileSignature);
       state.pluginsDirty = false;
       clearDirtyLabels();
       showToast('Saved plugins.js', 'good');
     } catch (error) {
       showToast(error.message, 'bad');
+    }
+  }
+
+  async function savePluginParametersForKeys(pluginKeys, options) {
+    const config = options && typeof options === 'object' ? options : {};
+    const keys = sortPluginKeysByOrder(pluginKeys || []);
+
+    if (keys.length <= 0) {
+      if (!config.silentNoSelection) {
+        showToast('Select plugin row(s) first.', 'bad');
+      }
+      return {
+        ok: false,
+        savedPluginNames: [],
+        missingPluginNames: []
+      };
+    }
+
+    const entries = buildPluginParameterEntries(keys);
+    if (entries.length <= 0) {
+      showToast('No plugin parameters available to save.', 'bad');
+      return {
+        ok: false,
+        savedPluginNames: [],
+        missingPluginNames: []
+      };
+    }
+
+    try {
+      const result = await apiPost('/api/plugins/parameters/save', { entries });
+      setPluginsFileSignatureBaseline(result && result.pluginsFileSignature);
+
+      const savedPluginNames = uniqueStringList(result && result.savedPluginNames ? result.savedPluginNames : []);
+      const missingPluginNames = uniqueStringList(result && result.missingPluginNames ? result.missingPluginNames : []);
+
+      if (!config.suppressSuccessToast) {
+        if (savedPluginNames.length > 0) {
+          showToast(`Saved plugin parameter(s): ${formatPluginNameList(savedPluginNames, 4)}`, 'good');
+        }
+
+        if (missingPluginNames.length > 0) {
+          showToast(`Could not save parameters for: ${formatPluginNameList(missingPluginNames, 4)}`, 'bad');
+        }
+
+        if (savedPluginNames.length <= 0 && missingPluginNames.length <= 0) {
+          showToast('No plugin parameters were saved.', 'bad');
+        }
+      }
+
+      return {
+        ok: savedPluginNames.length > 0,
+        savedPluginNames,
+        missingPluginNames
+      };
+    } catch (error) {
+      if (!config.suppressErrorToast) {
+        showToast(error.message, 'bad');
+      }
+
+      return {
+        ok: false,
+        savedPluginNames: [],
+        missingPluginNames: [],
+        error
+      };
+    }
+  }
+
+  async function exportPluginParametersForKeys(pluginKeys, options) {
+    const config = options && typeof options === 'object' ? options : {};
+    const keys = sortPluginKeysByOrder(pluginKeys || []);
+
+    if (keys.length <= 0) {
+      if (!config.silentNoSelection) {
+        showToast('Select plugin row(s) first.', 'bad');
+      }
+      return {
+        ok: false,
+        exportedNames: [],
+        failedNames: []
+      };
+    }
+
+    const entries = buildPluginParameterEntries(keys);
+    if (entries.length <= 0) {
+      showToast('No plugin parameters available to export.', 'bad');
+      return {
+        ok: false,
+        exportedNames: [],
+        failedNames: []
+      };
+    }
+
+    try {
+      const result = await apiPost('/api/plugins/parameters/export', { entries });
+      const exported = Array.isArray(result && result.exported) ? result.exported : [];
+      const failed = Array.isArray(result && result.failed) ? result.failed : [];
+
+      const exportedNames = uniqueStringList(exported.map((row) => String(row && row.pluginName ? row.pluginName : '')));
+      const failedNames = uniqueStringList(failed.map((row) => String(row && row.pluginName ? row.pluginName : '')));
+
+      if (!config.suppressSuccessToast) {
+        if (exportedNames.length > 0) {
+          showToast(`Exported plugin parameter(s): ${formatPluginNameList(exportedNames, 4)}`, 'good');
+        }
+
+        if (failedNames.length > 0) {
+          showToast(`Failed parameter export for: ${formatPluginNameList(failedNames, 4)}`, 'bad');
+        }
+
+        if (exportedNames.length <= 0 && failedNames.length <= 0) {
+          showToast('No plugin parameters were exported.', 'bad');
+        }
+      }
+
+      return {
+        ok: exportedNames.length > 0,
+        exportedNames,
+        failedNames
+      };
+    } catch (error) {
+      if (!config.suppressErrorToast) {
+        showToast(error.message, 'bad');
+      }
+
+      return {
+        ok: false,
+        exportedNames: [],
+        failedNames: [],
+        error
+      };
+    }
+  }
+
+  async function importPluginParametersForKeys(pluginKeys, options) {
+    const config = options && typeof options === 'object' ? options : {};
+    const keys = sortPluginKeysByOrder(pluginKeys || []);
+
+    if (keys.length <= 0) {
+      if (!config.silentNoSelection) {
+        showToast('Select plugin row(s) first.', 'bad');
+      }
+      return {
+        ok: false,
+        importedNames: [],
+        missingNames: [],
+        failedNames: []
+      };
+    }
+
+    const entries = buildPluginParameterEntries(keys).map((row) => ({
+      key: row.key,
+      name: row.name
+    }));
+
+    try {
+      const result = await apiPost('/api/plugins/parameters/import', { entries });
+      const importedRows = Array.isArray(result && result.imported) ? result.imported : [];
+      const missingRows = Array.isArray(result && result.missing) ? result.missing : [];
+      const failedRows = Array.isArray(result && result.failed) ? result.failed : [];
+
+      const importedNames = [];
+      let changed = 0;
+
+      for (let i = 0; i < importedRows.length; i += 1) {
+        const row = importedRows[i] && typeof importedRows[i] === 'object' ? importedRows[i] : {};
+        const pluginName = String(row.pluginName || row.name || '').trim();
+        const pluginKey = String(row.key || '').trim();
+        const targetIndex = findPluginIndexByKeyOrName(pluginKey, pluginName);
+        if (targetIndex < 0) {
+          continue;
+        }
+
+        const nextParameters = row.parameters && typeof row.parameters === 'object'
+          ? cloneJson(row.parameters)
+          : {};
+
+        state.plugins[targetIndex].parameters = nextParameters;
+        changed += 1;
+        importedNames.push(String(state.plugins[targetIndex].name || pluginName || `Plugin #${targetIndex + 1}`));
+      }
+
+      if (changed > 0) {
+        markPluginsDirty();
+        renderAll();
+      }
+
+      const missingNames = uniqueStringList(missingRows.map((row) => String(row && row.pluginName ? row.pluginName : '')));
+      const failedNames = uniqueStringList(failedRows.map((row) => String(row && row.pluginName ? row.pluginName : '')));
+      const normalizedImportedNames = uniqueStringList(importedNames);
+
+      if (!config.suppressSuccessToast) {
+        if (normalizedImportedNames.length > 0) {
+          showToast(`Imported plugin parameter(s): ${formatPluginNameList(normalizedImportedNames, 4)}`, 'good');
+        }
+
+        if (missingNames.length > 0) {
+          showToast(`Missing parameter file(s): ${formatPluginNameList(missingNames, 4)}`, 'bad');
+        }
+
+        if (failedNames.length > 0) {
+          showToast(`Failed parameter import for: ${formatPluginNameList(failedNames, 4)}`, 'bad');
+        }
+
+        if (normalizedImportedNames.length <= 0 && missingNames.length <= 0 && failedNames.length <= 0) {
+          showToast('No plugin parameters were imported.', 'bad');
+        }
+      }
+
+      return {
+        ok: normalizedImportedNames.length > 0,
+        importedNames: normalizedImportedNames,
+        missingNames,
+        failedNames
+      };
+    } catch (error) {
+      if (!config.suppressErrorToast) {
+        showToast(error.message, 'bad');
+      }
+
+      return {
+        ok: false,
+        importedNames: [],
+        missingNames: [],
+        failedNames: [],
+        error
+      };
     }
   }
 
@@ -11225,7 +11558,7 @@
       const result = await apiPost('/api/settings/export', {
         settings: exportBundle
       });
-      const filePath = String(result && result.settingsPath ? result.settingsPath : 'Settings.json');
+      const filePath = String(result && result.settingsPath ? result.settingsPath : 'ProgramSettings.json');
       showToast(`Settings exported to ${filePath}`, 'good');
     } catch (error) {
       showToast(error.message, 'bad');
@@ -11260,11 +11593,333 @@
       if (summary.missingPlugins > 0) {
         showToast(`Settings imported. ${summary.missingPlugins} missing plugin(s) skipped.`, 'good');
       } else {
-        showToast('Settings imported from Settings.json', 'good');
+        showToast('Settings imported from ProgramSettings.json', 'good');
       }
     } catch (error) {
       showToast(error.message, 'bad');
     }
+  }
+
+  async function reloadProjectFromDisk(successMessage) {
+    if (!state.project) {
+      showToast('No project loaded.', 'bad');
+      return false;
+    }
+
+    try {
+      const snapshot = await apiGet('/api/reload');
+      applySnapshot(snapshot);
+      if (successMessage) {
+        showToast(successMessage, 'good');
+      }
+      return true;
+    } catch (error) {
+      showToast(error.message, 'bad');
+      return false;
+    }
+  }
+
+  async function reloadExceptOpenedPluginsAfterExternalChange() {
+    const openedKeys = getOpenedPluginKeysInOrder();
+
+    if (openedKeys.length <= 0) {
+      return reloadProjectFromDisk('Project data reloaded from disk.');
+    }
+
+    await savePluginParametersForKeys(openedKeys, {
+      suppressSuccessToast: true,
+      suppressErrorToast: false,
+      silentNoSelection: true
+    });
+
+    const parameterBackup = buildPluginParameterEntries(openedKeys);
+    const reloaded = await reloadProjectFromDisk('Project data reloaded from disk.');
+    if (!reloaded) {
+      return false;
+    }
+
+    let restoredCount = 0;
+    const restoredNames = [];
+
+    for (let i = 0; i < parameterBackup.length; i += 1) {
+      const row = parameterBackup[i] && typeof parameterBackup[i] === 'object' ? parameterBackup[i] : {};
+      const pluginKey = cleanText(row.key || '');
+      const pluginName = cleanText(row.name || '');
+      const targetIndex = findPluginIndexByKeyOrName(pluginKey, pluginName);
+      if (targetIndex < 0) continue;
+
+      const nextParameters = row.parameters && typeof row.parameters === 'object'
+        ? cloneJson(row.parameters)
+        : {};
+
+      const previousSerialized = JSON.stringify(state.plugins[targetIndex].parameters || {});
+      const nextSerialized = JSON.stringify(nextParameters);
+      if (previousSerialized === nextSerialized) {
+        continue;
+      }
+
+      state.plugins[targetIndex].parameters = nextParameters;
+      restoredCount += 1;
+      restoredNames.push(String(state.plugins[targetIndex].name || pluginName || `Plugin #${targetIndex + 1}`));
+    }
+
+    if (restoredCount > 0) {
+      markPluginsDirty();
+      renderAll();
+    }
+
+    showToast(
+      restoredCount > 0
+        ? `Reloaded and restored opened plugin parameter(s): ${formatPluginNameList(restoredNames, 4)}`
+        : 'Reloaded and preserved opened plugin parameter state.',
+      'good'
+    );
+
+    return true;
+  }
+
+  function showExternalPluginsModifiedPromptWindow() {
+    return new Promise((resolve) => {
+      const token = `plugins-change-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+      const availWidth = Math.max(860, Number(window.screen && window.screen.availWidth) || 1280);
+      const availHeight = Math.max(620, Number(window.screen && window.screen.availHeight) || 900);
+      const width = Math.max(780, Math.min(1080, Math.floor(availWidth * 0.62)));
+      const height = Math.max(420, Math.min(660, Math.floor(availHeight * 0.56)));
+      const left = Math.max(0, Math.floor((availWidth - width) / 2));
+      const top = Math.max(0, Math.floor((availHeight - height) / 2));
+
+      const popup = window.open(
+        'about:blank#external-plugins-change-prompt',
+        '_blank',
+        [
+          'popup=yes',
+          `width=${width}`,
+          `height=${height}`,
+          `left=${left}`,
+          `top=${top}`,
+          'resizable=yes',
+          'scrollbars=yes'
+        ].join(',')
+      );
+
+      if (!popup) {
+        resolve('ignore');
+        return;
+      }
+
+      let settled = false;
+      let closeWatcher = null;
+
+      function cleanup(choice) {
+        if (settled) return;
+        settled = true;
+
+        window.removeEventListener('message', onMessage);
+        if (closeWatcher) {
+          clearInterval(closeWatcher);
+          closeWatcher = null;
+        }
+
+        try {
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+        } catch (_error) {
+          // no-op
+        }
+
+        resolve(cleanText(choice || 'ignore') || 'ignore');
+      }
+
+      function onMessage(event) {
+        const data = event && event.data && typeof event.data === 'object'
+          ? event.data
+          : null;
+        if (!data || data.type !== 'external-plugins-change-choice') return;
+        if (cleanText(data.token || '') !== token) return;
+        cleanup(data.choice);
+      }
+
+      window.addEventListener('message', onMessage);
+      closeWatcher = setInterval(() => {
+        if (popup.closed) {
+          cleanup('ignore');
+        }
+      }, 160);
+
+      popup.document.open();
+      popup.document.write(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>plugins.js External Change</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #15212d;
+      --line: #3f5d75;
+      --text: #ecf4fb;
+      --muted: #9eb8cc;
+      --good: #5eb275;
+      --warn: #e97c34;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Bahnschrift", "Trebuchet MS", "Verdana", sans-serif;
+    }
+    .shell {
+      width: 100%;
+      height: 100%;
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 0.9rem;
+    }
+    .actions {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    button {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(21, 33, 45, 0.96);
+      color: var(--text);
+      padding: 9px 12px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+    button.reload {
+      border-color: rgba(94, 178, 117, 0.7);
+      background: rgba(94, 178, 117, 0.18);
+    }
+    button.reloadKeep {
+      border-color: rgba(233, 124, 52, 0.7);
+      background: rgba(233, 124, 52, 0.16);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="panel">
+      <h1>External modification of the "plugin.js" detected. What do you wish to do?</h1>
+      <p>Choose how manager should continue.</p>
+    </div>
+    <div class="panel actions">
+      <button class="reload" type="button" id="btnReload">Reload</button>
+      <button type="button" id="btnIgnore">Ignore</button>
+      <button class="reloadKeep" type="button" id="btnReloadKeep">Reload EXCEPT the opened plugins</button>
+    </div>
+    <p>Closing this window defaults to Ignore.</p>
+  </div>
+  <script>
+    const TOKEN = ${JSON.stringify(token)};
+    function choose(choice) {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({
+          type: 'external-plugins-change-choice',
+          token: TOKEN,
+          choice
+        }, '*');
+      }
+      window.close();
+    }
+    document.getElementById('btnReload').addEventListener('click', () => choose('reload'));
+    document.getElementById('btnIgnore').addEventListener('click', () => choose('ignore'));
+    document.getElementById('btnReloadKeep').addEventListener('click', () => choose('reload-except-opened'));
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        choose('ignore');
+      }
+    });
+  <\/script>
+</body>
+</html>`);
+      popup.document.close();
+      popup.focus();
+    });
+  }
+
+  async function checkExternalPluginsFileModification() {
+    if (!state.project || externalPluginsPromptOpen || externalPluginsCheckInFlight) {
+      return;
+    }
+
+    externalPluginsCheckInFlight = true;
+
+    try {
+      const result = await apiGet('/api/plugins/signature');
+      const currentSignature = normalizePluginsFileSignature(result && result.pluginsFileSignature);
+
+      if (!state.pluginsFileSignatureBaseline) {
+        state.pluginsFileSignatureBaseline = currentSignature;
+        return;
+      }
+
+      if (currentSignature === state.pluginsFileSignatureBaseline) {
+        return;
+      }
+
+      externalPluginsPromptOpen = true;
+      const choice = await showExternalPluginsModifiedPromptWindow();
+      externalPluginsPromptOpen = false;
+
+      if (choice === 'reload') {
+        await reloadProjectFromDisk('Project data reloaded from disk.');
+        return;
+      }
+
+      if (choice === 'reload-except-opened') {
+        await reloadExceptOpenedPluginsAfterExternalChange();
+        return;
+      }
+
+      state.pluginsFileSignatureBaseline = currentSignature;
+      showToast('Ignored external plugins.js modification.', 'good');
+    } catch (_error) {
+      // Polling failures can happen during reload transitions; skip noisy toasts here.
+    } finally {
+      externalPluginsPromptOpen = false;
+      externalPluginsCheckInFlight = false;
+    }
+  }
+
+  function startExternalPluginsFileMonitor() {
+    if (externalPluginsCheckTimer) {
+      clearInterval(externalPluginsCheckTimer);
+      externalPluginsCheckTimer = null;
+    }
+
+    externalPluginsCheckTimer = setInterval(() => {
+      checkExternalPluginsFileModification();
+    }, 1000);
   }
 
   function clearRuntimeManagerLayoutState(options) {
@@ -11750,7 +12405,7 @@
 
       bindSettingsButtonTooltip(
         dom.btnExportSettings,
-        'Export current Internal Folders + Manager Layout settings (including scrollbars and expanded/collapsed states) to Settings.json in this program folder.'
+        'Export current Internal Folders + Manager Layout settings (including scrollbars and expanded/collapsed states) to ProgramSettings.json in this program folder.'
       );
     }
 
@@ -11761,18 +12416,12 @@
 
       bindSettingsButtonTooltip(
         dom.btnImportSettings,
-        'Import Internal Folders + Manager Layout settings (including scrollbars and expanded/collapsed states) from Settings.json in this program folder.'
+        'Import Internal Folders + Manager Layout settings (including scrollbars and expanded/collapsed states) from ProgramSettings.json in this program folder.'
       );
     }
 
     dom.btnReload.addEventListener('click', async () => {
-      try {
-        const snapshot = await apiGet('/api/reload');
-        applySnapshot(snapshot);
-        showToast('Project data reloaded from disk.', 'good');
-      } catch (error) {
-        showToast(error.message, 'bad');
-      }
+      await reloadProjectFromDisk('Project data reloaded from disk.');
     });
 
     dom.tabsBar.addEventListener('dragover', (event) => {
@@ -11889,6 +12538,41 @@
         event.preventDefault();
         dom.btnResetLayout.click();
         return;
+      }
+
+      const isSaveLetterHotkey = hotkey === 's' || event.code === 'KeyS';
+      if (isSaveLetterHotkey && hotkeyHeldCodes.has('Tab')) {
+        const hasCtrl = Boolean(event.ctrlKey || event.metaKey);
+        const hasShift = Boolean(event.shiftKey);
+        const hasAlt = Boolean(event.altKey);
+        const activePluginKey = getActiveEditorPluginKey();
+        const openedKeys = getOpenedPluginKeysInOrder();
+        let handled = false;
+
+        if (!hasCtrl && !hasAlt && !hasShift) {
+          savePluginParametersForKeys(activePluginKey ? [activePluginKey] : []);
+          handled = true;
+        } else if (!hasCtrl && !hasAlt && hasShift) {
+          savePluginParametersForKeys(openedKeys);
+          handled = true;
+        } else if (hasCtrl && !hasAlt && !hasShift) {
+          exportPluginParametersForKeys(activePluginKey ? [activePluginKey] : []);
+          handled = true;
+        } else if (hasCtrl && !hasAlt && hasShift) {
+          exportPluginParametersForKeys(openedKeys);
+          handled = true;
+        } else if (!hasCtrl && hasAlt && !hasShift) {
+          importPluginParametersForKeys(activePluginKey ? [activePluginKey] : []);
+          handled = true;
+        } else if (!hasCtrl && hasAlt && hasShift) {
+          importPluginParametersForKeys(openedKeys);
+          handled = true;
+        }
+
+        if (handled) {
+          event.preventDefault();
+          return;
+        }
       }
 
       if ((event.ctrlKey || event.metaKey)
@@ -12116,10 +12800,16 @@
       }
     });
 
+    window.addEventListener('focus', () => {
+      checkExternalPluginsFileModification();
+    });
+
     window.addEventListener('resize', () => {
       hideTagSuggest();
       removeSettingsButtonTooltip();
     });
+
+    startExternalPluginsFileMonitor();
   }
 
   async function bootstrap() {

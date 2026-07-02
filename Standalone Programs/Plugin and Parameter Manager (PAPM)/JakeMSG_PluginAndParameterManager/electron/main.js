@@ -12,6 +12,80 @@ let mainWindow = null;
 let serverRuntime = null;
 let quitting = false;
 const SHUTDOWN_TIMEOUT_MS = 2500;
+const EXTERNAL_PLUGINS_PROMPT_HASH = '#external-plugins-change-prompt';
+const externalPluginsPromptWindows = new Set();
+
+function isExternalPluginsPromptUrl(urlValue) {
+  return String(urlValue || '').includes(EXTERNAL_PLUGINS_PROMPT_HASH);
+}
+
+function unregisterExternalPluginsPromptWindow(promptWindow) {
+  if (!promptWindow) return;
+  externalPluginsPromptWindows.delete(promptWindow);
+}
+
+function bringExternalPluginsPromptWindowToFront(promptWindow) {
+  if (!promptWindow || promptWindow.isDestroyed()) {
+    return false;
+  }
+
+  try {
+    if (promptWindow.isMinimized()) {
+      promptWindow.restore();
+    }
+
+    promptWindow.show();
+    promptWindow.moveTop();
+    promptWindow.focus();
+    promptWindow.flashFrame(false);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function bringAnyExternalPluginsPromptWindowToFront() {
+  for (const promptWindow of Array.from(externalPluginsPromptWindows)) {
+    if (!promptWindow || promptWindow.isDestroyed()) {
+      unregisterExternalPluginsPromptWindow(promptWindow);
+      continue;
+    }
+
+    if (bringExternalPluginsPromptWindowToFront(promptWindow)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function registerExternalPluginsPromptWindow(promptWindow) {
+  if (!promptWindow || promptWindow.isDestroyed()) return;
+
+  externalPluginsPromptWindows.add(promptWindow);
+
+  promptWindow.on('focus', () => {
+    try {
+      promptWindow.flashFrame(false);
+    } catch (_error) {
+      // no-op
+    }
+  });
+
+  promptWindow.on('blur', () => {
+    if (!externalPluginsPromptWindows.has(promptWindow)) return;
+
+    try {
+      promptWindow.flashFrame(true);
+    } catch (_error) {
+      // no-op
+    }
+  });
+
+  promptWindow.on('closed', () => {
+    unregisterExternalPluginsPromptWindow(promptWindow);
+  });
+}
 
 function createBridge() {
   return {
@@ -65,14 +139,39 @@ function createMainWindow(serverUrl) {
   mainWindow.removeMenu();
   mainWindow.loadURL(serverUrl);
 
+  mainWindow.webContents.on('did-create-window', (childWindow, details) => {
+    if (!isExternalPluginsPromptUrl(details && details.url)) {
+      return;
+    }
+
+    registerExternalPluginsPromptWindow(childWindow);
+
+    try {
+      childWindow.flashFrame(true);
+    } catch (_error) {
+      // no-op
+    }
+
+    if (mainWindow && mainWindow.isFocused()) {
+      setTimeout(() => {
+        bringExternalPluginsPromptWindowToFront(childWindow);
+      }, 0);
+    }
+  });
+
   mainWindow.once('ready-to-show', () => {
     if (mainWindow) {
       mainWindow.show();
     }
   });
 
+  mainWindow.on('focus', () => {
+    bringAnyExternalPluginsPromptWindowToFront();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
+    externalPluginsPromptWindows.clear();
   });
 
   mainWindow.on('close', (event) => {

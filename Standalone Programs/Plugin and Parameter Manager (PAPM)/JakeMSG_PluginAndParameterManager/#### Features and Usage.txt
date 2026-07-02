@@ -59,10 +59,10 @@ D) Manager layout/view state
   - Reassigns all plugins to Ungrouped.
   - Does NOT save automatically; use Save Internal Folders to persist.
 - Export Settings:
-  - Writes current Internal Folders + Manager Layout settings to Settings.json in the program folder.
+  - Writes current Internal Folders + Manager Layout settings to ProgramSettings.json in the program folder.
   - Includes scrollbar positions and expanded/collapsed UI states.
 - Import Settings:
-  - Reads Settings.json from the program folder.
+  - Reads ProgramSettings.json from the program folder.
   - Applies Internal Folders + Manager Layout settings to current loaded project.
   - Missing plugins in current project are skipped automatically.
 
@@ -103,6 +103,9 @@ D) Manager layout/view state
   - copy plugin entry or selected entries
   - cut plugin entry or selected entries
   - paste plugin entry
+  - save selected plugin(s) parameters to plugins.js (parameter-only save)
+  - export selected plugin(s) parameters to Parameters_<PluginName>.json files in program folder
+  - import selected plugin(s) parameters from Parameters_<PluginName>.json files in program folder
   - open in tab(s)
   - move to selected folder
   - remove plugin(s)
@@ -251,6 +254,7 @@ List-type parameter multi-selection:
 
 - Save plugins.js
   - Saves plugin list/order/status/parameters to plugins.js.
+  - Also toggles one trailing space before the last "}" in data/System.json (MV: www/data/System.json, MZ: data/System.json) so editor detects change via data folder update.
 
 - Backup plugins.js
   - Creates backup copy of current plugins.js before/without saving changes.
@@ -276,6 +280,20 @@ List-type parameter multi-selection:
   - Also saves folders/mapping/tags/collapsed with same state payload endpoint.
   - Modified marker (*) appears when layout/view state differs from last saved manager layout.
 
+- External plugins.js change detection
+  - Program checks plugins.js external modification at least once per second.
+  - Program also checks when program window regains focus.
+  - On detected external change, popup window asks:
+    - Reload
+    - Ignore
+    - Reload EXCEPT the opened plugins
+  - Reload EXCEPT the opened plugins flow:
+    - save opened-tab plugin parameters to plugins.js
+    - backup opened-tab plugin parameters internally
+    - reload project data
+    - restore opened-tab plugin parameters from internal backup
+    - discard backup
+
 ==================================================
 11) Hotkeys
 ==================================================
@@ -299,6 +317,12 @@ Global:
   - Dev Option struct schema area: Add Struct Block
 - F5: Reload
 - F6: Reset Layout
+- Tab+S: Save parameters of active Editor plugin to plugins.js
+- Tab+Shift+S: Save parameters of all opened-tab plugins to plugins.js
+- Tab+Ctrl+S: Export parameters of active Editor plugin to Parameters_<PluginName>.json
+- Tab+Shift+Ctrl+S: Export parameters of all opened-tab plugins to Parameters_<PluginName>.json files
+- Tab+Alt+S: Import parameters of active Editor plugin from Parameters_<PluginName>.json
+- Tab+Shift+Alt+S: Import parameters of all opened-tab plugins from Parameters_<PluginName>.json files
 
 Editor/navigation:
 - Ctrl + Plus / Equal / NumpadAdd: zoom in
@@ -333,4 +357,4 @@ Plugin clipboard shortcuts:
 6) (Optional dev mode) edit @param / ~struct~ schemas, then save schema to plugin files.
 7) Save Internal Folders for organization state.
 8) Save Manager Layout to persist tabs/search/zoom/scroll workspace view.
-9) (Optional) Use Export Settings / Import Settings to move current organization/layout through Settings.json in the program folder.
+9) (Optional) Use Export Settings / Import Settings to move current organization/layout through ProgramSettings.json in the program folder.

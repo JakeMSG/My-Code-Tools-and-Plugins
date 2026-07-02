@@ -36,7 +36,8 @@ const APP_VERSION = '0.1.0';
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const APP_PREFS_PATH = path.join(ROOT_DIR, '.JakeMSG_PluginAndParameterManager.app.json');
-const SETTINGS_FILE_PATH = path.join(ROOT_DIR, 'Settings.json');
+const SETTINGS_FILE_PATH = path.join(ROOT_DIR, 'ProgramSettings.json');
+const PARAMETERS_EXPORT_PREFIX = 'Parameters_';
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -236,10 +237,177 @@ function pluginSnapshot() {
   return {
     project: sanitizeProject(session.project),
     plugins: session.plugins,
+    pluginsFileSignature: getPluginsFileSignature(session.project ? session.project.pluginsJsPath : ''),
     state: stateSnapshot(),
     groups: legacy.groups,
     pluginToGroup: legacy.pluginToGroup
   };
+}
+
+function buildPluginKey(plugin) {
+  const source = plugin && typeof plugin === 'object' ? plugin : {};
+  return `${String(source.name || '')}::${String(source.description || '')}`;
+}
+
+function normalizePluginParameters(parameters) {
+  const source = parameters && typeof parameters === 'object' ? parameters : {};
+  const out = {};
+
+  Object.keys(source).forEach((key) => {
+    const raw = source[key];
+    out[String(key)] = raw === undefined || raw === null ? '' : String(raw);
+  });
+
+  return out;
+}
+
+function getPluginsFileSignature(filePath) {
+  const targetPath = String(filePath || '').trim();
+  if (!targetPath) {
+    return {
+      exists: false,
+      size: 0,
+      mtimeMs: 0,
+      key: 'missing'
+    };
+  }
+
+  try {
+    const stats = fs.statSync(targetPath);
+    if (!stats.isFile()) {
+      return {
+        exists: false,
+        size: 0,
+        mtimeMs: 0,
+        key: 'missing'
+      };
+    }
+
+    const size = Number(stats.size) || 0;
+    const mtimeMs = Number(stats.mtimeMs) || 0;
+
+    return {
+      exists: true,
+      size,
+      mtimeMs,
+      key: `${size}:${mtimeMs}`
+    };
+  } catch (_err) {
+    return {
+      exists: false,
+      size: 0,
+      mtimeMs: 0,
+      key: 'missing'
+    };
+  }
+}
+
+function getSystemJsonPathForProject(project) {
+  if (!project || !project.gameRoot) return '';
+
+  if (String(project.engine || '').toUpperCase() === 'MV') {
+    return path.join(project.gameRoot, 'www', 'data', 'System.json');
+  }
+
+  return path.join(project.gameRoot, 'data', 'System.json');
+}
+
+function toggleSystemJsonTrailingSpace(project) {
+  const systemPath = getSystemJsonPathForProject(project);
+  if (!systemPath) {
+    return {
+      found: false,
+      touched: false,
+      path: ''
+    };
+  }
+
+  try {
+    if (!fs.existsSync(systemPath)) {
+      return {
+        found: false,
+        touched: false,
+        path: systemPath
+      };
+    }
+
+    const text = fs.readFileSync(systemPath, 'utf8');
+    const braceIndex = text.lastIndexOf('}');
+    if (braceIndex <= 0) {
+      return {
+        found: true,
+        touched: false,
+        path: systemPath,
+        added: false,
+        removed: false
+      };
+    }
+
+    const hasSpace = text[braceIndex - 1] === ' ';
+    const nextText = hasSpace
+      ? `${text.slice(0, braceIndex - 1)}${text.slice(braceIndex)}`
+      : `${text.slice(0, braceIndex)} ${text.slice(braceIndex)}`;
+
+    if (nextText !== text) {
+      fs.writeFileSync(systemPath, nextText, 'utf8');
+    }
+
+    return {
+      found: true,
+      touched: nextText !== text,
+      path: systemPath,
+      added: !hasSpace,
+      removed: hasSpace
+    };
+  } catch (err) {
+    return {
+      found: true,
+      touched: false,
+      path: systemPath,
+      error: err.message || String(err)
+    };
+  }
+}
+
+function sanitizePluginParameterEntries(value) {
+  const list = Array.isArray(value) ? value : [];
+  const out = [];
+  const used = new Set();
+
+  for (let i = 0; i < list.length; i += 1) {
+    const row = list[i] && typeof list[i] === 'object' ? list[i] : {};
+    const key = String(row.key || '').trim();
+    const name = String(row.name || '').trim();
+    const parameters = normalizePluginParameters(row.parameters);
+
+    if (!key && !name) continue;
+
+    const dedupeKey = key || `name:${name.toLowerCase()}`;
+    if (used.has(dedupeKey)) continue;
+    used.add(dedupeKey);
+
+    out.push({
+      key,
+      name,
+      parameters
+    });
+  }
+
+  return out;
+}
+
+function sanitizeParameterFileNameStem(value) {
+  const raw = String(value || '').trim();
+  const sanitized = raw.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+  return sanitized || 'Plugin';
+}
+
+function buildParametersExportFileName(pluginName) {
+  return `${PARAMETERS_EXPORT_PREFIX}${sanitizeParameterFileNameStem(pluginName)}.json`;
+}
+
+function buildParametersExportFilePath(pluginName) {
+  return path.join(ROOT_DIR, buildParametersExportFileName(pluginName));
 }
 
 function loadProjectIntoSession(project) {
@@ -789,13 +957,252 @@ async function handleApi(req, res, requestUrl) {
     try {
       savePluginsFile(session.project.pluginsJsPath, plugins, session.lineEnding);
       session.plugins = plugins;
+      const systemJsonTouch = toggleSystemJsonTrailingSpace(session.project);
+      const pluginsFileSignature = getPluginsFileSignature(session.project.pluginsJsPath);
+
       sendJson(res, 200, {
         ok: true,
-        count: plugins.length
+        count: plugins.length,
+        pluginsFileSignature,
+        systemJsonTouch
       });
     } catch (err) {
       sendApiError(res, 500, 'Failed saving plugins.js', err.message);
     }
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/plugins/signature') {
+    if (!ensureProjectLoaded(res)) return;
+
+    sendJson(res, 200, {
+      ok: true,
+      pluginsJsPath: session.project.pluginsJsPath,
+      pluginsFileSignature: getPluginsFileSignature(session.project.pluginsJsPath)
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/plugins/parameters/save') {
+    if (!ensureProjectLoaded(res)) return;
+
+    const body = await readJsonBody(req);
+    const entries = sanitizePluginParameterEntries(body.entries);
+
+    if (entries.length <= 0) {
+      sendApiError(res, 400, 'Invalid plugin-parameter save payload');
+      return;
+    }
+
+    try {
+      const loaded = loadPluginsFile(session.project.pluginsJsPath);
+      const diskPlugins = Array.isArray(loaded.plugins)
+        ? loaded.plugins.map((plugin) => normalizePluginEntry(plugin))
+        : [];
+
+      const indexByKey = new Map();
+      const indexesByNameToken = new Map();
+
+      for (let i = 0; i < diskPlugins.length; i += 1) {
+        const plugin = diskPlugins[i];
+        const key = buildPluginKey(plugin);
+        const nameToken = String(plugin.name || '').trim().toLowerCase();
+        indexByKey.set(key, i);
+
+        if (!nameToken) continue;
+        if (!indexesByNameToken.has(nameToken)) {
+          indexesByNameToken.set(nameToken, []);
+        }
+        indexesByNameToken.get(nameToken).push(i);
+      }
+
+      const savedPluginNames = [];
+      const missingPluginNames = [];
+      const touchedDiskIndexes = new Set();
+
+      for (let i = 0; i < entries.length; i += 1) {
+        const row = entries[i];
+        const key = String(row.key || '').trim();
+        const name = String(row.name || '').trim();
+        const nameToken = name.toLowerCase();
+
+        let targetIndex = -1;
+        if (key && indexByKey.has(key)) {
+          targetIndex = Number(indexByKey.get(key));
+        } else if (nameToken && indexesByNameToken.has(nameToken)) {
+          const indexes = indexesByNameToken.get(nameToken) || [];
+          if (indexes.length === 1) {
+            targetIndex = Number(indexes[0]);
+          }
+        }
+
+        if (targetIndex < 0 || targetIndex >= diskPlugins.length) {
+          missingPluginNames.push(name || key || `Plugin #${i + 1}`);
+          continue;
+        }
+
+        diskPlugins[targetIndex].parameters = normalizePluginParameters(row.parameters);
+        touchedDiskIndexes.add(targetIndex);
+
+        const diskPlugin = diskPlugins[targetIndex];
+        savedPluginNames.push(String(diskPlugin.name || name || key || `Plugin #${i + 1}`));
+
+        const targetKey = buildPluginKey(diskPlugin);
+        const sessionIndex = session.plugins.findIndex((plugin) => buildPluginKey(plugin) === targetKey);
+        if (sessionIndex >= 0) {
+          session.plugins[sessionIndex].parameters = normalizePluginParameters(row.parameters);
+        }
+      }
+
+      if (touchedDiskIndexes.size > 0) {
+        savePluginsFile(session.project.pluginsJsPath, diskPlugins, loaded.lineEnding || session.lineEnding);
+      }
+
+      const systemJsonTouch = touchedDiskIndexes.size > 0
+        ? toggleSystemJsonTrailingSpace(session.project)
+        : {
+          found: Boolean(getSystemJsonPathForProject(session.project)),
+          touched: false,
+          path: getSystemJsonPathForProject(session.project)
+        };
+
+      sendJson(res, 200, {
+        ok: true,
+        savedPluginNames,
+        missingPluginNames,
+        savedCount: touchedDiskIndexes.size,
+        pluginsFileSignature: getPluginsFileSignature(session.project.pluginsJsPath),
+        systemJsonTouch
+      });
+    } catch (err) {
+      sendApiError(res, 500, 'Failed saving selected plugin parameters', err.message);
+    }
+
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/plugins/parameters/export') {
+    if (!ensureProjectLoaded(res)) return;
+
+    const body = await readJsonBody(req);
+    const entries = sanitizePluginParameterEntries(body.entries);
+
+    if (entries.length <= 0) {
+      sendApiError(res, 400, 'Invalid plugin-parameter export payload');
+      return;
+    }
+
+    const exported = [];
+    const failed = [];
+
+    for (let i = 0; i < entries.length; i += 1) {
+      const row = entries[i];
+      const key = String(row.key || '').trim();
+      const fallbackName = String(key.split('::')[0] || '').trim();
+      const pluginName = String(row.name || fallbackName || `Plugin${i + 1}`).trim();
+      const fileName = buildParametersExportFileName(pluginName);
+      const filePath = path.join(ROOT_DIR, fileName);
+
+      try {
+        const payload = {
+          pluginName,
+          pluginKey: key,
+          parameters: normalizePluginParameters(row.parameters)
+        };
+        fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+        exported.push({ pluginName, fileName, filePath });
+      } catch (err) {
+        failed.push({
+          pluginName,
+          fileName,
+          error: err.message || String(err)
+        });
+      }
+    }
+
+    sendJson(res, 200, {
+      ok: true,
+      exported,
+      failed
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/plugins/parameters/import') {
+    if (!ensureProjectLoaded(res)) return;
+
+    const body = await readJsonBody(req);
+    let entries = sanitizePluginParameterEntries(body.entries);
+
+    if (entries.length <= 0 && Array.isArray(body.pluginNames)) {
+      entries = body.pluginNames.map((rawName) => ({
+        key: '',
+        name: String(rawName || '').trim(),
+        parameters: {}
+      })).filter((row) => Boolean(row.name));
+    }
+
+    if (entries.length <= 0) {
+      sendApiError(res, 400, 'Invalid plugin-parameter import payload');
+      return;
+    }
+
+    const imported = [];
+    const missing = [];
+    const failed = [];
+
+    for (let i = 0; i < entries.length; i += 1) {
+      const row = entries[i];
+      const key = String(row.key || '').trim();
+      const fallbackName = String(key.split('::')[0] || '').trim();
+      const pluginName = String(row.name || fallbackName || '').trim();
+      if (!pluginName) {
+        missing.push({
+          pluginName: key || `Plugin #${i + 1}`,
+          fileName: buildParametersExportFileName(key || `Plugin${i + 1}`)
+        });
+        continue;
+      }
+
+      const fileName = buildParametersExportFileName(pluginName);
+      const filePath = buildParametersExportFilePath(pluginName);
+
+      try {
+        if (!fs.existsSync(filePath)) {
+          missing.push({ pluginName, fileName, filePath });
+          continue;
+        }
+
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        const source = parsed && typeof parsed === 'object' ? parsed : {};
+        const parametersSource = source.parameters && typeof source.parameters === 'object'
+          ? source.parameters
+          : source;
+
+        imported.push({
+          key,
+          pluginName,
+          parameters: normalizePluginParameters(parametersSource),
+          fileName,
+          filePath
+        });
+      } catch (err) {
+        failed.push({
+          pluginName,
+          fileName,
+          filePath,
+          error: err.message || String(err)
+        });
+      }
+    }
+
+    sendJson(res, 200, {
+      ok: true,
+      imported,
+      missing,
+      failed
+    });
     return;
   }
 
@@ -896,7 +1303,7 @@ async function handleApi(req, res, requestUrl) {
         settings
       });
     } catch (err) {
-      sendApiError(res, 500, 'Failed writing Settings.json', err.message);
+      sendApiError(res, 500, 'Failed writing ProgramSettings.json', err.message);
     }
     return;
   }
@@ -906,7 +1313,7 @@ async function handleApi(req, res, requestUrl) {
 
     try {
       if (!fs.existsSync(SETTINGS_FILE_PATH)) {
-        sendApiError(res, 404, 'Settings.json not found in program folder');
+        sendApiError(res, 404, 'ProgramSettings.json not found in program folder');
         return;
       }
 
@@ -920,7 +1327,7 @@ async function handleApi(req, res, requestUrl) {
         settings
       });
     } catch (err) {
-      sendApiError(res, 500, 'Failed reading Settings.json', err.message);
+      sendApiError(res, 500, 'Failed reading ProgramSettings.json', err.message);
     }
     return;
   }
