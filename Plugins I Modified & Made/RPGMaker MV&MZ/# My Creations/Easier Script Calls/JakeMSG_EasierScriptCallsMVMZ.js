@@ -6,7 +6,6 @@
 var Imported = Imported || {};
 Imported.JakeMSG_EasierScriptCallsMVMZ = true;
 
-
 //=============================================================================
  /*:
  * @plugindesc Easier Script Calls for MV&MZ (method wrappers to make Script Calls 
@@ -20,6 +19,8 @@ Imported.JakeMSG_EasierScriptCallsMVMZ = true;
  * Added picAddAngleBySpeed and picSetAngleBySpeed (animated angle change by speed, with optional ease in/out)
  * Added picAddAngleByTime and picSetAngleByTime (animated angle change over a set number of frames)
  * Fixed plugin load failure caused by missing semicolon before the Game_Picture setup IIFE
+ * Raised supported picture ID limit above the engine default of 100 (plugin parameter PictureUpperLimit, default 4000)
+ * Added ID normalization/validation for picture, animation, troop, and enemy script calls
 1.1 - 2.15th.2026
  * Added the Script call for Plugin Commands (useful when using the MZ editor for an MV project)
 1.0 - 2.13th.2026
@@ -93,7 +94,7 @@ Imported.JakeMSG_EasierScriptCallsMVMZ = true;
  * picChange(picName="", picID=1, origin=0, x=0, y=0, scaleX=100, scaleY=100, opacity=255, blendMode=0)
  * 
  * picName = Name of the Pic (leave blank to erase picture)
- * picID = ID of the Picture to modify
+ * picID = ID of the Picture to modify (1 up to PictureUpperLimit plugin parameter; default 200)
  * origin = 0 (X&Y anchor is to the Upper-Left) or 1 (Centered on X&Y anchor) 
  * x/y = The coordinates of the X&Y anchor
  * scaleX/scaleY = scaling, in percentage, on the X/Y axis
@@ -277,8 +278,98 @@ Imported.JakeMSG_EasierScriptCallsMVMZ = true;
  * pitch = Pitch, in parcentage, to play the audio at (Default = 100)
  * pan = The panning of the audio, to be heard from left, middle, right, or in between (Between -100 and 100) (Default = 0; Leftmost = -100; Rightmost = 100)
  * 
+ * @param PictureUpperLimit
+ * @type number
+ * @min 100
+ * @max 99999999
+ * @default 4000
+ * @desc Highest picture ID supported by JakeMSG picture script calls (engine default is 100).
+ * 
  */
 //=============================================================================
+
+var _jakePluginParameters = PluginManager.parameters('JakeMSG_EasierScriptCallsMVMZ') || {};
+var _jakePictureUpperLimit = Number(_jakePluginParameters['PictureUpperLimit'] || 200);
+if (!_jakePictureUpperLimit || _jakePictureUpperLimit < 100) {
+    _jakePictureUpperLimit = 200;
+} else if (_jakePictureUpperLimit > 1000) {
+    _jakePictureUpperLimit = 1000;
+}
+
+var _Game_Screen_maxPictures = Game_Screen.prototype.maxPictures;
+Game_Screen.prototype.maxPictures = function() {
+    return Math.max(_Game_Screen_maxPictures.call(this), _jakePictureUpperLimit);
+};
+
+var _Spriteset_Base_createPictures = Spriteset_Base.prototype.createPictures;
+Spriteset_Base.prototype.createPictures = function() {
+    _Spriteset_Base_createPictures.call(this);
+    _jakeFillMissingPictureSprites(this);
+};
+
+var _jakeFillMissingPictureSprites = function(spriteset) {
+    var maxPictures = $gameScreen.maxPictures();
+    if (Imported.TDDP_BindPicturesToMap && spriteset._pictureStorage) {
+        for (var i = 1; i <= maxPictures; i++) {
+            if (!spriteset._pictureStorage[i]) {
+                spriteset._pictureStorage[i] = new Sprite_Picture(i);
+            }
+        }
+        return;
+    }
+    var container = spriteset._pictureContainer;
+    if (!container || !container.children) {
+        return;
+    }
+    while (container.children.length < maxPictures) {
+        container.addChild(new Sprite_Picture(container.children.length + 1));
+    }
+};
+
+var _jakeNormalizeInt = function(value, defaultValue) {
+    var number = Math.floor(Number(value));
+    if (isNaN(number)) {
+        return defaultValue;
+    }
+    return number;
+};
+
+var _jakeEnsurePictureSprite = function(picID) {
+    if (picID < 1 || picID > $gameScreen.maxPictures()) {
+        return;
+    }
+    var scene = SceneManager._scene;
+    if (!scene || !scene._spriteset) {
+        return;
+    }
+    _jakeFillMissingPictureSprites(scene._spriteset);
+    var sprite = null;
+    if (Imported.TDDP_BindPicturesToMap && scene._spriteset._pictureStorage) {
+        sprite = scene._spriteset._pictureStorage[picID];
+    } else if (scene._spriteset._pictureContainer && scene._spriteset._pictureContainer.children) {
+        sprite = scene._spriteset._pictureContainer.children[picID - 1];
+    }
+    if (sprite && sprite.updateLayer) {
+        sprite.updateLayer();
+    }
+};
+
+var _jakeResolvePicID = function(picID) {
+    picID = _jakeNormalizeInt(picID, 1);
+    if (picID < 1) {
+        picID = 1;
+    } else if (picID > $gameScreen.maxPictures()) {
+        picID = $gameScreen.maxPictures();
+    }
+    _jakeEnsurePictureSprite(picID);
+    return picID;
+};
+
+
+
+
+
+
 
 
 //=============================================================================
@@ -366,11 +457,13 @@ var _jakeApplyOriginIfChanged = function(pic, newOrigin) {
 
 // ================ Show (/Remove (by leaving the picName blank) )
 var picChange = function(picName="", picID=1, origin=0, x=0, y=0, scaleX=100, scaleY=100, opacity=255, blendMode=0) {
+    picID = _jakeResolvePicID(picID);
     $gameScreen.showPicture(picID, picName, origin, x, y, scaleX, scaleY, opacity, blendMode);
 };
 
 // ================ Move
 var picMove = function(picID=1, origin=0, x=0, y=0, scaleX=100, scaleY=100, opacity=255, blendMode=0, frames=0, easing=0) {
+    picID = _jakeResolvePicID(picID);
     if (Utils.RPGMAKER_NAME === 'MZ') {
         $gameScreen.movePicture(picID, origin, x, y, scaleX, scaleY, opacity, blendMode, frames, easing);
     } else { // 'MV'
@@ -380,6 +473,7 @@ var picMove = function(picID=1, origin=0, x=0, y=0, scaleX=100, scaleY=100, opac
 
 // ================ Rotate (starts moving by speed)
 var picRotate = function(picID=1, speed=0, origin=0) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         pic._jakeCancelAngleAnim();
@@ -390,6 +484,7 @@ var picRotate = function(picID=1, speed=0, origin=0) {
 
 // ================ Add Angle (adds to the current angle)
 var picAddAngle = function(picID=1, angle=0, origin=0) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         pic._jakeCancelAngleAnim();
@@ -400,6 +495,7 @@ var picAddAngle = function(picID=1, angle=0, origin=0) {
 
 // ================ Set Angle (sets the angle)
 var picSetAngle = function(picID=1, angle=0, origin=0) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         pic._jakeCancelAngleAnim();
@@ -410,6 +506,7 @@ var picSetAngle = function(picID=1, angle=0, origin=0) {
 
 // ================ Add Angle by Speed (adds to the current angle, with visual movement)
 var picAddAngleBySpeed = function(picID=1, angle=0, origin=0, speed=1.5, easeInTime=0, easeOutTime=0) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         _jakeApplyOriginIfChanged(pic, origin);
@@ -419,6 +516,7 @@ var picAddAngleBySpeed = function(picID=1, angle=0, origin=0, speed=1.5, easeInT
 
 // ================ Set Angle by Speed (sets the angle, with visual movement)
 var picSetAngleBySpeed = function(picID=1, angle=0, origin=0, speed=1.5, easeInTime=0, easeOutTime=0) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         _jakeApplyOriginIfChanged(pic, origin);
@@ -428,6 +526,7 @@ var picSetAngleBySpeed = function(picID=1, angle=0, origin=0, speed=1.5, easeInT
 
 // ================ Add Angle by Time (adds to the current angle, with visual movement)
 var picAddAngleByTime = function(picID=1, angle=0, origin=0, time=60) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         _jakeApplyOriginIfChanged(pic, origin);
@@ -437,6 +536,7 @@ var picAddAngleByTime = function(picID=1, angle=0, origin=0, time=60) {
 
 // ================ Set Angle by Time (sets the angle, with visual movement)
 var picSetAngleByTime = function(picID=1, angle=0, origin=0, time=60) {
+    picID = _jakeResolvePicID(picID);
     var pic = _jakeGetPic(picID);
     if (pic) {
         _jakeApplyOriginIfChanged(pic, origin);
@@ -547,15 +647,24 @@ var picSetAngleByTime = function(picID=1, angle=0, origin=0, time=60) {
 
 // ================================ Enemy Sprites
 var troopChangePic = function(picName = "", troopID = 0) {
-    thisEnemyID = $gameTroop.members()[troopID].enemyId();
+    troopID = _jakeNormalizeInt(troopID, 0);
+    var member = $gameTroop.members()[troopID];
+    if (!member) {
+        return;
+    }
+    var thisEnemyID = member.enemyId();
     $dataEnemies[thisEnemyID].battlerName = picName;
     $gameTroop.members()[troopID].transform(thisEnemyID);
     $gameTroop.makeUniqueNames();
-}
+};
 var enemyChangePic = function(picName = "", enemyID = 0) {
+    enemyID = _jakeNormalizeInt(enemyID, 0);
+    if (!$dataEnemies[enemyID]) {
+        return;
+    }
     $dataEnemies[enemyID].battlerName = picName;
     $gameTroop.makeUniqueNames();
-}
+};
 
 
 
@@ -564,20 +673,36 @@ var enemyChangePic = function(picName = "", enemyID = 0) {
 // ================================ Animations
 // ================ Show Animation
 var animShow = function(eventOrTroopID = -1, animID = 1, mirror = false, wait = false, delay = 0) {
+    eventOrTroopID = _jakeNormalizeInt(eventOrTroopID, -1);
+    animID = _jakeNormalizeInt(animID, 1);
+    if (animID < 1 || !$dataAnimations[animID]) {
+        return;
+    }
     if ($gameParty.inBattle()) { // In Battle (relevant for choosing which Interpreter to use)
+        var troopMember = $gameTroop.members()[eventOrTroopID];
+        if (!troopMember) {
+            return;
+        }
         if (Utils.RPGMAKER_NAME === 'MZ') {
-            $gameTemp.requestAnimation([$gameTroop.members()[eventOrTroopID]], animID, mirror);
+            $gameTemp.requestAnimation([troopMember], animID, mirror);
         } else { // 'MV'
-            $gameTroop.members()[eventOrTroopID].startAnimation(animID, mirror, delay);
+            troopMember.startAnimation(animID, mirror, delay);
         }
     } else { // On Map (relevant for choosing which Interpreter to use)
         if (Utils.RPGMAKER_NAME === 'MZ') {
-            $gameTemp.requestAnimation([$gameMap._interpreter.character($gameMap._interpreter._characterId = eventOrTroopID)], animID, mirror);
+            var targetCharacter = $gameMap._interpreter.character(eventOrTroopID);
+            if (!targetCharacter) {
+                return;
+            }
+            $gameTemp.requestAnimation([targetCharacter], animID, mirror);
         } else { // 'MV'
             if (eventOrTroopID == -1){
                 $gameMap._interpreter._character = $gamePlayer;
             } else {
                 $gameMap._interpreter._character = $gameMap.event(eventOrTroopID);
+            }
+            if (!$gameMap._interpreter._character) {
+                return;
             }
             $gameMap._interpreter._character.requestAnimation(animID);
         }
