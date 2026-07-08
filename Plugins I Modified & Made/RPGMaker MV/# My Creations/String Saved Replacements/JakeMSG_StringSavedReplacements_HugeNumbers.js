@@ -11,13 +11,15 @@ JakeMSG.StringSavedReplacements_HugeNumbers = JakeMSG.StringSavedReplacements_Hu
 
 //=============================================================================
 /*:
- * @plugindesc v1.0 Module: shorten huge numbers in on-screen window text.
+ * @plugindesc v1.1 Module: shorten huge numbers in on-screen window text.
  * @author JakeMSG
  * @requires JakeMSG_StringSavedReplacements
  * @requires JakeMSG_HugeFunctionalValues
- * v1.0
+ * v1.1
  *
 ============ Change Log ============
+1.1 - 7.8th.2026
+ * Made the display automatically remove trailing decimal zeros.
 1.0 - 7.1st.2026
  * initial release
 ====================================
@@ -1757,6 +1759,13 @@ $.roundDecimalDigits = function(whole, remainder, decimalPoints) {
     return { whole: whole, dec: dec };
 };
 
+$.stripTrailingDecimalZeros = function(dec) {
+    if (!dec) {
+        return '';
+    }
+    return dec.replace(/0+$/, '');
+};
+
 $.formatAbbreviated = function(info, bracket) {
     var shift = bracket.index * 3;
     var sig = info.digits;
@@ -1793,7 +1802,8 @@ $.formatAbbreviated = function(info, bracket) {
     }
     var rounded = $.roundDecimalDigits(whole, remainder, $.decimalPoints);
     whole = $.insertDigitSeparators(rounded.whole);
-    var out = rounded.dec ? whole + '.' + rounded.dec : whole;
+    var dec = $.stripTrailingDecimalZeros(rounded.dec);
+    var out = dec ? whole + '.' + dec : whole;
     if (bracket.word) {
         out += ' ' + bracket.word;
     }
