@@ -14,9 +14,11 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * even opening up the description in a new "detailed" window by keypress
  * (can set the key used by this in the Parameters)
  * @author JakeMSG
- * v1.2
+ * v1.3
  *
 ============ Change Log ============
+1.3 - 7.8th.2026
+ * Added optional small custom text line within the Description Window (customizable via plugin parameters)
 1.2 - 6.19th.2026
  * Added the TP gauge (both with Plugin Parameters and notetags for it)
 1.1 - 3.16th.2026
@@ -106,7 +108,15 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * ======== Enemy notes can now use <Extended Description>... </Extended Description> with <Condition: js> and <Resume>
  * ======== This only appears in the fullscreen/expanded help (press the configured key while an enemy help window is visible); the normal targeting help stays unchanged
  * 
- * 
+ * ================ Small custom text within the Description Window
+ * ======== Optional overlay line separate from the normal description content (for example, a keybinding hint for Expand/Collapse)
+ * ======== Controlled by the parent parameter "-- Small set text added to the Description Window --" (Yes/No); sub-parameters apply only when set to Yes
+ * ======== "Text to show" — the message drawn on that line
+ * ======== "Text position within the Description Window" — Top-Left, Top-Right, Bottom-Left, or Bottom-Right
+ * ======== "Text color", "Text size", and "Text font" — styling for the overlay (color accepts CSS/hex, e.g. #1a90b3)
+ * ======== "X offset" and "Y offset" — pixel nudges applied after corner placement (can move the text outside the window bounds)
+ * ======== Drawn as a separate child sprite on the Help Window (not on the padded contents bitmap), flush to the window edge
+ * ======== Shown on the normal Description Window only (not on the fullscreen expanded copy)
  * 
  * 
  * 
@@ -116,6 +126,16 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * ======================================
  * Parameters
  * ======================================
+ * ======== -- Small set text added to the Description Window --
+ * ==== Yes/No (Default: Yes) — whether to draw the optional small overlay text in the Description Window
+ * ==== Sub-parameters below only take effect when this is set to Yes
+ * ==== Text to show (Default: "'[' Key to Expand/Collapse") — overlay message
+ * ==== Text position within the Description Window (Default: Bottom-Right) — Top-Left, Top-Right, Bottom-Left, Bottom-Right
+ * ==== Text color (Default: #1a90b3) — CSS/hex color for the overlay
+ * ==== Text size (Default: 5) — font size for the overlay
+ * ==== Text font (Default: GameFont) — font family for the overlay
+ * ==== X offset (Default: 0) — horizontal pixel offset from the chosen corner
+ * ==== Y offset (Default: 0) — vertical pixel offset from the chosen corner
  * ======== Description Window number of Lines
  * ==== Number (Default: 2)
  * ==== Sets the number of (visible) lines for the Description window.
@@ -166,6 +186,71 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * ======================================
  * Param Declarations
  * ======================================
+ * 
+ * @param -- Small set text added to the Description Window --
+ * @type select
+ * @option Yes
+ * @value Yes
+ * @option No
+ * @value No
+ * @desc Whether to show a custom small set text message within the Description Window
+ * (for example, to let the player know of keybindings for Description Expansion)
+ * (The rest of the sub-parameters under this one require this one to be set to "Yes" to function)
+ * @default Yes
+ * 
+ * @param Text to show
+ * @parent -- Small set text added to the Description Window --
+ * @desc The custom small set text to show within the Description Window (requires parent set to Yes)
+ * @default "'[' Key to Expand/Collapse"
+ * 
+ * 
+ * @param Text position within the Description Window
+ * @parent -- Small set text added to the Description Window --
+ * @type select
+ * @option Top-Left
+ * @value Top-Left
+ * @option Top-Right
+ * @value Top-Right
+ * @option Bottom-Left
+ * @value Bottom-Left
+ * @option Bottom-Right
+ * @value Bottom-Right
+ * @desc The position of the small text to show within the Description Window.
+ * @default Bottom-Right
+ *
+ * @param Text color
+ * @parent -- Small set text added to the Description Window --
+ * @desc The text color (CSS/hex, e.g. #1a90b3) for this small text.
+ * @default #1a90b3
+ *
+ * @param Text size
+ * @parent -- Small set text added to the Description Window --
+ * @desc The font size for this small text.
+ * @default 5
+ *
+ * @param Text font
+ * @parent -- Small set text added to the Description Window --
+ * @desc The font family for this element text.
+ * @default GameFont
+ *
+ * @param X offset
+ * @parent -- Small set text added to the Description Window --
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc Pixel offset applied to the horizontal position of the small text overlay.
+ *
+ * @param Y offset
+ * @parent -- Small set text added to the Description Window --
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc Pixel offset applied to the vertical position of the small text overlay.
+ * 
+ * 
+ * 
  * @param Description Window number of Lines
  * @text Description Window number of Lines
  * @type number
@@ -234,6 +319,23 @@ var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyMp = eval(String(JakeMSG_Mor
 var JakeMSG_MoreDescriptionsWithConditions_ShowEnemyTp = eval(String(JakeMSG_MoreDescriptionsWithConditions_Params['Show Enemy TP'] || 'true'));
 var JakeMSG_MoreDescriptionsWithConditions_DefaultLines = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Description Window number of Lines'] || 2);
 var JakeMSG_MoreDescriptionsWithConditions_EnemyLines = Number(JakeMSG_MoreDescriptionsWithConditions_Params['Number of Lines'] || 2);
+var JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText = String(JakeMSG_MoreDescriptionsWithConditions_Params['-- Small set text added to the Description Window --'] || 'No') === 'Yes';
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpText = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? String(JakeMSG_MoreDescriptionsWithConditions_Params['Text to show'] || '') : '';
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpPosition = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? String(JakeMSG_MoreDescriptionsWithConditions_Params['Text position within the Description Window'] || 'Bottom-Right') : '';
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpColor = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? String(JakeMSG_MoreDescriptionsWithConditions_Params['Text color'] || '#1a90b3') : '';
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpSize = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? Number(JakeMSG_MoreDescriptionsWithConditions_Params['Text size'] || 5) : 0;
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpFont = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? String(JakeMSG_MoreDescriptionsWithConditions_Params['Text font'] || 'GameFont') : '';
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpXOffset = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? Number(JakeMSG_MoreDescriptionsWithConditions_Params['X offset'] || 0) : 0;
+var JakeMSG_MoreDescriptionsWithConditions_SmallHelpYOffset = JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText ? Number(JakeMSG_MoreDescriptionsWithConditions_Params['Y offset'] || 0) : 0;
+var JakeMSG_MoreDescriptionsWithConditions_ActiveSmallHelpSprite = null;
+
+function JakeMSG_MoreDescriptionsWithConditions_cleanupOrphanSmallHelpSprite(exceptSprite) {
+    var active = JakeMSG_MoreDescriptionsWithConditions_ActiveSmallHelpSprite;
+    if (!active || active === exceptSprite) return;
+    if (active.parent) active.parent.removeChild(active);
+    active.bitmap = null;
+    JakeMSG_MoreDescriptionsWithConditions_ActiveSmallHelpSprite = null;
+}
 
 function JakeMSG_MoreDescriptionsWithConditions_buildExtendedDescription(noteText) {
     if (!noteText) return '';
@@ -374,9 +476,19 @@ Window_Help_Expanded.prototype.initialize = function() {
 
 // ======== Method Alias-ing
 // ==== Automatically clear expanded window when the help window hides
+JakeMSG_MoreDescriptionsWithConditions_Scene_Base_terminate = Scene_Base.prototype.terminate;
+Scene_Base.prototype.terminate = function() {
+    if (this._helpWindow && this._helpWindow.jakeMSGDestroySmallHelpSprite) {
+        this._helpWindow.jakeMSGDestroySmallHelpSprite();
+    }
+    JakeMSG_MoreDescriptionsWithConditions_cleanupOrphanSmallHelpSprite(null);
+    JakeMSG_MoreDescriptionsWithConditions_Scene_Base_terminate.call(this);
+};
+
 JakeMSG_MoreDescriptionsWithConditions_Window_Help_hide = Window_Help.prototype.hide;
 Window_Help.prototype.hide = function() {
     JakeMSG_MoreDescriptionsWithConditions_Window_Help_hide.call(this);
+    this.jakeMSGDestroySmallHelpSprite();
     var scene = SceneManager._scene;
     if (scene && scene._helpWindowExpanded) {
         if (scene.children.indexOf(scene._helpWindowExpanded) >= 0) {
@@ -393,8 +505,114 @@ if (Window_Help.prototype.setBattler) {
         this._jakeMSGEnemyForDesc = (battler && battler.isEnemy && $gameParty && $gameParty.inBattle()) ? battler : null;
         this.jakeMSGApplyHelpLinesForBattler(this._jakeMSGEnemyForDesc);
         JakeMSG_MoreDescriptionsWithConditions_Window_Help_setBattler.call(this, battler);
+        this.jakeMSGDrawSmallHelpText();
     };
 }
+
+Window_Help.prototype.jakeMSGIsActiveHelpWindow = function() {
+    var scene = SceneManager._scene;
+    return !!(scene && scene._helpWindow === this);
+};
+
+Window_Help.prototype.jakeMSGDestroySmallHelpSprite = function() {
+    if (!this._jakeMSGSmallHelpSprite) return;
+    if (JakeMSG_MoreDescriptionsWithConditions_ActiveSmallHelpSprite === this._jakeMSGSmallHelpSprite) {
+        JakeMSG_MoreDescriptionsWithConditions_ActiveSmallHelpSprite = null;
+    }
+    if (this._jakeMSGSmallHelpSprite.parent) {
+        this._jakeMSGSmallHelpSprite.parent.removeChild(this._jakeMSGSmallHelpSprite);
+    }
+    this._jakeMSGSmallHelpSprite.bitmap = null;
+    this._jakeMSGSmallHelpSprite = null;
+};
+
+Window_Help.prototype.jakeMSGEnsureSmallHelpSprite = function() {
+    JakeMSG_MoreDescriptionsWithConditions_cleanupOrphanSmallHelpSprite(null);
+    if (this._jakeMSGSmallHelpSprite && this._jakeMSGSmallHelpSprite.parent !== this) {
+        this.jakeMSGDestroySmallHelpSprite();
+    }
+    if (!this._jakeMSGSmallHelpSprite) {
+        this._jakeMSGSmallHelpSprite = new Sprite();
+        this.addChild(this._jakeMSGSmallHelpSprite);
+    }
+};
+
+Window_Help.prototype.jakeMSGDrawSmallHelpText = function() {
+    if (!JakeMSG_MoreDescriptionsWithConditions_ShowSmallHelpText) {
+        this.jakeMSGDestroySmallHelpSprite();
+        return;
+    }
+    if (this instanceof Window_Help_Expanded) {
+        this.jakeMSGDestroySmallHelpSprite();
+        return;
+    }
+    if (!this.jakeMSGIsActiveHelpWindow() || !this.visible) {
+        this.jakeMSGDestroySmallHelpSprite();
+        return;
+    }
+    var text = JakeMSG_MoreDescriptionsWithConditions_SmallHelpText;
+    if (!text) {
+        this.jakeMSGDestroySmallHelpSprite();
+        return;
+    }
+
+    this.jakeMSGEnsureSmallHelpSprite();
+    var sprite = this._jakeMSGSmallHelpSprite;
+    JakeMSG_MoreDescriptionsWithConditions_cleanupOrphanSmallHelpSprite(sprite);
+    var fontSize = JakeMSG_MoreDescriptionsWithConditions_SmallHelpSize;
+    var measureBmp = new Bitmap(1, 1);
+    measureBmp.fontFace = JakeMSG_MoreDescriptionsWithConditions_SmallHelpFont;
+    measureBmp.fontSize = fontSize;
+    var textWidth = Math.ceil(measureBmp.measureTextWidth(text));
+    var textHeight = fontSize + 8;
+    var bmp = new Bitmap(textWidth, textHeight);
+    bmp.fontFace = JakeMSG_MoreDescriptionsWithConditions_SmallHelpFont;
+    bmp.fontSize = fontSize;
+    bmp.textColor = JakeMSG_MoreDescriptionsWithConditions_SmallHelpColor;
+    bmp.drawText(text, 0, 0, textWidth, textHeight, 'left');
+
+    sprite.bitmap = bmp;
+    sprite.visible = true;
+    JakeMSG_MoreDescriptionsWithConditions_ActiveSmallHelpSprite = sprite;
+
+    var x = 0;
+    var y = 0;
+    switch (JakeMSG_MoreDescriptionsWithConditions_SmallHelpPosition) {
+    case 'Top-Left':
+        x = 0;
+        y = 0;
+        break;
+    case 'Top-Right':
+        x = this.width - textWidth;
+        y = 0;
+        break;
+    case 'Bottom-Left':
+        x = 0;
+        y = this.height - textHeight;
+        break;
+    default:
+        x = this.width - textWidth;
+        y = this.height - textHeight;
+        break;
+    }
+    x += JakeMSG_MoreDescriptionsWithConditions_SmallHelpXOffset;
+    y += JakeMSG_MoreDescriptionsWithConditions_SmallHelpYOffset;
+    sprite.move(x, y);
+};
+
+JakeMSG_MoreDescriptionsWithConditions_Window_Help_update = Window_Help.prototype.update;
+Window_Help.prototype.update = function() {
+    JakeMSG_MoreDescriptionsWithConditions_Window_Help_update.call(this);
+    if (this._jakeMSGSmallHelpSprite && (!this.visible || !this.jakeMSGIsActiveHelpWindow())) {
+        this.jakeMSGDestroySmallHelpSprite();
+    }
+};
+
+JakeMSG_MoreDescriptionsWithConditions_Window_Help_refresh = Window_Help.prototype.refresh;
+Window_Help.prototype.refresh = function() {
+    JakeMSG_MoreDescriptionsWithConditions_Window_Help_refresh.call(this);
+    this.jakeMSGDrawSmallHelpText();
+};
 
 Window_Help.prototype.jakeMSGApplyHelpLinesForBattler = function(enemyBattler) {
     var targetLines = enemyBattler ? JakeMSG_MoreDescriptionsWithConditions_EnemyLines : JakeMSG_MoreDescriptionsWithConditions_DefaultLines;
@@ -402,6 +620,7 @@ Window_Help.prototype.jakeMSGApplyHelpLinesForBattler = function(enemyBattler) {
     if (this.height !== targetHeight) {
         this.height = targetHeight;
         this.createContents();
+        this.jakeMSGDrawSmallHelpText();
     }
 };
 
