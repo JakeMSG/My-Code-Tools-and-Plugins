@@ -226,7 +226,7 @@ Imported.JakeMSG_MoreDescriptionsWithConditions = true;
  * @param Text size
  * @parent -- Small set text added to the Description Window --
  * @desc The font size for this small text.
- * @default 5
+ * @default 20
  *
  * @param Text font
  * @parent -- Small set text added to the Description Window --
