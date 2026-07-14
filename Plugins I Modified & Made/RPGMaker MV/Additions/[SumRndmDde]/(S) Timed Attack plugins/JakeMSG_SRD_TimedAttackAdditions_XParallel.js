@@ -10,9 +10,13 @@ Imported.JakeMSG_SRD_TimedAttackAdditions_XParallel = true;
 /*:
  * @plugindesc [Module] XParallel timed attack module for JakeMSG_SRD_TimedAttackAdditions
  * @author JakeMSG
- * v1.0
+ * v1.1
  * 
 ============ Change Log ============
+1.1 - 7.14th.2026
+ * Fixed Olivia_StateTooltipDisplay compatibility during parallel forced TAs:
+   keep the state tooltip window above XTA scene layers and keep XTA overlay
+   sprites parented under the TA container instead of the scene root.
 1.0 - 5.14th.2026
  * initial release
 ====================================
@@ -417,6 +421,47 @@ var J = core.J;
 	J.isXtaRuntimeTa = function(ta) {
 		var run = J.getRunFromTa(ta);
 		return !!(run && run.isXTA);
+	};
+
+	J.isForcedStandaloneTa = function(ta) {
+		return !!(ta && ta._jForceTAStandalone);
+	};
+
+	J.hasActiveForcedStandaloneTas = function() {
+		for (var id in J._taRuns) {
+			if (!J._taRuns.hasOwnProperty(id)) continue;
+			var run = J._taRuns[id];
+			if (!run || !run.tas || !run.tas._jForceTAStandalone) continue;
+			if (J._isRunEntryActive(id)) return true;
+		}
+		return false;
+	};
+
+	J._oliviaStateTooltipAvailable = function() {
+		return !!(Imported.Olivia_StateOlivia_StateTooltipDisplay &&
+			SceneManager._scene &&
+			SceneManager._scene._stateIconTooltipWindow);
+	};
+
+	J._ensureStateIconTooltipOnTop = function() {
+		if (!J._oliviaStateTooltipAvailable()) return;
+		var scene = SceneManager._scene;
+		var tooltip = scene._stateIconTooltipWindow;
+		if (!tooltip || !tooltip.parent) return;
+		scene.setChildIndex(tooltip, scene.children.length - 1);
+	};
+
+	J._insertForcedTaIntoScene = function(scene, tas) {
+		if (!scene || !tas) return;
+		if (scene._stateIconTooltipWindow) {
+			var idx = scene.children.indexOf(scene._stateIconTooltipWindow);
+			if (idx >= 0) {
+				scene.addChildAt(tas, idx);
+				J._ensureStateIconTooltipOnTop();
+				return;
+			}
+		}
+		scene.addChild(tas);
 	};
 
 	J._xtaBalanceFeatureDefs = [
@@ -970,10 +1015,11 @@ J.makeForceTABattleContext._jakeForceTAContextV23TailSafe = true;
 		tas._jRunId = runId;
 		J._taRuns[runId] = run;
 
-		SceneManager._scene.addChild(tas);
+		J._insertForcedTaIntoScene(SceneManager._scene, tas);
 		tas.setItem(taData);
 		tas.open();
 		tas.start();
+		J._ensureStateIconTooltipOnTop();
 		return run;
 	};
 
@@ -1974,6 +2020,28 @@ J.makeForceTABattleContext._jakeForceTAContextV23TailSafe = true;
 		entry.current_power = J.copyTasPower(ta._jakeEstimateCurrentPower ? ta._jakeEstimateCurrentPower() : 0);
 	};
 
+	if (TimedAttackSystem.prototype._jakeOverlayRoot) {
+		var _jakeOverlayRoot_xparallelOlivia = TimedAttackSystem.prototype._jakeOverlayRoot;
+		TimedAttackSystem.prototype._jakeOverlayRoot = function() {
+			if (J.isForcedStandaloneTa(this)) return this;
+			return _jakeOverlayRoot_xparallelOlivia.call(this);
+		};
+	}
+
+	if (typeof Window_StateIconTooltip !== 'undefined' &&
+		!Window_StateIconTooltip.prototype._jakeXParallelTooltipThrottlePatched) {
+		Window_StateIconTooltip.prototype._jakeXParallelTooltipThrottlePatched = true;
+		var _jWindowStateIconTooltipUpdateNewData_xparallel = Window_StateIconTooltip.prototype.updateNewData;
+		Window_StateIconTooltip.prototype.updateNewData = function() {
+			if (J.hasActiveForcedStandaloneTas()) {
+				var frame = Graphics.frameCount;
+				if (this._jakeXParallelTooltipRefreshFrame === frame) return;
+				this._jakeXParallelTooltipRefreshFrame = frame;
+			}
+			_jWindowStateIconTooltipUpdateNewData_xparallel.call(this);
+		};
+	}
+
 	var _jUpdateGames_v23 = TimedAttackSystem.prototype.updateGames;
 	TimedAttackSystem.prototype.updateGames = function() {
 		J._activeInputConsumer = this;
@@ -1991,6 +2059,7 @@ J.makeForceTABattleContext._jakeForceTAContextV23TailSafe = true;
 			J.syncParXtaControlsFromTA(this);
 		}
 		J.updateParXtaCurrent(this);
+		if (J.isForcedStandaloneTa(this)) J._ensureStateIconTooltipOnTop();
 	};
 
 	var _jConsumeKeyCode_v23 = J.consumeKeyCode;
