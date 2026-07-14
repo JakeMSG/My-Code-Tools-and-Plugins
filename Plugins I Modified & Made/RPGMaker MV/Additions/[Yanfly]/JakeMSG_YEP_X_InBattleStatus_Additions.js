@@ -8,16 +8,19 @@ Imported.JakeMSG_YEP_X_InBattleStatus_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.InBattleStatus_JakeMSGAdd = Yanfly.InBattleStatus_JakeMSGAdd || {};
-Yanfly.InBattleStatus_JakeMSGAdd.version = 1.4;
+Yanfly.InBattleStatus_JakeMSGAdd.version = 1.5;
 
 //=============================================================================
  /*:
- * @plugindesc v1.4 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status 
+ * @plugindesc v1.5 (Requires YEP_X_InBattleStatus.js) Adds an Enemy Status 
  * command to view enemy troop status effects, buffs, and debuffs.
  * @author JakeMSG
- * v1.4
+ * v1.5
  * 
 ============ Change Log ============
+1.5 - 7.14th.2026
+ * Added show/hide plugin parameters and notetags for Stats and battler menus.
+ * Added ??? for notetags to mask shown numerical values while keeping gauges.
 1.4 - 7.10th.2026
  * Added YEP_StatusMenuCore sub-menu cycling in ally and enemy in-battle status.
  * Added configurable small overlay text on in-battle status windows.
@@ -35,6 +38,156 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.4;
 1.0 - 2.27th.2026
  * initial release
 ====================================
+ *
+ * @help
+ * ============================================================================
+ * Introduction
+ * ============================================================================
+ *
+ * This plugin requires YEP_X_InBattleStatus.
+ * Make sure this plugin is located under YEP_X_InBattleStatus in the plugin list.
+ *
+ * In battle, this plugin adds an 'Enemy Status' command to the Party Command 
+ * Window. This allows players to view the status of each enemy in the troop,
+ * including their current parameters, status effects, buffs, and debuffs.
+ * The player can switch between enemies and view their effects in a help window.
+ *
+ * ============================================================================
+ * Compatibility
+ * ============================================================================
+ *
+ * This plugin has compatibility with YEP_AbsorptionBarrier. If you are using
+ * YEP_AbsorptionBarrier, make sure this plugin is located under it in the
+ * plugin list.
+ *
+ * For battler sub-menu cycling, this plugin integrates with YEP_StatusMenuCore
+ * and its extensions when those plugins are present:
+ *   YEP_StatusMenuCore
+ *   YEP_X_ActorVariables
+ *   YEP_X_BattleStatistics
+ *   YEP_X_MoreStatusPages
+ *   YEP_X_ProfileStatusPage
+ *
+ * Place this plugin under all of the above plugins in the Plugin Manager.
+ *
+ * ============================================================================
+ * Battler Sub-Menu Cycling (Ally + Enemy Status)
+ * ============================================================================
+ *
+ * While viewing a battler in either in-battle Status menu, press the key set in
+ * the plugin parameter "Key for Cycling shown Menu for the Battler" to cycle
+ * through the battler's available sub-menus.
+ *
+ * The default view is the "General" menu: the left list shows live status
+ * effects/buffs/debuffs, and the right panel shows the battler's name, gauges,
+ * and parameters.
+ *
+ * Other menus come from YEP_StatusMenuCore and its extensions. Configure which
+ * menus appear and in what order with "Battler Menus Cycling Order". This works
+ * like YEP_StatusMenuCore's "Command Order", except menus are cycled with a key
+ * instead of a scrollable command list.
+ *
+ * Supported cycling tokens (space-separated):
+ *   General, Elements, States, Attributes, Custom, Cancel
+ *   Variables, Statistics, Profile, MorePages
+ *   Individual More Status Page titles (from notetags)
+ *
+ * Notes:
+ * - Cancel is ignored in battle.
+ * - Parameters is excluded in battle (parameters are already on General).
+ * - Custom expands into extension menus (Variables, Statistics, Profile, and
+ *   any More Status Pages defined for the current battler).
+ * - For allies, extension menus behave like the normal Status menu.
+ * - For enemies, Actor-style Status Menu notetags also apply to Enemy database
+ *   entries (Variables columns, Profile text/image, More Status Pages, etc.).
+ * - Enemy Attributes omit actor-only traits (Pharmacology, EXP rate).
+ * - Enemy Statistics omits actor-only battle log stats (battle count, K/D/A,
+ *   damage/healing totals). If nothing applies, the menu is skipped.
+ *
+ * ============================================================================
+ * Small Overlay Text
+ * ============================================================================
+ *
+ * When "-- Small set text added to the In-Battle Status Window --" is Yes, a
+ * small customizable hint is drawn on the in-battle status panel (ally or enemy).
+ * Sub-parameters control the message, corner position, color, size, font, and
+ * pixel offsets — the same pattern as JakeMSG_MoreDescriptionsWithConditions.
+ *
+ * ============================================================================
+ * Notetags
+ * ============================================================================
+ *
+ * You can use the following notetags to adjust how the in-battle status window
+ * displays information for certain enemies.
+ *
+ * Actor/Enemy Notetags:
+ *
+ *   <Show Status HP>
+ *   <Hide Status HP>
+ *   - This will show or hide the HP gauge for the battler in the in-battle
+ *   status window regardless of the default plugin settings.
+ *
+ *   <Show Status MP>
+ *   <Hide Status MP>
+ *   - This will show or hide the MP gauge for the battler in the in-battle
+ *   status window regardless of the default plugin settings.
+ *
+ *   <Show Status TP>
+ *   <Hide Status TP>
+ *   - This will show or hide the TP gauge for the battler in the in-battle
+ *   status window regardless of the default plugin settings.
+ *
+ *   <Show Status Stats>
+ *   <Hide Status Stats>
+ *   - Show or hide the parameter stats (ATK, DEF, MAT, MDF, AGI, LUK) in the
+ *   General battler menu.
+ *
+ *   <Show Status General>
+ *   <Hide Status General>
+ *   <Show Status Elements>
+ *   <Hide Status Elements>
+ *   (and likewise for States, Attributes, Variables, Statistics, Profile,
+ *   MorePages, or any custom More Status Page title)
+ *   - Show or hide that battler sub-menu for the actor/enemy.
+ *
+ *   <??? for Status HP>
+ *   <??? for Status MP>
+ *   <??? for Status TP>
+ *   <??? for Status Stats>
+ *   <??? for Status Elements>
+ *   (and likewise for any battler menu name above)
+ *   - If the element is already shown (by plugin parameters or Show notetags),
+ *   replace its numerical values with "???". HP/MP/TP gauges still display and
+ *   reflect the real rates; only the number text is masked.
+ *
+ * 
+ * 
+ * Enemy database entries also accept the Actor notetags from these plugins
+ * (when installed) for sub-menu content:
+ *   YEP_X_ActorVariables  — <Column x Variables: y>
+ *   YEP_X_MoreStatusPages — <Status Menu Page: title> ... </Status Menu Page>
+ *   YEP_X_ProfileStatusPage — <Profile Text>, <Profile Image: filename>, etc.
+ *
+ * ============================================================================
+ * Plugin Commands
+ * ============================================================================
+ *
+ * For those who would like to change whether the 'Enemy Status' option is shown 
+ * or hidden midway through the game, you can use the following plugin commands:
+ *
+ * Plugin Commands:
+ *
+ *   ShowEnemyInBattleStatus
+ *   - This will cause the 'Enemy Status' command to show.
+ *
+ *   HideEnemyInBattleStatus
+ *   - This will cause the 'Enemy Status' command to not show.
+ * 
+ * 
+ * 
+ * ============================================================================
+ * Param Declarations
+ * ============================================================================
  *
  * @param ---All Status Commands (Ally+Enemy)---
  * @default
@@ -227,127 +380,188 @@ Yanfly.InBattleStatus_JakeMSGAdd.version = 1.4;
  * @desc Show the enemy's TP in the status window by default?
  * NO - false     YES - true
  * @default true
+ *
+ * @param Show Enemy Stats
+ * @parent ---Enemy Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the enemy's parameter stats (ATK, DEF, etc.) in the General menu by default?
+ * NO - false     YES - true
+ * @default true
+ *
+ * @param ---Enemy Battler Menus---
+ * @parent ---Enemy Status Window---
+ * @default
+ *
+ * @param Show Enemy Menu General
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the General battler menu for enemies by default?
+ * @default true
+ *
+ * @param Show Enemy Menu Elements
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Elements battler menu for enemies by default?
+ * @default true
+ *
+ * @param Show Enemy Menu States
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the States battler menu for enemies by default?
+ * @default true
+ *
+ * @param Show Enemy Menu Attributes
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Attributes battler menu for enemies by default?
+ * @default true
+ *
+ * @param Show Enemy Menu Variables
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Variables battler menu for enemies by default? (Requires YEP_X_ActorVariables)
+ * @default true
+ *
+ * @param Show Enemy Menu Statistics
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Statistics battler menu for enemies by default? (Requires YEP_X_BattleStatistics)
+ * @default true
+ *
+ * @param Show Enemy Menu Profile
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Profile battler menu for enemies by default? (Requires YEP_X_ProfileStatusPage)
+ * @default true
+ *
+ * @param Show Enemy Menu MorePages
+ * @parent ---Enemy Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show More Status Page menus for enemies by default? (Requires YEP_X_MoreStatusPages)
+ * @default true
+ *
+ * @param ---Ally Status Window---
+ * @default
+ *
+ * @param Show Ally HP
+ * @parent ---Ally Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the ally's HP in the General menu by default?
+ * @default true
+ *
+ * @param Show Ally MP
+ * @parent ---Ally Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the ally's MP in the General menu by default?
+ * @default true
+ *
+ * @param Show Ally TP
+ * @parent ---Ally Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the ally's TP in the General menu by default?
+ * @default true
+ *
+ * @param Show Ally Stats
+ * @parent ---Ally Status Window---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the ally's parameter stats (ATK, DEF, etc.) in the General menu by default?
+ * @default true
+ *
+ * @param ---Ally Battler Menus---
+ * @parent ---Ally Status Window---
+ * @default
+ *
+ * @param Show Ally Menu General
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the General battler menu for allies by default?
+ * @default true
+ *
+ * @param Show Ally Menu Elements
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Elements battler menu for allies by default?
+ * @default true
+ *
+ * @param Show Ally Menu States
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the States battler menu for allies by default?
+ * @default true
+ *
+ * @param Show Ally Menu Attributes
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Attributes battler menu for allies by default?
+ * @default true
+ *
+ * @param Show Ally Menu Variables
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Variables battler menu for allies by default? (Requires YEP_X_ActorVariables)
+ * @default true
+ *
+ * @param Show Ally Menu Statistics
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Statistics battler menu for allies by default? (Requires YEP_X_BattleStatistics)
+ * @default true
+ *
+ * @param Show Ally Menu Profile
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the Profile battler menu for allies by default? (Requires YEP_X_ProfileStatusPage)
+ * @default true
+ *
+ * @param Show Ally Menu MorePages
+ * @parent ---Ally Battler Menus---
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show More Status Page menus for allies by default? (Requires YEP_X_MoreStatusPages)
+ * @default true
  * 
  * 
- *
- * @help
- * ============================================================================
- * Introduction
- * ============================================================================
- *
- * This plugin requires YEP_X_InBattleStatus.
- * Make sure this plugin is located under YEP_X_InBattleStatus in the plugin list.
- *
- * In battle, this plugin adds an 'Enemy Status' command to the Party Command 
- * Window. This allows players to view the status of each enemy in the troop,
- * including their current parameters, status effects, buffs, and debuffs.
- * The player can switch between enemies and view their effects in a help window.
- *
- * ============================================================================
- * Compatibility
- * ============================================================================
- *
- * This plugin has compatibility with YEP_AbsorptionBarrier. If you are using
- * YEP_AbsorptionBarrier, make sure this plugin is located under it in the
- * plugin list.
- *
- * For battler sub-menu cycling, this plugin integrates with YEP_StatusMenuCore
- * and its extensions when those plugins are present:
- *   YEP_StatusMenuCore
- *   YEP_X_ActorVariables
- *   YEP_X_BattleStatistics
- *   YEP_X_MoreStatusPages
- *   YEP_X_ProfileStatusPage
- *
- * Place this plugin under all of the above plugins in the Plugin Manager.
- *
- * ============================================================================
- * Battler Sub-Menu Cycling (Ally + Enemy Status)
- * ============================================================================
- *
- * While viewing a battler in either in-battle Status menu, press the key set in
- * the plugin parameter "Key for Cycling shown Menu for the Battler" to cycle
- * through the battler's available sub-menus.
- *
- * The default view is the "General" menu: the left list shows live status
- * effects/buffs/debuffs, and the right panel shows the battler's name, gauges,
- * and parameters.
- *
- * Other menus come from YEP_StatusMenuCore and its extensions. Configure which
- * menus appear and in what order with "Battler Menus Cycling Order". This works
- * like YEP_StatusMenuCore's "Command Order", except menus are cycled with a key
- * instead of a scrollable command list.
- *
- * Supported cycling tokens (space-separated):
- *   General, Elements, States, Attributes, Custom, Cancel
- *   Variables, Statistics, Profile, MorePages
- *   Individual More Status Page titles (from notetags)
- *
- * Notes:
- * - Cancel is ignored in battle.
- * - Parameters is excluded in battle (parameters are already on General).
- * - Custom expands into extension menus (Variables, Statistics, Profile, and
- *   any More Status Pages defined for the current battler).
- * - For allies, extension menus behave like the normal Status menu.
- * - For enemies, Actor-style Status Menu notetags also apply to Enemy database
- *   entries (Variables columns, Profile text/image, More Status Pages, etc.).
- * - Enemy Attributes omit actor-only traits (Pharmacology, EXP rate).
- * - Enemy Statistics omits actor-only battle log stats (battle count, K/D/A,
- *   damage/healing totals). If nothing applies, the menu is skipped.
- *
- * ============================================================================
- * Small Overlay Text
- * ============================================================================
- *
- * When "-- Small set text added to the In-Battle Status Window --" is Yes, a
- * small customizable hint is drawn on the in-battle status panel (ally or enemy).
- * Sub-parameters control the message, corner position, color, size, font, and
- * pixel offsets — the same pattern as JakeMSG_MoreDescriptionsWithConditions.
- *
- * ============================================================================
- * Notetags
- * ============================================================================
- *
- * You can use the following notetags to adjust how the in-battle status window
- * displays information for certain enemies.
- *
- * Actor/Enemy Notetags:
- *
- *   <Show Status HP>
- *   <Hide Status HP>
- *   - This will show or hide the HP gauge for the battler in the in-battle
- *   status window regardless of the default plugin settings.
- *
- *   <Show Status MP>
- *   <Hide Status MP>
- *   - This will show or hide the MP gauge for the battler in the in-battle
- *   status window regardless of the default plugin settings.
- *
- *   <Show Status TP>
- *   <Hide Status TP>
- *   - This will show or hide the TP gauge for the battler in the in-battle
- *   status window regardless of the default plugin settings.
- *
- * Enemy database entries also accept the Actor notetags from these plugins
- * (when installed) for sub-menu content:
- *   YEP_X_ActorVariables  — <Column x Variables: y>
- *   YEP_X_MoreStatusPages — <Status Menu Page: title> ... </Status Menu Page>
- *   YEP_X_ProfileStatusPage — <Profile Text>, <Profile Image: filename>, etc.
- *
- * ============================================================================
- * Plugin Commands
- * ============================================================================
- *
- * For those who would like to change whether the 'Enemy Status' option is shown 
- * or hidden midway through the game, you can use the following plugin commands:
- *
- * Plugin Commands:
- *
- *   ShowEnemyInBattleStatus
- *   - This will cause the 'Enemy Status' command to show.
- *
- *   HideEnemyInBattleStatus
- *   - This will cause the 'Enemy Status' command to not show.
  */
 //=============================================================================
 
@@ -375,6 +589,42 @@ Yanfly.Param.EnemyIBSHealthyHelp = String(Yanfly.Parameters['Enemy Healthy Help'
 Yanfly.Param.ShowEnemyHP = eval(String(Yanfly.Parameters['Show Enemy HP']));
 Yanfly.Param.ShowEnemyMP = eval(String(Yanfly.Parameters['Show Enemy MP']));
 Yanfly.Param.ShowEnemyTP = eval(String(Yanfly.Parameters['Show Enemy TP'] || 'true'));
+Yanfly.Param.ShowEnemyStats = eval(String(Yanfly.Parameters['Show Enemy Stats'] || 'true'));
+Yanfly.Param.ShowAllyHP = eval(String(Yanfly.Parameters['Show Ally HP'] || 'true'));
+Yanfly.Param.ShowAllyMP = eval(String(Yanfly.Parameters['Show Ally MP'] || 'true'));
+Yanfly.Param.ShowAllyTP = eval(String(Yanfly.Parameters['Show Ally TP'] || 'true'));
+Yanfly.Param.ShowAllyStats = eval(String(Yanfly.Parameters['Show Ally Stats'] || 'true'));
+Yanfly.Param.IBSUnknownText = '???';
+
+Yanfly.InBattleStatus_JakeMSGAdd.MENU_REGISTRY = [
+  {symbol: 'inBattleGeneral', aliases: ['GENERAL', 'MAIN']},
+  {symbol: 'elements', aliases: ['ELEMENTS', 'ELEMENT']},
+  {symbol: 'states', aliases: ['STATES', 'STATE']},
+  {symbol: 'attributes', aliases: ['ATTRIBUTES', 'ATTRIBUTE']},
+  {symbol: 'actorVariables', aliases: ['VARIABLES', 'VARIABLE']},
+  {symbol: 'battleStatistics', aliases: ['STATISTICS', 'STATISTIC', 'STATS MENU']},
+  {symbol: 'profile', aliases: ['PROFILE']},
+  {symbol: 'morePages', aliases: ['MOREPAGES', 'MOREPAGE', 'MORE PAGES', 'MORE PAGE']}
+];
+
+Yanfly.InBattleStatus_JakeMSGAdd.buildMenuDefaultVisibility = function(isEnemy) {
+  var prefix = isEnemy ? 'Show Enemy Menu ' : 'Show Ally Menu ';
+  return {
+    inBattleGeneral: eval(String(Yanfly.Parameters[prefix + 'General'] || 'true')),
+    elements: eval(String(Yanfly.Parameters[prefix + 'Elements'] || 'true')),
+    states: eval(String(Yanfly.Parameters[prefix + 'States'] || 'true')),
+    attributes: eval(String(Yanfly.Parameters[prefix + 'Attributes'] || 'true')),
+    actorVariables: eval(String(Yanfly.Parameters[prefix + 'Variables'] || 'true')),
+    battleStatistics: eval(String(Yanfly.Parameters[prefix + 'Statistics'] || 'true')),
+    profile: eval(String(Yanfly.Parameters[prefix + 'Profile'] || 'true')),
+    morePages: eval(String(Yanfly.Parameters[prefix + 'MorePages'] || 'true'))
+  };
+};
+
+Yanfly.Param.EnemyIBSMenuDefaults =
+  Yanfly.InBattleStatus_JakeMSGAdd.buildMenuDefaultVisibility(true);
+Yanfly.Param.AllyIBSMenuDefaults =
+  Yanfly.InBattleStatus_JakeMSGAdd.buildMenuDefaultVisibility(false);
 Yanfly.Param.GroupStatusCommands =
   eval(String(Yanfly.Parameters['Group the Status Commands']));
 Yanfly.Param.ParentStatusCmdText =
@@ -409,6 +659,177 @@ Yanfly.Param.IBSSmallStatusYOffset = Yanfly.Param.IBSShowSmallStatusText ?
 Yanfly.InBattleStatus_JakeMSGAdd.ENEMY_ATTRIBUTE_SKIP = {
   pha: true,
   exr: true
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.getMenuStorageKey = function(symbol, ext) {
+  if (symbol === 'morePages' && ext) return 'morePages:' + ext;
+  return symbol;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.menuDefaultsForBattler = function(battler) {
+  return battler && battler.isEnemy() ? Yanfly.Param.EnemyIBSMenuDefaults :
+    Yanfly.Param.AllyIBSMenuDefaults;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.resolveNotetagTarget = function(name, obj) {
+  var upper = String(name || '').trim().toUpperCase();
+  if (upper === 'HP') return {kind: 'gauge', key: 'hp'};
+  if (upper === 'MP') return {kind: 'gauge', key: 'mp'};
+  if (upper === 'TP') return {kind: 'gauge', key: 'tp'};
+  if (upper === 'STATS' || upper === 'STAT') return {kind: 'stats'};
+  var registry = this.MENU_REGISTRY;
+  for (var i = 0; i < registry.length; i++) {
+    var entry = registry[i];
+    if (entry.aliases.contains(upper)) {
+      return {kind: 'menu', symbol: entry.symbol};
+    }
+  }
+  if (obj && obj.customStatusMenuPages) {
+    for (var j = 0; j < obj.customStatusMenuPages.length; j++) {
+      var pageKey = obj.customStatusMenuPages[j];
+      if (String(pageKey).toUpperCase() === upper) {
+        return {kind: 'menu', symbol: 'morePages', ext: pageKey};
+      }
+    }
+  }
+  return null;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.initBattlerDisplayData = function(obj, defaults) {
+  obj.showIBSHp = defaults.showHp;
+  obj.showIBSMp = defaults.showMp;
+  obj.showIBSTp = defaults.showTp;
+  obj.showIBSStats = defaults.showStats;
+  obj.unknownIBSHp = false;
+  obj.unknownIBSMp = false;
+  obj.unknownIBSTp = false;
+  obj.unknownIBSStats = false;
+  obj.showIBSMenus = {};
+  obj.unknownIBSMenus = {};
+  var menuDefaults = defaults.menuDefaults;
+  for (var key in menuDefaults) {
+    if (menuDefaults.hasOwnProperty(key)) {
+      obj.showIBSMenus[key] = menuDefaults[key];
+    }
+  }
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.applyBattlerDisplayNotetag =
+  function(obj, target, mode) {
+  if (!target) return;
+  if (target.kind === 'gauge') {
+    var gaugeKey = target.key.charAt(0).toUpperCase() + target.key.slice(1);
+    if (mode === 'show') obj['showIBS' + gaugeKey] = true;
+    else if (mode === 'hide') obj['showIBS' + gaugeKey] = false;
+    else if (mode === 'unknown') obj['unknownIBS' + gaugeKey] = true;
+    return;
+  }
+  if (target.kind === 'stats') {
+    if (mode === 'show') obj.showIBSStats = true;
+    else if (mode === 'hide') obj.showIBSStats = false;
+    else if (mode === 'unknown') obj.unknownIBSStats = true;
+    return;
+  }
+  if (target.kind === 'menu') {
+    var storageKey = this.getMenuStorageKey(target.symbol, target.ext);
+    if (mode === 'show') obj.showIBSMenus[storageKey] = true;
+    else if (mode === 'hide') obj.showIBSMenus[storageKey] = false;
+    else if (mode === 'unknown') obj.unknownIBSMenus[storageKey] = true;
+  }
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.battlerDatabaseObject = function(battler) {
+  if (!battler) return null;
+  return battler.isActor() ? battler.actor() : battler.enemy();
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isShowGauge = function(battler, gaugeKey) {
+  var data = this.battlerDatabaseObject(battler);
+  if (!data) return true;
+  var prop = 'showIBS' + gaugeKey.charAt(0).toUpperCase() + gaugeKey.slice(1);
+  return data[prop] !== false;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isUnknownGauge = function(battler, gaugeKey) {
+  var data = this.battlerDatabaseObject(battler);
+  if (!data) return false;
+  var prop = 'unknownIBS' + gaugeKey.charAt(0).toUpperCase() + gaugeKey.slice(1);
+  return !!data[prop];
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isShowStats = function(battler) {
+  var data = this.battlerDatabaseObject(battler);
+  if (!data) return true;
+  return data.showIBSStats !== false;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isUnknownStats = function(battler) {
+  var data = this.battlerDatabaseObject(battler);
+  if (!data) return false;
+  return !!data.unknownIBSStats;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isShowMenu = function(battler, symbol, ext) {
+  if (!this.isMenuAvailable(symbol, battler)) return false;
+  var data = this.battlerDatabaseObject(battler);
+  var storageKey = this.getMenuStorageKey(symbol, ext);
+  var defaults = this.menuDefaultsForBattler(battler);
+  if (symbol === 'morePages') {
+    if (defaults.morePages === false) return false;
+    if (data && data.showIBSMenus[storageKey] === false) return false;
+    return true;
+  }
+  if (data && data.showIBSMenus[storageKey] !== undefined) {
+    return !!data.showIBSMenus[storageKey];
+  }
+  return defaults[symbol] !== false;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isUnknownMenu = function(battler, symbol, ext) {
+  var data = this.battlerDatabaseObject(battler);
+  if (!data || !data.unknownIBSMenus) return false;
+  return !!data.unknownIBSMenus[this.getMenuStorageKey(symbol, ext)];
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.maskUnknownText = function(text, isUnknown) {
+  return isUnknown ? Yanfly.Param.IBSUnknownText : text;
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.formatUnknownRate = function(rate, decimals,
+  isUnknown) {
+  if (isUnknown) return Yanfly.Param.IBSUnknownText;
+  return (rate * 100).toFixed(decimals) + '%';
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.formatUnknownNumber = function(value, isUnknown) {
+  if (isUnknown) return Yanfly.Param.IBSUnknownText;
+  return Yanfly.Util.toGroup(value);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown = function(battler, kind) {
+  if (this.isUnknownMenu(battler, 'inBattleGeneral', null)) return true;
+  if (kind === 'stats') return this.isUnknownStats(battler);
+  return this.isUnknownGauge(battler, kind);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.maskUnknownTextContent = function(text) {
+  return String(text).replace(/\d[\d.,]*/g, Yanfly.Param.IBSUnknownText);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.drawCurrentAndMaxMaybeUnknown = function(win,
+  current, max, x, y, width, color1, color2, isUnknown) {
+  if (isUnknown) {
+    win.drawCurrentAndMax(Yanfly.Param.IBSUnknownText, Yanfly.Param.IBSUnknownText,
+      x, y, width, color1, color2);
+    return;
+  }
+  win.drawCurrentAndMax(current, max, x, y, width, color1, color2);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.drawGroupedValueMaybeUnknown = function(win,
+  value, x, y, width, align, color, isUnknown) {
+  win.changeTextColor(color);
+  win.drawText(this.formatUnknownNumber(value, isUnknown), x, y, width, align);
 };
 
 //=============================================================================
@@ -473,11 +894,6 @@ Yanfly.InBattleStatus_JakeMSGAdd.drawIBSMenuHeader = function(win, x, y, width,
   win.resetTextColor();
 };
 
-Yanfly.InBattleStatus_JakeMSGAdd.battlerDatabaseObject = function(battler) {
-  if (!battler) return null;
-  return battler.isActor() ? battler.actor() : battler.enemy();
-};
-
 Yanfly.InBattleStatus_JakeMSGAdd.isMorePageVisible = function(battler, pageKey) {
   var data = this.battlerDatabaseObject(battler);
   if (!data || !data.customStatusMenuPageRequirement) return true;
@@ -501,20 +917,24 @@ Yanfly.InBattleStatus_JakeMSGAdd.getMorePageKeys = function(battler) {
 
 Yanfly.InBattleStatus_JakeMSGAdd.addCustomMenus = function(list, battler) {
   if (Imported.YEP_X_ActorVariables &&
-      this.isMenuAvailable('actorVariables', battler)) {
+      this.isMenuAvailable('actorVariables', battler) &&
+      this.isShowMenu(battler, 'actorVariables', null)) {
     list.push({symbol: 'actorVariables', label: 'Variables', ext: null});
   }
   if (Imported.YEP_X_BattleStatistics &&
-      this.isMenuAvailable('battleStatistics', battler)) {
+      this.isMenuAvailable('battleStatistics', battler) &&
+      this.isShowMenu(battler, 'battleStatistics', null)) {
     list.push({symbol: 'battleStatistics', label: 'Statistics', ext: null});
   }
   if (Imported.YEP_X_ProfileStatusPage &&
-      this.isMenuAvailable('profile', battler)) {
+      this.isMenuAvailable('profile', battler) &&
+      this.isShowMenu(battler, 'profile', null)) {
     list.push({symbol: 'profile', label: 'Profile', ext: null});
   }
   if (Imported.YEP_X_MoreStatusPages) {
     var pages = this.getMorePageKeys(battler);
     for (var i = 0; i < pages.length; ++i) {
+      if (!this.isShowMenu(battler, 'morePages', pages[i])) continue;
       list.push({symbol: 'morePages', label: pages[i], ext: pages[i]});
     }
   }
@@ -522,14 +942,15 @@ Yanfly.InBattleStatus_JakeMSGAdd.addCustomMenus = function(list, battler) {
 
 Yanfly.InBattleStatus_JakeMSGAdd.isMenuAvailable = function(symbol, battler) {
   if (!Imported.YEP_StatusMenuCore) return symbol === 'inBattleGeneral';
-  if (symbol === 'inBattleGeneral') return true;
   if (symbol === 'actorVariables') return !!Imported.YEP_X_ActorVariables;
   if (symbol === 'battleStatistics') {
     return !!(Imported.YEP_X_BattleStatistics && battler && battler.isActor());
   }
   if (symbol === 'profile') return !!Imported.YEP_X_ProfileStatusPage;
   if (symbol === 'morePages') return !!Imported.YEP_X_MoreStatusPages;
-  if (['elements', 'states', 'attributes'].contains(symbol)) return true;
+  if (['inBattleGeneral', 'elements', 'states', 'attributes'].contains(symbol)) {
+    return true;
+  }
   return false;
 };
 
@@ -548,6 +969,7 @@ Yanfly.InBattleStatus_JakeMSGAdd.buildMenuList = function(battler) {
       var pages = this.getMorePageKeys(battler);
       for (var p = 0; p < pages.length; ++p) {
         var pageKey = pages[p];
+        if (!this.isShowMenu(battler, 'morePages', pageKey)) continue;
         var pageId = 'morePages:' + pageKey;
         if (seen[pageId]) continue;
         seen[pageId] = true;
@@ -561,7 +983,8 @@ Yanfly.InBattleStatus_JakeMSGAdd.buildMenuList = function(battler) {
         var db = this.battlerDatabaseObject(battler);
         if (db && db.customStatusMenuPages &&
         db.customStatusMenuPages.contains(token) &&
-        this.isMorePageVisible(battler, token)) {
+        this.isMorePageVisible(battler, token) &&
+        this.isShowMenu(battler, 'morePages', token)) {
           var customPageId = 'morePages:' + token;
           if (!seen[customPageId]) {
             seen[customPageId] = true;
@@ -572,11 +995,12 @@ Yanfly.InBattleStatus_JakeMSGAdd.buildMenuList = function(battler) {
       continue;
     }
     if (!this.isMenuAvailable(symbol, battler)) continue;
+    if (!this.isShowMenu(battler, symbol, null)) continue;
     if (seen[symbol]) continue;
     seen[symbol] = true;
     list.push({symbol: symbol, label: token, ext: null});
   }
-  if (list.length <= 0) {
+  if (list.length <= 0 && this.isShowMenu(battler, 'inBattleGeneral', null)) {
     list.push({symbol: 'inBattleGeneral', label: 'General', ext: null});
   }
   return list;
@@ -714,43 +1138,55 @@ DataManager.prepareJakeMSGEnemyStatusMenuData = function(group) {
 };
 
 DataManager.processJakeMSGAddEnemyNotetags = function(group) {
-	this.processJakeMSGAddGaugeNotetags(group, Yanfly.Param.ShowEnemyHP,
-    Yanfly.Param.ShowEnemyMP, Yanfly.Param.ShowEnemyTP);
+  this.processJakeMSGAddBattlerDisplayNotetags(group, {
+    showHp: Yanfly.Param.ShowEnemyHP,
+    showMp: Yanfly.Param.ShowEnemyMP,
+    showTp: Yanfly.Param.ShowEnemyTP,
+    showStats: Yanfly.Param.ShowEnemyStats,
+    menuDefaults: Yanfly.Param.EnemyIBSMenuDefaults
+  });
 };
 
 DataManager.processJakeMSGAddActorNotetags = function(group) {
-  this.processJakeMSGAddGaugeNotetags(group, true, true,
-    !!Yanfly.Param.MenuTpGauge);
+  this.processJakeMSGAddBattlerDisplayNotetags(group, {
+    showHp: Yanfly.Param.ShowAllyHP,
+    showMp: Yanfly.Param.ShowAllyMP,
+    showTp: Yanfly.Param.ShowAllyTP,
+    showStats: Yanfly.Param.ShowAllyStats,
+    menuDefaults: Yanfly.Param.AllyIBSMenuDefaults
+  });
 };
 
-DataManager.processJakeMSGAddGaugeNotetags = function(group, defaultHp,
-  defaultMp, defaultTp) {
-	for (var n = 1; n < group.length; n++) {
-		var obj = group[n];
-		if (!obj) continue;
-		var notedata = (obj.note || '').split(/[\r\n]+/);
-
-    obj.showIBSHp = defaultHp;
-    obj.showIBSMp = defaultMp;
-    obj.showIBSTp = defaultTp;
-
-		for (var i = 0; i < notedata.length; i++) {
-			var line = notedata[i];
-			if (line.match(/<(?:SHOW STATUS HP)>/i)) {
-				obj.showIBSHp = true;
-			} else if (line.match(/<(?:HIDE STATUS HP)>/i)) {
-        obj.showIBSHp = false;
-      } else if (line.match(/<(?:SHOW STATUS MP)>/i)) {
-        obj.showIBSMp = true;
-      } else if (line.match(/<(?:HIDE STATUS MP)>/i)) {
-        obj.showIBSMp = false;
-      } else if (line.match(/<(?:SHOW STATUS TP)>/i)) {
-        obj.showIBSTp = true;
-      } else if (line.match(/<(?:HIDE STATUS TP)>/i)) {
-        obj.showIBSTp = false;
+DataManager.processJakeMSGAddBattlerDisplayNotetags = function(group, defaults) {
+  for (var n = 1; n < group.length; n++) {
+    var obj = group[n];
+    if (!obj) continue;
+    var notedata = (obj.note || '').split(/[\r\n]+/);
+    Yanfly.InBattleStatus_JakeMSGAdd.initBattlerDisplayData(obj, defaults);
+    for (var i = 0; i < notedata.length; i++) {
+      var line = notedata[i];
+      var showMatch = line.match(/<(?:SHOW) STATUS (.+)>/i);
+      var hideMatch = line.match(/<(?:HIDE) STATUS (.+)>/i);
+      var unknownMatch = line.match(/<(?:\?\?\? FOR) STATUS (.+)>/i);
+      var target;
+      if (showMatch) {
+        target = Yanfly.InBattleStatus_JakeMSGAdd.resolveNotetagTarget(
+          showMatch[1], obj);
+        Yanfly.InBattleStatus_JakeMSGAdd.applyBattlerDisplayNotetag(
+          obj, target, 'show');
+      } else if (hideMatch) {
+        target = Yanfly.InBattleStatus_JakeMSGAdd.resolveNotetagTarget(
+          hideMatch[1], obj);
+        Yanfly.InBattleStatus_JakeMSGAdd.applyBattlerDisplayNotetag(
+          obj, target, 'hide');
+      } else if (unknownMatch) {
+        target = Yanfly.InBattleStatus_JakeMSGAdd.resolveNotetagTarget(
+          unknownMatch[1], obj);
+        Yanfly.InBattleStatus_JakeMSGAdd.applyBattlerDisplayNotetag(
+          obj, target, 'unknown');
       }
-		}
-	}
+    }
+  }
 };
 
 //=============================================================================
@@ -1294,6 +1730,90 @@ Window_InBattleStatusInfo.prototype.drawBattleStatistics = function() {
   this.drawTotalDamageHealingShifted(shiftY);
 };
 
+Window_InBattleStatusInfo.prototype.isCurrentMenuUnknown = function() {
+  return Yanfly.InBattleStatus_JakeMSGAdd.isUnknownMenu(this._menuBattler,
+    this._symbol, this._morePageKey);
+};
+
+Window_InBattleStatusInfo.prototype.ibsUnknownNumber = function(value) {
+  return Yanfly.InBattleStatus_JakeMSGAdd.formatUnknownNumber(value,
+    this.isCurrentMenuUnknown());
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawElementData =
+  Window_StatusInfo.prototype.drawElementData;
+Window_InBattleStatusInfo.prototype.drawElementData = function(eleId, dx, dy, dw) {
+  if (!this.isCurrentMenuUnknown()) {
+    Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawElementData.call(
+      this, eleId, dx, dy, dw);
+    return;
+  }
+  eleId = parseInt(eleId);
+  var eleName = $dataSystem.elements[eleId];
+  dx += this.textPadding();
+  dw -= this.textPadding() * 2;
+  this._bypassResetTextColor = true;
+  this.changeTextColor(this.systemColor());
+  this.drawTextEx(eleName, dx, dy);
+  this._bypassResetTextColor = false;
+  this.resetTextColor();
+  this.drawText(Yanfly.Param.IBSUnknownText, dx, dy, dw, 'right');
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawStatesData =
+  Window_StatusInfo.prototype.drawStatesData;
+Window_InBattleStatusInfo.prototype.drawStatesData = function(stateId, dx, dy, dw) {
+  if (!this.isCurrentMenuUnknown()) {
+    Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawStatesData.call(
+      this, stateId, dx, dy, dw);
+    return;
+  }
+  stateId = parseInt(stateId);
+  dx += this.textPadding();
+  dw -= this.textPadding() * 2;
+  this._bypassResetTextColor = true;
+  this.changeTextColor(this.systemColor());
+  this.drawItemName($dataStates[stateId], dx, dy, dw);
+  this._bypassResetTextColor = false;
+  this.resetTextColor();
+  this.drawText(Yanfly.Param.IBSUnknownText, dx, dy, dw, 'right');
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawAttributeRate =
+  Window_StatusInfo.prototype.drawAttributeRate;
+Window_InBattleStatusInfo.prototype.drawAttributeRate = function(rate, dx, dy, dw) {
+  if (this.isCurrentMenuUnknown()) {
+    this.resetTextColor();
+    this.drawAttributeValue(Yanfly.Param.IBSUnknownText, dx, dy, dw);
+    return;
+  }
+  Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawAttributeRate.call(
+    this, rate, dx, dy, dw);
+};
+
+if (Imported.YEP_X_ActorVariables) {
+Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawActorVarData =
+  Window_StatusInfo.prototype.drawActorVarData;
+Window_InBattleStatusInfo.prototype.drawActorVarData = function(varId, dx, dy, dw) {
+  if (!this.isCurrentMenuUnknown()) {
+    Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawActorVarData.call(
+      this, varId, dx, dy, dw);
+    return;
+  }
+  varId = parseInt(varId);
+  var name = $dataSystem.variables[varId];
+  dx += this.textPadding();
+  dw -= this.textPadding() * 2;
+  this._bypassResetTextColor = true;
+  this.changeTextColor(this.systemColor());
+  name = name.replace(/<<(.*?)>>/i, '');
+  this.drawTextEx(name, dx, dy);
+  this._bypassResetTextColor = false;
+  this.resetTextColor();
+  this.drawText(Yanfly.Param.IBSUnknownText, dx, dy, dw, 'right');
+};
+}
+
 Window_InBattleStatusInfo.prototype.drawBattleCountShifted = function(shiftY) {
   this.drawDarkRect(0, shiftY, this.contents.width, this.lineHeight());
   this.changeTextColor(this.systemColor());
@@ -1301,6 +1821,12 @@ Window_InBattleStatusInfo.prototype.drawBattleCountShifted = function(shiftY) {
   var text = Yanfly.Param.BStatsBCountText;
   this.drawText(text, p, shiftY, this.contents.width - p * 2);
   this.changeTextColor(this.normalColor());
+  var unknown = this.isCurrentMenuUnknown();
+  if (unknown) {
+    this.drawText(Yanfly.Param.IBSUnknownText, p, shiftY,
+      this.contents.width - p * 2, 'right');
+    return;
+  }
   var fmt = Yanfly.Param.BStatsBCountFmt;
   var n1 = Yanfly.Util.toGroup(this._actor.battleCount());
   var n2 = Yanfly.Util.toGroup($gameSystem.battleCount());
@@ -1314,6 +1840,7 @@ Window_InBattleStatusInfo.prototype.drawKDACountShifted = function(shiftY) {
   var p = this.textPadding();
   var lh = this.lineHeight();
   var dw = this.contents.width / 2;
+  var unknown = this.isCurrentMenuUnknown();
   this.drawDarkRect(0, shiftY + lh * 1, dw, lh);
   this.drawDarkRect(0, shiftY + lh * 2, dw, lh);
   this.drawDarkRect(0, shiftY + lh * 3, dw, lh);
@@ -1325,13 +1852,13 @@ Window_InBattleStatusInfo.prototype.drawKDACountShifted = function(shiftY) {
   this.drawText(Yanfly.Param.BStatsACountText, p, shiftY + lh * 3,
     this.contents.width - p * 2);
   this.changeTextColor(this.powerUpColor());
-  this.drawText(Yanfly.Util.toGroup(this._actor.killCount()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.killCount()), p,
     shiftY + lh * 1, dw - p * 2, 'right');
   this.changeTextColor(this.powerDownColor());
-  this.drawText(Yanfly.Util.toGroup(this._actor.deathCount()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.deathCount()), p,
     shiftY + lh * 2, dw - p * 2, 'right');
   this.changeTextColor(this.normalColor());
-  this.drawText(Yanfly.Util.toGroup(this._actor.assistCount()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.assistCount()), p,
     shiftY + lh * 3, dw - p * 2, 'right');
 };
 
@@ -1339,18 +1866,22 @@ Window_InBattleStatusInfo.prototype.drawKDARatiosShifted = function(shiftY) {
   var p = this.textPadding();
   var lh = this.lineHeight();
   var dw = this.contents.width / 2;
+  var unknown = this.isCurrentMenuUnknown();
   this.drawDarkRect(dw, shiftY + lh * 1, dw, lh);
   this.drawDarkRect(dw, shiftY + lh * 2, dw, lh);
   this.drawDarkRect(dw, shiftY + lh * 3, dw, lh);
   this.changeTextColor(this.normalColor());
   var fmt = Yanfly.Param.BStatsKCountFmt;
-  var ratio = Yanfly.Util.toGroup(this._actor.killCountRatio().toFixed(2));
+  var ratio = unknown ? Yanfly.Param.IBSUnknownText :
+    Yanfly.Util.toGroup(this._actor.killCountRatio().toFixed(2));
   this.drawText(fmt.format(ratio), dw + p, shiftY + lh * 1, dw - p * 2, 'right');
   fmt = Yanfly.Param.BStatsDCountFmt;
-  ratio = Yanfly.Util.toGroup(this._actor.deathCountRatio().toFixed(2));
+  ratio = unknown ? Yanfly.Param.IBSUnknownText :
+    Yanfly.Util.toGroup(this._actor.deathCountRatio().toFixed(2));
   this.drawText(fmt.format(ratio), dw + p, shiftY + lh * 2, dw - p * 2, 'right');
   fmt = Yanfly.Param.BStatsACountFmt;
-  ratio = Yanfly.Util.toGroup(this._actor.assistCountRatio().toFixed(2));
+  ratio = unknown ? Yanfly.Param.IBSUnknownText :
+    Yanfly.Util.toGroup(this._actor.assistCountRatio().toFixed(2));
   this.drawText(fmt.format(ratio), dw + p, shiftY + lh * 3, dw - p * 2, 'right');
 };
 
@@ -1371,15 +1902,44 @@ Window_InBattleStatusInfo.prototype.drawTotalDamageHealingShifted = function(shi
   this.drawText(Yanfly.Param.BStatsHealTaken, p, shiftY + lh * 7,
     this.contents.width - p * 2);
   this.changeTextColor(this.normalColor());
-  this.drawText(Yanfly.Util.toGroup(this._actor.totalDamageDealt()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.totalDamageDealt()), p,
     shiftY + lh * 4, this.contents.width - p * 2, 'right');
-  this.drawText(Yanfly.Util.toGroup(this._actor.totalDamageTaken()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.totalDamageTaken()), p,
     shiftY + lh * 5, this.contents.width - p * 2, 'right');
-  this.drawText(Yanfly.Util.toGroup(this._actor.totalHealingDealt()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.totalHealingDealt()), p,
     shiftY + lh * 6, this.contents.width - p * 2, 'right');
-  this.drawText(Yanfly.Util.toGroup(this._actor.totalHealingTaken()), p,
+  this.drawText(this.ibsUnknownNumber(this._actor.totalHealingTaken()), p,
     shiftY + lh * 7, this.contents.width - p * 2, 'right');
 };
+
+Window_InBattleStatusInfo.prototype.drawMoreStatusPageContent = function(index) {
+  var pageKey = this._morePageKey;
+  if (!this._actor.actor().customStatusMenuPagesData) return;
+  if (!this._actor.actor().customStatusMenuPagesData[pageKey]) return;
+  var data = this._actor.actor().customStatusMenuPagesData[pageKey];
+  var text = data[index];
+  if (this.isCurrentMenuUnknown()) {
+    text = Yanfly.InBattleStatus_JakeMSGAdd.maskUnknownTextContent(text);
+  }
+  var rect = this.itemRectForText(index);
+  this.drawTextEx(text, rect.x, rect.y);
+};
+
+if (Imported.YEP_X_ProfileStatusPage) {
+Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawProfileItem =
+  Window_StatusInfo.prototype.drawProfileItem;
+Window_InBattleStatusInfo.prototype.drawProfileItem = function(index) {
+  if (!this.isCurrentMenuUnknown()) {
+    Yanfly.InBattleStatus_JakeMSGAdd.Window_StatusInfo_drawProfileItem.call(
+      this, index);
+    return;
+  }
+  var text = this._actor.profileStatusText()[index];
+  text = Yanfly.InBattleStatus_JakeMSGAdd.maskUnknownTextContent(text);
+  var rect = this.itemRectForText(index);
+  this.drawTextEx(text, rect.x, rect.y);
+};
+}
 
 Window_InBattleStatusInfo.prototype.drawInfoContents = function(symbol) {
   if (symbol === 'battleStatistics') {
@@ -1470,16 +2030,6 @@ Window_InBattleStatusInfo.prototype.drawItem = function(index) {
   }
 };
 
-Window_InBattleStatusInfo.prototype.drawMoreStatusPageContent = function(index) {
-  var pageKey = this._morePageKey;
-  if (!this._actor.actor().customStatusMenuPagesData) return;
-  if (!this._actor.actor().customStatusMenuPagesData[pageKey]) return;
-  var data = this._actor.actor().customStatusMenuPagesData[pageKey];
-  var text = data[index];
-  var rect = this.itemRectForText(index);
-  this.drawTextEx(text, rect.x, rect.y);
-};
-
 }
 
 //=============================================================================
@@ -1529,36 +2079,39 @@ Window_EnemyInBattleStatus.prototype.refresh = function() {
   var x2 = x + this.standardPadding();
   var w = this.contents.width - x2;
   var y = headerH;
-  if (this._battler.enemy().showIBSHp) {
+  var jake = Yanfly.InBattleStatus_JakeMSGAdd;
+  if (jake.isShowGauge(this._battler, 'hp')) {
     this.drawEnemyHp(this._battler, x2, y, w);
     y += this.lineHeight();
   }
-  if (this._battler.enemy().showIBSMp) {
+  if (jake.isShowGauge(this._battler, 'mp')) {
     this.drawEnemyMp(this._battler, x2, y, w);
     y += this.lineHeight();
   }
-  if (this._battler.enemy().showIBSTp) {
+  if (jake.isShowGauge(this._battler, 'tp')) {
     this.drawEnemyTp(this._battler, x2, y, w);
     y += this.lineHeight();
   }
   w = this.contents.width - x;
   y = Math.max(y + this.lineHeight(), headerH + Math.ceil(this.lineHeight() * 1.5));
-  var h = this.contents.height - y;
-  if (h >= this.lineHeight() * 6) {
-    for (var i = 2; i < 8; ++i) {
-      this.drawParam(i, x, y, w, this.lineHeight());
-      y += this.lineHeight();
-    }
-  } else {
-    w = Math.floor(w / 2);
-    x2 = x;
-    for (var i = 2; i < 8; ++i) {
-      this.drawParam(i, x2, y, w, this.lineHeight());
-      if (i % 2 === 0) {
-        x2 += w;
-      } else {
-        x2 = x;
+  if (jake.isShowStats(this._battler)) {
+    var h = this.contents.height - y;
+    if (h >= this.lineHeight() * 6) {
+      for (var i = 2; i < 8; ++i) {
+        this.drawParam(i, x, y, w, this.lineHeight());
         y += this.lineHeight();
+      }
+    } else {
+      w = Math.floor(w / 2);
+      x2 = x;
+      for (var i = 2; i < 8; ++i) {
+        this.drawParam(i, x2, y, w, this.lineHeight());
+        if (i % 2 === 0) {
+          x2 += w;
+        } else {
+          x2 = x;
+          y += this.lineHeight();
+        }
       }
     }
   }
@@ -1583,8 +2136,9 @@ Window_EnemyInBattleStatus.prototype.drawEnemyHp = function(enemy, x, y, width) 
   }
   this.changeTextColor(this.systemColor());
   this.drawText(TextManager.hpA, x, y, 44);
-  this.drawCurrentAndMax(enemy.hp, enemy.mhp, x, y, width,
-    this.hpColor(enemy), this.normalColor());
+  Yanfly.InBattleStatus_JakeMSGAdd.drawCurrentAndMaxMaybeUnknown(this,
+    enemy.hp, enemy.mhp, x, y, width, this.hpColor(enemy), this.normalColor(),
+    Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(enemy, 'hp'));
 };
 
 Window_EnemyInBattleStatus.prototype.drawEnemyMp = function(enemy, x, y, width) {
@@ -1592,8 +2146,9 @@ Window_EnemyInBattleStatus.prototype.drawEnemyMp = function(enemy, x, y, width) 
   this.drawGauge(x, y, width, rate, this.mpGaugeColor1(), this.mpGaugeColor2());
   this.changeTextColor(this.systemColor());
   this.drawText(TextManager.mpA, x, y, 44);
-  this.drawCurrentAndMax(enemy.mp, enemy.mmp, x, y, width,
-    this.mpColor(enemy), this.normalColor());
+  Yanfly.InBattleStatus_JakeMSGAdd.drawCurrentAndMaxMaybeUnknown(this,
+    enemy.mp, enemy.mmp, x, y, width, this.mpColor(enemy), this.normalColor(),
+    Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(enemy, 'mp'));
 };
 
 Window_EnemyInBattleStatus.prototype.drawEnemyTp = function(enemy, x, y, width) {
@@ -1601,8 +2156,9 @@ Window_EnemyInBattleStatus.prototype.drawEnemyTp = function(enemy, x, y, width) 
   this.drawGauge(x, y, width, rate, this.tpGaugeColor1(), this.tpGaugeColor2());
   this.changeTextColor(this.systemColor());
   this.drawText(TextManager.tpA, x, y, 44);
-  this.changeTextColor(this.tpColor(enemy));
-  this.drawText(Yanfly.Util.toGroup(enemy.tp), x + width - 64, y, 64, 'right');
+  Yanfly.InBattleStatus_JakeMSGAdd.drawGroupedValueMaybeUnknown(this, enemy.tp,
+    x + width - 64, y, 64, 'right', this.tpColor(enemy),
+    Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(enemy, 'tp'));
 };
 
 Window_EnemyInBattleStatus.prototype.drawParam = function(paramId, dx, dy, dw, dh) {
@@ -1615,8 +2171,11 @@ Window_EnemyInBattleStatus.prototype.drawParam = function(paramId, dx, dy, dw, d
   this.changeTextColor(this.systemColor());
   this.drawText(TextManager.param(paramId), dx, dy, dw);
   var value = this._battler.param(paramId);
+  var unknown = Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(
+    this._battler, 'stats');
   this.changeTextColor(this.paramchangeTextColor(level));
-  this.drawText(Yanfly.Util.toGroup(value), dx, dy, dw, 'right');
+  this.drawText(Yanfly.InBattleStatus_JakeMSGAdd.formatUnknownNumber(value, unknown),
+    dx, dy, dw, 'right');
 };
 
 Window_EnemyInBattleStatus.prototype.drawDarkRect = function(dx, dy, dw, dh) {
@@ -1658,36 +2217,62 @@ Window_InBattleStatus.prototype.refresh = function() {
   var w = this.contents.width - x2;
   this.drawActorSimpleStatusWithGaugeNotetags(this._battler, x2, contentY, w);
   w = this.contents.width - x;
+  var gaugeSettings = this.actorGaugeSettings(this._battler);
+  var statsYOffset = (gaugeSettings.showHp && gaugeSettings.showMp &&
+    gaugeSettings.showTp) ? 25 : 0;
   var y = Math.max(contentY + Math.ceil(this.lineHeight() * 3.5),
-    headerH + Math.ceil(this.lineHeight() * 1.5));
-  var h = this.contents.height - y;
-  if (h >= this.lineHeight() * 6) {
-    for (var i = 2; i < 8; ++i) {
-      this.drawParam(i, x, y, w, this.lineHeight());
-      y += this.lineHeight();
-    }
-  } else {
-    w = Math.floor(w / 2);
-    x2 = x;
-    for (var j = 2; j < 8; ++j) {
-      this.drawParam(j, x2, y, w, this.lineHeight());
-      if (j % 2 === 0) {
-        x2 += w;
-      } else {
-        x2 = x;
+    headerH + Math.ceil(this.lineHeight() * 1.5)) + statsYOffset;
+  if (Yanfly.InBattleStatus_JakeMSGAdd.isShowStats(this._battler)) {
+    var h = this.contents.height - y;
+    if (h >= this.lineHeight() * 6) {
+      for (var i = 2; i < 8; ++i) {
+        this.drawParam(i, x, y, w, this.lineHeight());
         y += this.lineHeight();
+      }
+    } else {
+      w = Math.floor(w / 2);
+      x2 = x;
+      for (var j = 2; j < 8; ++j) {
+        this.drawParam(j, x2, y, w, this.lineHeight());
+        if (j % 2 === 0) {
+          x2 += w;
+        } else {
+          x2 = x;
+          y += this.lineHeight();
+        }
       }
     }
   }
 };
 
+Yanfly.InBattleStatus_JakeMSGAdd.Window_InBattleStatus_drawParam =
+  Window_InBattleStatus.prototype.drawParam;
+Window_InBattleStatus.prototype.drawParam = function(paramId, dx, dy, dw, dh) {
+  this.drawDarkRect(dx, dy, dw, dh);
+  var level = this._battler._buffs[paramId];
+  var icon = this._battler.buffIconIndex(level, paramId);
+  this.drawIcon(icon, dx + 2, dy + 2);
+  dx += Window_Base._iconWidth + 4;
+  dw -= Window_Base._iconWidth + 4 + this.textPadding() + 2;
+  this.changeTextColor(this.systemColor());
+  this.drawText(TextManager.param(paramId), dx, dy, dw);
+  var value = this._battler.param(paramId);
+  var unknown = Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(
+    this._battler, 'stats');
+  this.changeTextColor(this.paramchangeTextColor(level));
+  this.drawText(Yanfly.InBattleStatus_JakeMSGAdd.formatUnknownNumber(value, unknown),
+    dx, dy, dw, 'right');
+};
+
 Window_InBattleStatus.prototype.actorGaugeSettings = function(actor) {
   var data = actor && actor.actor ? actor.actor() : null;
   return {
-    showHp: data && data.showIBSHp !== undefined ? data.showIBSHp : true,
-    showMp: data && data.showIBSMp !== undefined ? data.showIBSMp : true,
+    showHp: data && data.showIBSHp !== undefined ? data.showIBSHp :
+      Yanfly.Param.ShowAllyHP,
+    showMp: data && data.showIBSMp !== undefined ? data.showIBSMp :
+      Yanfly.Param.ShowAllyMP,
     showTp: data && data.showIBSTp !== undefined ? data.showIBSTp :
-      !!Yanfly.Param.MenuTpGauge
+      Yanfly.Param.ShowAllyTP
   };
 };
 
@@ -1713,6 +2298,50 @@ Window_InBattleStatus.prototype.drawActorSimpleStatusWithGaugeNotetags =
   if (gaugeSettings.showTp) {
     this.drawActorTp(actor, x2, gaugeY, width2);
   }
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_InBattleStatus_drawActorHp =
+  Window_InBattleStatus.prototype.drawActorHp;
+Window_InBattleStatus.prototype.drawActorHp = function(actor, x, y, width) {
+  width = width || 186;
+  this.drawGauge(x, y, width, actor.hpRate(), this.hpGaugeColor1(),
+    this.hpGaugeColor2());
+  this.changeTextColor(this.systemColor());
+  this.drawText(TextManager.hpA, x, y, 44);
+  var unknown = this._battler &&
+    Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(this._battler, 'hp');
+  Yanfly.InBattleStatus_JakeMSGAdd.drawCurrentAndMaxMaybeUnknown(this,
+    actor.hp, actor.mhp, x, y, width, this.hpColor(actor), this.normalColor(),
+    unknown);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_InBattleStatus_drawActorMp =
+  Window_InBattleStatus.prototype.drawActorMp;
+Window_InBattleStatus.prototype.drawActorMp = function(actor, x, y, width) {
+  width = width || 186;
+  this.drawGauge(x, y, width, actor.mpRate(), this.mpGaugeColor1(),
+    this.mpGaugeColor2());
+  this.changeTextColor(this.systemColor());
+  this.drawText(TextManager.mpA, x, y, 44);
+  var unknown = this._battler &&
+    Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(this._battler, 'mp');
+  Yanfly.InBattleStatus_JakeMSGAdd.drawCurrentAndMaxMaybeUnknown(this,
+    actor.mp, actor.mmp, x, y, width, this.mpColor(actor), this.normalColor(),
+    unknown);
+};
+
+Yanfly.InBattleStatus_JakeMSGAdd.Window_InBattleStatus_drawActorTp =
+  Window_InBattleStatus.prototype.drawActorTp;
+Window_InBattleStatus.prototype.drawActorTp = function(actor, x, y, width) {
+  width = width || 96;
+  this.drawGauge(x, y, width, actor.tpRate(), this.tpGaugeColor1(),
+    this.tpGaugeColor2());
+  this.changeTextColor(this.systemColor());
+  this.drawText(TextManager.tpA, x, y, 44);
+  var unknown = this._battler &&
+    Yanfly.InBattleStatus_JakeMSGAdd.isGeneralValueUnknown(this._battler, 'tp');
+  Yanfly.InBattleStatus_JakeMSGAdd.drawGroupedValueMaybeUnknown(this, actor.tp,
+    x + width - 64, y, 64, 'right', this.tpColor(actor), unknown);
 };
 
 Yanfly.InBattleStatus_JakeMSGAdd.applySmallStatusTextMixin(Window_EnemyInBattleStatus);

@@ -8,7 +8,7 @@ Imported.JakeMSG_YEP_BuffsStatesCore_Additions = true;
 
 var Yanfly = Yanfly || {};
 Yanfly.BuffsStates_JakeMSGAdd = Yanfly.BuffsStates_JakeMSGAdd || {};
-Yanfly.BuffsStates_JakeMSGAdd.version = 1.4;
+Yanfly.BuffsStates_JakeMSGAdd.version = 1.5;
 
 //=============================================================================
 /*:
@@ -16,9 +16,17 @@ Yanfly.BuffsStates_JakeMSGAdd.version = 1.4;
  * BuffsStates Core yanfly Plugin, such as multiple counters per state and new AuxVal value
  * (for background logic, not shown on screen)
  * @author JakeMSG
- * v1.4
+ * v1.5
  * 
 ============ Change Log ============
+1.5 - 7.14th.2026
+ * Added State notetag <Hide State> to hide a state from vanilla menu icon
+displays and from YEP_X_InBattleStatus, JakeMSG_YEP_X_InBattleStatus_Additions,
+and Olivia_StateTooltipDisplay state lists/tooltips (state logic still applies).
+ * React/Respond Effect locals (value, skillType, damagedStat, and TSR locals)
+can now be modified during eval and are applied to the resolved damage outcome.
+ * Added Custom Allied / Custom OtherAllied / Custom Opponent Hit Taken and
+Heal Taken eval timing notetags that trigger from allied or opposing battlers.
 1.4 - 6.19th.2026
  * Added a new State notetag, <Force Position ID: X>, to control manual
 state ordering in visual state lists (value can also be 0 or negative)
@@ -79,12 +87,15 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  * ============================================================================
  * Compatibilities
  * ============================================================================
- * ======== Compatible with YEP_X_InBattleStatus.js:
- *   NextTurn preview states appear in actor in-battle status state list.
- * ======== Compatible with JakeMSG_YEP_X_InBattleStatus_Additions.js:
- *   NextTurn preview states appear in enemy in-battle status state list.
  * ======== Compatible with Olivia_StateTooltipDisplay.js:
  *   NextTurn preview states appear in state tooltip text.
+ *   <Hide State> suppresses a state from the tooltip popout.
+ * ======== Compatible with YEP_X_InBattleStatus.js:
+ *   NextTurn preview states appear in actor in-battle status state list.
+ *   <Hide State> suppresses a state from the actor in-battle state list.
+ * ======== Compatible with JakeMSG_YEP_X_InBattleStatus_Additions.js:
+ *   NextTurn preview states appear in enemy in-battle status state list.
+ *   <Hide State> suppresses a state from the enemy in-battle state list.
  * ======== Compatible with TSR_Popups.js:
  *   <Custom React Effect> and <Custom Respond Effect> can use addon-provided
  *   TSR locals to read TSR MP/TP extra damage/recover/drain notetags.
@@ -139,7 +150,24 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  * Example:
  * - If State 30 has <Force Position ID: 10>, it appears before normal
  *   State 10 in those state display lists.
- * 
+ *
+ * ================================
+ * Hide State Notetag
+ * ================================
+ *
+ * New State notetag:
+ *   <Hide State>
+ *
+ * When present on a state, that state is hidden from visual state displays:
+ * - Vanilla menu/battle actor icon rows (state icons only).
+ * - YEP_BuffsStatesCore state icon / turn / counter overlays.
+ * - YEP_X_InBattleStatus actor state list.
+ * - JakeMSG_YEP_X_InBattleStatus_Additions enemy state list.
+ * - Olivia_StateTooltipDisplay state tooltip popout.
+ *
+ * The state still exists on the battler and still applies all gameplay logic,
+ * traits, and eval timings. Only display/list output is suppressed.
+ *
  * ================================
  * React/Respond Effect Locals
  * ================================
@@ -149,14 +177,24 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  *   <Custom Respond Effect> ... </Custom Respond Effect>
  *
  * Base damage locals:
+ *   value
+ *   - Number. The HP damage value currently being processed.
+ *   - In React, changing this changes the HP damage that will be applied.
+ *   - In Respond, changing this applies an additional HP correction equal to
+ *     the difference from the value that was already dealt.
+ *
  *   skillType
  *   - String based on the skill's core damage type:
  *     "None", "Damage", "Recover", "Drain"
+ *   - Can be modified during eval. Modified values are applied after the eval
+ *     block finishes for that timing.
  *   - Keep in mind, for "Recover" the value of the "value" will show as a negative number in the React/Respond eval
  *
  *   damagedStat
  *   - String based on the skill's core damaged stat:
- *     "HP", "MP", or "None"
+ *     "HP", "MP", "TP", or "None"
+ *   - Can be modified during eval. If changed away from the skill's original
+ *     damaged stat, supplemental stat changes are applied from value / TSR locals.
  *
  * TSR_Popups compatibility locals (when TSR_Popups is installed):
  *   TSR_TPexists / TSR_MPexists
@@ -167,10 +205,12 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  *
  *   TSR_TPtype / TSR_MPtype
  *   - String. "None", "Damage", "Recover", or "Drain"
+ *   - Can be modified during eval.
  *
  *   TSR_TPval / TSR_MPval
  *   - Number. The resolved added value used by TSR for that category and type.
  *   - Returns 0 when not applicable.
+ *   - Can be modified during eval. Modified values are applied after eval.
  *
  * 
  * ================================
@@ -446,6 +486,39 @@ counters, AuxVal and even notetag-based visual changes, separate from the normal
  * - Missed or evaded skills do not trigger Hit/Heal Taken timings, but defended damage (0 damage) still trigger them.
  * - Hit/Heal Taken timings are triggered each time a Hit/Heal is taken, not just once per state per turn
  *
+ * ================================
+ * Allied / OtherAllied / Opponent Hit & Heal Taken Timings
+ * ================================
+ *
+ * These mirror the Custom ... Hit Taken / Heal Taken notetags above, but fire
+ * from states on other battlers when someone else satisfies the condition.
+ *
+ * Replace "Custom" with one of:
+ *   Custom Allied
+ *   Custom OtherAllied
+ *   Custom Opponent
+ *
+ * Examples:
+ *   <Custom Allied Any Hit Taken Effect>
+ *   <Custom OtherAllied HP Heal Taken Effect>
+ *   <Custom Opponent TP Hit Taken Effect>
+ *
+ * Trigger rules:
+ * - Custom Allied: any allied battler on the same team satisfies the timing.
+ *   For actors this means party members; for enemies this means troop members.
+ * - Custom OtherAllied: same as Allied, but only when the triggering battler is
+ *   NOT the battler that owns the state with the notetag.
+ * - Custom Opponent: any opposing battler satisfies the timing. For actors this
+ *   means troop members; for enemies this means party members.
+ *
+ * Eval locals for these timings:
+ * - a / user / target = the battler who owns the state being evaluated.
+ * - triggerBattler / b = the battler who actually took the hit or heal.
+ * - origin = the origin battler of the evaluated state.
+ *
+ * All other Hit/Heal Taken notes above also apply (miss/evade rules, drain
+ * behavior, TSR MP/TP support, capped-stat intent checks, etc.).
+ *
  * 
  * 
  * 
@@ -550,6 +623,7 @@ Yanfly.BuffsStates_JakeMSGAdd.getStateData = function(stateId) {
     preview._jakeOriginalState = baseState;
     preview.forcePositionId = Number(baseState.forcePositionId || 0);
     preview.hasForcePositionId = !!baseState.hasForcePositionId;
+    preview.hideState = !!baseState.hideState;
 
     this._nextTurnStateCache[stateId] = preview;
     $dataStates[stateId] = preview;
@@ -619,6 +693,67 @@ Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay = function(states) {
     return result;
 };
 
+Yanfly.BuffsStates_JakeMSGAdd.isStateHidden = function(stateOrId) {
+    var state = null;
+    if (stateOrId && typeof stateOrId === 'object') {
+        state = stateOrId;
+    } else {
+        state = Yanfly.BuffsStates_JakeMSGAdd.getStateData(Number(stateOrId || 0));
+    }
+    return !!(state && state.hideState);
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.filterVisibleStates = function(states) {
+    if (!states || states.length <= 0) return [];
+    var result = [];
+    for (var i = 0; i < states.length; i++) {
+        var state = states[i];
+        if (!state) continue;
+        if (Yanfly.BuffsStates_JakeMSGAdd.isStateHidden(state)) continue;
+        result.push(state);
+    }
+    return result;
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.getAlliedBattlers = function(battler) {
+    if (!battler) return [];
+    if (battler.isActor && battler.isActor()) {
+        return $gameParty ? $gameParty.members() : [];
+    }
+    return $gameTroop ? $gameTroop.members() : [];
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.getOpponentBattlers = function(battler) {
+    if (!battler) return [];
+    if (battler.isActor && battler.isActor()) {
+        return $gameTroop ? $gameTroop.members() : [];
+    }
+    return $gameParty ? $gameParty.members() : [];
+};
+
+Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalTypes = [
+    'anyHitTakenState',
+    'hpHitTakenState',
+    'mpHitTakenState',
+    'tpHitTakenState',
+    'anyHealTakenState',
+    'hpHealTakenState',
+    'mpHealTakenState',
+    'tpHealTakenState'
+];
+
+Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealScopePrefixes = {
+    allied: 'allied',
+    otherAllied: 'otherAllied',
+    opponent: 'opponent'
+};
+
+Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey = function(scope, baseKey) {
+    var prefix = Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealScopePrefixes[scope];
+    if (!prefix || !baseKey) return null;
+    return prefix + baseKey.charAt(0).toUpperCase() + baseKey.slice(1);
+};
+
 Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview = function(battler) {
     if (!battler) return [];
     var states = battler.states ? battler.states().slice() : [];
@@ -628,7 +763,9 @@ Yanfly.BuffsStates_JakeMSGAdd.getOrderedStatesWithPreview = function(battler) {
             if (previews[i]) states.push(previews[i]);
         }
     }
-    return Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay(states);
+    return Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay(
+        Yanfly.BuffsStates_JakeMSGAdd.filterVisibleStates(states)
+    );
 };
 
 //=============================================================================
@@ -682,6 +819,20 @@ Yanfly.BuffsStates_JakeMSGAdd._extraStateEvalKeys = [
     'nextTurnAlreadyExistsState'
 ];
 
+(function() {
+    var scopes = ['allied', 'otherAllied', 'opponent'];
+    var baseKeys = Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalTypes;
+    for (var s = 0; s < scopes.length; s++) {
+        for (var b = 0; b < baseKeys.length; b++) {
+            var scopedKey = Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(
+                scopes[s],
+                baseKeys[b]
+            );
+            if (scopedKey) Yanfly.BuffsStates_JakeMSGAdd._extraStateEvalKeys.push(scopedKey);
+        }
+    }
+})();
+
 Yanfly.BuffsStates_JakeMSGAdd._ensureExtraStateEvalKeys = function(state) {
     if (!state.customEffectEval) DataManager.initStateEval(state);
     var keys = Yanfly.BuffsStates_JakeMSGAdd._extraStateEvalKeys;
@@ -697,51 +848,64 @@ Yanfly.BuffsStates_JakeMSGAdd._customTimingToEvalKey = function(rawName) {
     var name = String(rawName || '').toUpperCase();
     name = name.replace(/[ ]*\/[ ]*/g, '/').replace(/\s+/g, ' ').trim();
 
-    if (name === 'DEGENERATION' || name === 'DEGEN') return 'degenerateState';
-    if (name === 'REGEN/DEGEN' || name === 'REGEN DEGEN') return 'regenDegenState';
-
-    if (name === 'HP REGENERATION' || name === 'HP REGEN') return 'hpRegenState';
-    if (name === 'MP REGENERATION' || name === 'MP REGEN') return 'mpRegenState';
-    if (name === 'TP REGENERATION' || name === 'TP REGEN') return 'tpRegenState';
-
-    if (name === 'HP DEGENERATION' || name === 'HP DEGEN') return 'hpDegenState';
-    if (name === 'MP DEGENERATION' || name === 'MP DEGEN') return 'mpDegenState';
-    if (name === 'TP DEGENERATION' || name === 'TP DEGEN') return 'tpDegenState';
-
-    if (name === 'ANY INCREASE') return 'anyIncreaseState';
-    if (name === 'HP INCREASE') return 'hpIncreaseState';
-    if (name === 'MP INCREASE') return 'mpIncreaseState';
-    if (name === 'TP INCREASE') return 'tpIncreaseState';
-
-    if (name === 'ANY DECREASE') return 'anyDecreaseState';
-    if (name === 'HP DECREASE') return 'hpDecreaseState';
-    if (name === 'MP DECREASE') return 'mpDecreaseState';
-    if (name === 'TP DECREASE') return 'tpDecreaseState';
-
-    if (name === 'ANY HIT TAKEN') return 'anyHitTakenState';
-    if (name === 'HP HIT TAKEN') return 'hpHitTakenState';
-    if (name === 'MP HIT TAKEN') return 'mpHitTakenState';
-    if (name === 'TP HIT TAKEN') return 'tpHitTakenState';
-
-    if (name === 'ANY HEAL TAKEN') return 'anyHealTakenState';
-    if (name === 'HP HEAL TAKEN') return 'hpHealTakenState';
-    if (name === 'MP HEAL TAKEN') return 'mpHealTakenState';
-    if (name === 'TP HEAL TAKEN') return 'tpHealTakenState';
-
-    if (name === 'NEXTTURN APPLIED' || name === 'NEXT TURN APPLIED') {
-        return 'nextTurnAppliedState';
-    }
-    if (name === 'NEXTTURN REAPPLIED' || name === 'NEXT TURN REAPPLIED') {
-        return 'nextTurnReAppliedState';
-    }
-    if (name === 'NEXTTURN ARRIVED' || name === 'NEXT TURN ARRIVED') {
-        return 'nextTurnArrivedState';
-    }
-    if (name === 'NEXTTURN ALREADYEXISTS' || name === 'NEXT TURN ALREADY EXISTS') {
-        return 'nextTurnAlreadyExistsState';
+    var scope = null;
+    if (name.indexOf('OTHERALLIED ') === 0) {
+        scope = 'otherAllied';
+        name = name.slice('OTHERALLIED '.length);
+    } else if (name.indexOf('OTHER ALLIED ') === 0) {
+        scope = 'otherAllied';
+        name = name.slice('OTHER ALLIED '.length);
+    } else if (name.indexOf('ALLIED ') === 0) {
+        scope = 'allied';
+        name = name.slice('ALLIED '.length);
+    } else if (name.indexOf('OPPONENT ') === 0) {
+        scope = 'opponent';
+        name = name.slice('OPPONENT '.length);
     }
 
-    return null;
+    var baseKey = null;
+    if (name === 'DEGENERATION' || name === 'DEGEN') baseKey = 'degenerateState';
+    else if (name === 'REGEN/DEGEN' || name === 'REGEN DEGEN') baseKey = 'regenDegenState';
+    else if (name === 'HP REGENERATION' || name === 'HP REGEN') baseKey = 'hpRegenState';
+    else if (name === 'MP REGENERATION' || name === 'MP REGEN') baseKey = 'mpRegenState';
+    else if (name === 'TP REGENERATION' || name === 'TP REGEN') baseKey = 'tpRegenState';
+    else if (name === 'HP DEGENERATION' || name === 'HP DEGEN') baseKey = 'hpDegenState';
+    else if (name === 'MP DEGENERATION' || name === 'MP DEGEN') baseKey = 'mpDegenState';
+    else if (name === 'TP DEGENERATION' || name === 'TP DEGEN') baseKey = 'tpDegenState';
+    else if (name === 'ANY INCREASE') baseKey = 'anyIncreaseState';
+    else if (name === 'HP INCREASE') baseKey = 'hpIncreaseState';
+    else if (name === 'MP INCREASE') baseKey = 'mpIncreaseState';
+    else if (name === 'TP INCREASE') baseKey = 'tpIncreaseState';
+    else if (name === 'ANY DECREASE') baseKey = 'anyDecreaseState';
+    else if (name === 'HP DECREASE') baseKey = 'hpDecreaseState';
+    else if (name === 'MP DECREASE') baseKey = 'mpDecreaseState';
+    else if (name === 'TP DECREASE') baseKey = 'tpDecreaseState';
+    else if (name === 'ANY HIT TAKEN') baseKey = 'anyHitTakenState';
+    else if (name === 'HP HIT TAKEN') baseKey = 'hpHitTakenState';
+    else if (name === 'MP HIT TAKEN') baseKey = 'mpHitTakenState';
+    else if (name === 'TP HIT TAKEN') baseKey = 'tpHitTakenState';
+    else if (name === 'ANY HEAL TAKEN') baseKey = 'anyHealTakenState';
+    else if (name === 'HP HEAL TAKEN') baseKey = 'hpHealTakenState';
+    else if (name === 'MP HEAL TAKEN') baseKey = 'mpHealTakenState';
+    else if (name === 'TP HEAL TAKEN') baseKey = 'tpHealTakenState';
+    else if (name === 'NEXTTURN APPLIED' || name === 'NEXT TURN APPLIED') {
+        baseKey = 'nextTurnAppliedState';
+    } else if (name === 'NEXTTURN REAPPLIED' || name === 'NEXT TURN REAPPLIED') {
+        baseKey = 'nextTurnReAppliedState';
+    } else if (name === 'NEXTTURN ARRIVED' || name === 'NEXT TURN ARRIVED') {
+        baseKey = 'nextTurnArrivedState';
+    } else if (name === 'NEXTTURN ALREADYEXISTS' || name === 'NEXT TURN ALREADY EXISTS') {
+        baseKey = 'nextTurnAlreadyExistsState';
+    }
+
+    if (!baseKey) return null;
+    if (scope) {
+        if (Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalTypes.indexOf(baseKey) >= 0) {
+            return Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, baseKey);
+        }
+        return null;
+    }
+    return baseKey;
 };
 
 Yanfly.BuffsStates_JakeMSGAdd._processExtraCustomTimingNotetags = function(state) {
@@ -792,6 +956,7 @@ DataManager.processBSCNotetags1 = function(group) {
                 if (!state) continue;
                 state.forcePositionId = Number(state.forcePositionId || 0);
                 state.hasForcePositionId = !!state.hasForcePositionId;
+                state.hideState = !!state.hideState;
                 var map = Yanfly.BuffsStates_JakeMSGAdd._ensureStateCounterSettingsMap(state);
                 var notedata = state.note.split(/[\r\n]+/);
                 for (var i = 0; i < notedata.length; i++) {
@@ -851,6 +1016,8 @@ DataManager.processBSCNotetags1 = function(group) {
                                 var forcedPos = parseInt(RegExp.$1);
                             state.forcePositionId = forcedPos;
                             state.hasForcePositionId = true;
+                        } else if (line.match(/<HIDE[ ]STATE>/i)) {
+                            state.hideState = true;
                         }
                 }
                 state.stateCounterSettings = map[0];
@@ -872,6 +1039,17 @@ Game_BattlerBase.prototype.initMembers = function() {
 
 Game_BattlerBase.prototype.initNextTurnStateQueue = function() {
     this._nextTurnStateQueue = {};
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.Game_BattlerBase_stateIcons =
+    Game_BattlerBase.prototype.stateIcons;
+Game_BattlerBase.prototype.stateIcons = function() {
+    var states = Yanfly.BuffsStates_JakeMSGAdd.filterVisibleStates(this.states());
+    return states.map(function(state) {
+        return state.iconIndex;
+    }).filter(function(iconIndex) {
+        return iconIndex > 0;
+    });
 };
 
 Game_BattlerBase.prototype.initStateAuxVals = function() {
@@ -1717,6 +1895,7 @@ Game_BattlerBase.prototype.statesAndBuffs = function() {
             states.push(group[i]);
         }
     }
+    states = Yanfly.BuffsStates_JakeMSGAdd.filterVisibleStates(states);
     states = Yanfly.BuffsStates_JakeMSGAdd.sortStatesForDisplay(states);
     return states.concat(buffs);
 };
@@ -1858,10 +2037,12 @@ Game_Battler.prototype.customEffectEval = function(stateId, type) {
         stateId = this.resolveStateRef ? this.resolveStateRef(stateId, false) : stateId;
         var state = Yanfly.BuffsStates_JakeMSGAdd.getStateData(stateId);
         if (!state || !state.customEffectEval) return;
-        if (state.customEffectEval[type] === '') return;
+        if (!type || state.customEffectEval[type] === '' || state.customEffectEval[type] === undefined) return;
+        var triggerBattler = this._jakeScopedEffectTrigger || this;
         var a = this;
         var user = this;
         var target = this;
+        var b = triggerBattler;
         var origin = this.stateOrigin(stateId);
         var s = $gameSwitches._data;
         var v = $gameVariables._data;
@@ -2051,6 +2232,129 @@ Game_Battler.prototype._runSkillTakenStateEffects = function(hpIntent, mpIntent,
         if (mpIntent > 0) this.customEffectEval(stateId, 'mpHealTakenState');
         if (tpIntent > 0) this.customEffectEval(stateId, 'tpHealTakenState');
         if (anyHeal) this.customEffectEval(stateId, 'anyHealTakenState');
+    }
+
+    this._runTeamScopedSkillTakenEffects(this, hpIntent, mpIntent, tpIntent);
+};
+
+Game_Battler.prototype._runOwnerScopedHitHealEffects = function(
+    triggerBattler,
+    hpIntent,
+    mpIntent,
+    tpIntent,
+    scope
+) {
+    if (!$gameParty.inBattle()) return;
+    if (scope === 'otherAllied' && triggerBattler === this) return;
+
+    hpIntent = Number(hpIntent || 0);
+    mpIntent = Number(mpIntent || 0);
+    tpIntent = Number(tpIntent || 0);
+    if (!hpIntent && !mpIntent && !tpIntent) return;
+
+    var anyHit = hpIntent < 0 || mpIntent < 0 || tpIntent < 0;
+    var anyHeal = hpIntent > 0 || mpIntent > 0 || tpIntent > 0;
+    var states = this.states();
+    var length = states.length;
+    var previousTrigger = this._jakeScopedEffectTrigger;
+    this._jakeScopedEffectTrigger = triggerBattler;
+
+    try {
+        for (var i = 0; i < length; ++i) {
+            var state = states[i];
+            if (!state) continue;
+            var stateId = state.id;
+
+            if (hpIntent < 0) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'hpHitTakenState')
+                );
+            }
+            if (mpIntent < 0) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'mpHitTakenState')
+                );
+            }
+            if (tpIntent < 0) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'tpHitTakenState')
+                );
+            }
+            if (anyHit) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'anyHitTakenState')
+                );
+            }
+
+            if (hpIntent > 0) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'hpHealTakenState')
+                );
+            }
+            if (mpIntent > 0) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'mpHealTakenState')
+                );
+            }
+            if (tpIntent > 0) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'tpHealTakenState')
+                );
+            }
+            if (anyHeal) {
+                this.customEffectEval(
+                    stateId,
+                    Yanfly.BuffsStates_JakeMSGAdd._scopedHitHealEvalKey(scope, 'anyHealTakenState')
+                );
+            }
+        }
+    } finally {
+        this._jakeScopedEffectTrigger = previousTrigger;
+    }
+};
+
+Game_Battler.prototype._runTeamScopedSkillTakenEffects = function(
+    triggerBattler,
+    hpIntent,
+    mpIntent,
+    tpIntent
+) {
+    if (!triggerBattler) return;
+
+    var allies = Yanfly.BuffsStates_JakeMSGAdd.getAlliedBattlers(triggerBattler);
+    for (var i = 0; i < allies.length; i++) {
+        var ally = allies[i];
+        if (!ally || !ally._runOwnerScopedHitHealEffects) continue;
+        ally._runOwnerScopedHitHealEffects(triggerBattler, hpIntent, mpIntent, tpIntent, 'allied');
+        if (ally !== triggerBattler) {
+            ally._runOwnerScopedHitHealEffects(
+                triggerBattler,
+                hpIntent,
+                mpIntent,
+                tpIntent,
+                'otherAllied'
+            );
+        }
+    }
+
+    var opponents = Yanfly.BuffsStates_JakeMSGAdd.getOpponentBattlers(triggerBattler);
+    for (var j = 0; j < opponents.length; j++) {
+        var opponent = opponents[j];
+        if (!opponent || !opponent._runOwnerScopedHitHealEffects) continue;
+        opponent._runOwnerScopedHitHealEffects(
+            triggerBattler,
+            hpIntent,
+            mpIntent,
+            tpIntent,
+            'opponent'
+        );
     }
 };
 
@@ -2259,6 +2563,150 @@ Game_Action.prototype._jakeIntentSignFromTSRType = function(tsrType) {
     return 0;
 };
 
+Game_Action.prototype._jakeCreateDamageEvalContext = function(target, value) {
+    var locals = this._jakeReactRespondLocals(target);
+    return {
+        target: target,
+        value: Number(value || 0),
+        skillType: locals.skillType,
+        damagedStat: locals.damagedStat,
+        TSR_TPexists: locals.TSR_TPexists,
+        TSR_MPexists: locals.TSR_MPexists,
+        TSR_TPtype: locals.TSR_TPtype,
+        TSR_MPtype: locals.TSR_MPtype,
+        TSR_TPval: locals.TSR_TPval,
+        TSR_MPval: locals.TSR_MPval,
+        original: {
+            skillType: locals.skillType,
+            damagedStat: locals.damagedStat,
+            TSR_TPtype: locals.TSR_TPtype,
+            TSR_MPtype: locals.TSR_MPtype,
+            TSR_TPval: locals.TSR_TPval,
+            TSR_MPval: locals.TSR_MPval
+        }
+    };
+};
+
+Game_Action.prototype._jakeApplyContextStatChange = function(battler, stat, skillType, amount) {
+    if (!battler) return;
+    amount = Math.floor(Math.abs(Number(amount || 0)));
+    if (amount <= 0 || !skillType || skillType === 'None') return;
+
+    if (stat === 'HP') {
+        if (skillType === 'Recover') battler.gainHp(amount);
+        else if (skillType === 'Damage' || skillType === 'Drain') battler.gainHp(-amount);
+    } else if (stat === 'MP') {
+        if (skillType === 'Recover') battler.gainMp(amount);
+        else if (skillType === 'Damage' || skillType === 'Drain') battler.gainMp(-amount);
+    } else if (stat === 'TP' && battler.gainTp) {
+        if (skillType === 'Recover') battler.gainTp(amount);
+        else if (skillType === 'Damage' || skillType === 'Drain') battler.gainTp(-amount);
+    }
+};
+
+Game_Action.prototype._jakeApplyPendingDamageEvalContext = function(target, ctx) {
+    if (!target || !ctx) return;
+
+    if (ctx._pendingStat && ctx._pendingStat !== 'HP') {
+        this._jakeApplyContextStatChange(
+            target,
+            ctx._pendingStat,
+            ctx._pendingSkillType,
+            ctx._pendingValue
+        );
+        if (ctx._pendingSkillType === 'Drain' && this.subject()) {
+            this._jakeApplyContextStatChange(
+                this.subject(),
+                ctx._pendingStat,
+                'Recover',
+                ctx._pendingValue
+            );
+        }
+        ctx._pendingStat = null;
+    }
+
+    if (ctx.TSR_MPexists && ctx.TSR_MPval !== ctx.original.TSR_MPval) {
+        var mpDelta = Number(ctx.TSR_MPval || 0) - Number(ctx.original.TSR_MPval || 0);
+        if (mpDelta > 0) {
+            this._jakeApplyContextStatChange(target, 'MP', ctx.TSR_MPtype, mpDelta);
+            if (ctx.TSR_MPtype === 'Drain' && this.subject()) {
+                this._jakeApplyContextStatChange(this.subject(), 'MP', 'Recover', mpDelta);
+            }
+        } else if (mpDelta < 0) {
+            var mpReverseType = ctx.TSR_MPtype === 'Recover' ? 'Damage' : 'Recover';
+            this._jakeApplyContextStatChange(target, 'MP', mpReverseType, Math.abs(mpDelta));
+        }
+    }
+
+    if (ctx.TSR_TPexists && ctx.TSR_TPval !== ctx.original.TSR_TPval) {
+        var tpDelta = Number(ctx.TSR_TPval || 0) - Number(ctx.original.TSR_TPval || 0);
+        if (tpDelta > 0) {
+            this._jakeApplyContextStatChange(target, 'TP', ctx.TSR_TPtype, tpDelta);
+            if (ctx.TSR_TPtype === 'Drain' && this.subject()) {
+                this._jakeApplyContextStatChange(this.subject(), 'TP', 'Recover', tpDelta);
+            }
+        } else if (tpDelta < 0) {
+            var tpReverseType = ctx.TSR_TPtype === 'Recover' ? 'Damage' : 'Recover';
+            this._jakeApplyContextStatChange(target, 'TP', tpReverseType, Math.abs(tpDelta));
+        }
+    }
+};
+
+Game_Action.prototype._jakeFinalizeReactDamageEvalContext = function(target, ctx, value) {
+    ctx.value = Number(value || 0);
+
+    if (ctx.damagedStat === 'HP' || ctx.damagedStat === 'None') {
+        return ctx.value;
+    }
+
+    ctx._pendingStat = ctx.damagedStat;
+    ctx._pendingSkillType = ctx.skillType;
+    ctx._pendingValue = ctx.value;
+    return 0;
+};
+
+Game_Action.prototype._jakeApplyRespondDamageEvalContext = function(target, ctx, appliedValue) {
+    if (!target || !ctx) return;
+
+    var applied = Number(appliedValue || 0);
+    if ((ctx.damagedStat === 'HP' || ctx.damagedStat === 'None') && ctx.value !== applied) {
+        target.gainHp(applied - ctx.value);
+    }
+
+    this._jakeApplyPendingDamageEvalContext(target, ctx);
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.Game_Action_onReactStateEffects =
+    Game_Action.prototype.onReactStateEffects;
+Game_Action.prototype.onReactStateEffects = function(target, value) {
+    this._jakeDamageEvalCtx = null;
+    this._jakeDamageEvalAppliedValue = undefined;
+    value = Yanfly.BuffsStates_JakeMSGAdd.Game_Action_onReactStateEffects.call(this, target, value);
+    if (this._jakeDamageEvalCtx) {
+        value = this._jakeFinalizeReactDamageEvalContext(
+            target,
+            this._jakeDamageEvalCtx,
+            value
+        );
+    }
+    this._jakeDamageEvalAppliedValue = value;
+    return value;
+};
+
+Yanfly.BuffsStates_JakeMSGAdd.Game_Action_onRespondStateEffects =
+    Game_Action.prototype.onRespondStateEffects;
+Game_Action.prototype.onRespondStateEffects = function(target, value) {
+    var appliedValue = this._jakeDamageEvalAppliedValue;
+    if (appliedValue === undefined) appliedValue = value;
+    value = Yanfly.BuffsStates_JakeMSGAdd.Game_Action_onRespondStateEffects.call(this, target, value);
+    if (this._jakeDamageEvalCtx) {
+        this._jakeApplyRespondDamageEvalContext(target, this._jakeDamageEvalCtx, appliedValue);
+        this._jakeDamageEvalCtx = null;
+        this._jakeDamageEvalAppliedValue = undefined;
+    }
+    return value;
+};
+
 Yanfly.BuffsStates_JakeMSGAdd.Game_Action_customEffectEval =
     Game_Action.prototype.customEffectEval;
 Game_Action.prototype.customEffectEval = function(target, stateId, type, side, value) {
@@ -2272,6 +2720,13 @@ Game_Action.prototype.customEffectEval = function(target, stateId, type, side, v
     if (!state) return value;
     if (state.customEffectEval[type] === '') return value;
 
+    if (!this._jakeDamageEvalCtx) {
+        this._jakeDamageEvalCtx = this._jakeCreateDamageEvalContext(target, value);
+    } else {
+        this._jakeDamageEvalCtx.value = Number(value || 0);
+    }
+    var ctx = this._jakeDamageEvalCtx;
+
     var attacker = this.subject();
     var defender = target;
     var a = this.subject();
@@ -2281,15 +2736,15 @@ Game_Action.prototype.customEffectEval = function(target, stateId, type, side, v
     var s = $gameSwitches._data;
     var v = $gameVariables._data;
 
-    var jakeLocals = this._jakeReactRespondLocals(target);
-    var skillType = jakeLocals.skillType;
-    var damagedStat = jakeLocals.damagedStat;
-    var TSR_TPexists = jakeLocals.TSR_TPexists;
-    var TSR_MPexists = jakeLocals.TSR_MPexists;
-    var TSR_TPtype = jakeLocals.TSR_TPtype;
-    var TSR_MPtype = jakeLocals.TSR_MPtype;
-    var TSR_TPval = jakeLocals.TSR_TPval;
-    var TSR_MPval = jakeLocals.TSR_MPval;
+    value = ctx.value;
+    var skillType = ctx.skillType;
+    var damagedStat = ctx.damagedStat;
+    var TSR_TPexists = ctx.TSR_TPexists;
+    var TSR_MPexists = ctx.TSR_MPexists;
+    var TSR_TPtype = ctx.TSR_TPtype;
+    var TSR_MPtype = ctx.TSR_MPtype;
+    var TSR_TPval = ctx.TSR_TPval;
+    var TSR_MPval = ctx.TSR_MPval;
 
     var code = state.customEffectEval[type];
     try {
@@ -2298,7 +2753,18 @@ Game_Action.prototype.customEffectEval = function(target, stateId, type, side, v
         Yanfly.Util.displayError(e, code,
             'CUSTOM STATE ' + stateId + ' CODE ERROR');
     }
-    return value;
+
+    ctx.value = Number(value || 0);
+    ctx.skillType = skillType;
+    ctx.damagedStat = damagedStat;
+    ctx.TSR_TPexists = TSR_TPexists;
+    ctx.TSR_MPexists = TSR_MPexists;
+    ctx.TSR_TPtype = TSR_TPtype;
+    ctx.TSR_MPtype = TSR_MPtype;
+    ctx.TSR_TPval = Number(TSR_TPval || 0);
+    ctx.TSR_MPval = Number(TSR_MPval || 0);
+
+    return ctx.value;
 };
 
 Yanfly.BuffsStates_JakeMSGAdd.Game_Action_executeDamage =
@@ -2309,6 +2775,10 @@ Game_Action.prototype.executeDamage = function(target, value) {
     var tpBefore = target.tp;
 
     Yanfly.BuffsStates_JakeMSGAdd.Game_Action_executeDamage.call(this, target, value);
+
+    if (this._jakeDamageEvalCtx) {
+        this._jakeApplyPendingDamageEvalContext(target, this._jakeDamageEvalCtx);
+    }
 
     if (!target || !target._runValueChangeStateEffects) return;
     var hpDelta = target.hp - hpBefore;
