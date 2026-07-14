@@ -21,6 +21,8 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * v1.0
  *
  * ============ Change Log ============
+ * 1.3 - 7.14th.2026
+ * - Added <Hide Field> Adv Field notetag to hide fields from the Field Effects command list and HUD
  * 1.2 - 3.14th.2026
  * - Added 2 parameters to set the Window skin of the Field HUD's Field Effects tooltips
  * 1.1 - 3.13th.2026
@@ -78,6 +80,7 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * ==== Icon
  * == IconSet ID shown in Field Effects list and HUD.
  * == 0 hides this field from list/HUD visuals.
+ * == <Hide Field> in Note also hides a field even when an icon is set.
  *
  * ==== Max Copies
  * == Max active copies allowed for this Adv field when using Add operations.
@@ -140,6 +143,10 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  * ================================ Field Categories:
  * == Categories are read from each Adv Field's Note with:
  *   <Category: text>
+ * == Hidden fields are marked in each Adv Field's Note with:
+ *   <Hide Field>
+ * == Hidden fields remain active mechanically, but are omitted from the Field Effects
+ * == command list and the Field HUD.
  * == A field can have multiple categories, much like a State can for "YEP_X_StateCategories".
  * == Every active field tracks 3 arrays:
  *   Categories, TempCategories, AllCategories
@@ -970,13 +977,13 @@ JakeMSG.HO_FieldEffects = JakeMSG.HO_FieldEffects || {};
  *
  * @param note
  * @text Note
- * @desc Optional raw note/notetag text. Supports tags like <Category: text>.
+ * @desc Optional raw note/notetag text. Supports tags like <Category: text> and <Hide Field>.
  * @type note
  * @default
  *
  * @param icon
  * @text Icon
- * @desc Icon ID from IconSet. If 0, this field is hidden from Field HUD and Field Effects command list.
+ * @desc Icon ID from IconSet. If 0, this field is hidden from Field HUD and Field Effects command list. <Hide Field> also hides a field even when an icon is set.
  * @type number
  * @min 0
  * @default 0
@@ -1699,6 +1706,18 @@ $.parseFieldCategoriesFromNote = function(noteText) {
         }
     }
     return out;
+};
+
+$.parseHideFieldFromNote = function(noteText) {
+    const lines = String(noteText || '').split(/[\r\n]+/);
+    for (let i = 0; i < lines.length; ++i) {
+        const line = lines[i];
+        if (!line) continue;
+        if (line.match(/<HIDE[-_ ]?FIELD\s*>/i)) {
+            return true;
+        }
+    }
+    return false;
 };
 
 $.syncFieldAllCategories = function(field) {
@@ -2898,11 +2917,13 @@ DataManager.loadAdvFields = function(rawFieldDataBlocks) {
             const fieldDataObj = Horsti.Utils.parseJson(data);
             const rawFieldNote = $.prependGdnFieldsGlobalNote(Horsti.FieldEffects.parseNote(fieldDataObj.note));
             const parsedCategories = $.parseFieldCategoriesFromNote(rawFieldNote);
+            const hideField = $.parseHideFieldFromNote(rawFieldNote);
             const field = {
                 id: $dataFields.length,
                 name: Horsti.FieldEffects.parseString(fieldDataObj.name),
                 message: Horsti.FieldEffects.parseNote(fieldDataObj.message),
                 icon: Horsti.FieldEffects.parseNumber(fieldDataObj.icon, 0),
+                hideField: hideField,
                 maxCopies: Math.max(0, Horsti.FieldEffects.parseNumber(fieldDataObj.maxCopies, 0)),
                 forceCopiesToStacks: String(fieldDataObj.forceCopiesToStacks || 'false') === 'true',
                 stackIndexForCopyStacksConversion: Math.max(0, Horsti.FieldEffects.parseNumber(fieldDataObj.stackIndexForCopyStacksConversion, 0)),
@@ -3095,6 +3116,19 @@ $.fieldIconForDisplay = function(field) {
     return Number(objectData && objectData.icon ? objectData.icon : 0);
 };
 
+$.fieldIsHiddenForDisplay = function(field) {
+    if (!field) return true;
+    const objectData = field.object ? field.object() : null;
+    if (objectData && objectData.hideField) return true;
+    if (objectData && objectData.note && $.parseHideFieldFromNote(objectData.note)) return true;
+    return false;
+};
+
+$.isFieldVisibleForDisplay = function(field) {
+    if (!field || $.fieldIsHiddenForDisplay(field)) return false;
+    return $.fieldIconForDisplay(field) > 0;
+};
+
 $.isAdvFieldId = function(fieldId) {
     const id = Number(fieldId || 0);
     if (id <= 0) return false;
@@ -3259,7 +3293,7 @@ Window_FieldEffectsList.prototype.item = function() {
 
 Window_FieldEffectsList.prototype.makeItemList = function() {
     this._data = $.activeFieldsForDisplay().filter(function(field) {
-        return $.fieldIconForDisplay(field) > 0;
+        return $.isFieldVisibleForDisplay(field);
     });
     if (!this._data || this._data.length <= 0) {
         this._data = [null];
@@ -3618,7 +3652,7 @@ Sprite_FieldEffectsHud.prototype.initialize = function() {
 
 Sprite_FieldEffectsHud.prototype.currentFields = function() {
     return $.activeFieldsForDisplay().filter(function(field) {
-        return $.fieldIconForDisplay(field) > 0;
+        return $.isFieldVisibleForDisplay(field);
     });
 };
 
@@ -5072,6 +5106,7 @@ DataManager.processFieldNotetags = function(group) {
 
         const parsedActions = $.parseAdvActionsFromNote(obj.note || '');
         const parsedCategories = $.parseFieldCategoriesFromNote(obj.note || '');
+        obj.hideField = $.parseHideFieldFromNote(obj.note || '');
         obj.Categories = parsedCategories.slice();
         obj.TempCategories = [];
         obj.AllCategories = parsedCategories.slice();
