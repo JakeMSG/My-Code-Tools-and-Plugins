@@ -1,0 +1,18 @@
+{
+    "GDN_Actors" : [""],
+    "GDN_Classes" : [""], 
+    "GDN_Skills" : [""], 
+    "GDN_Items" : [""], 
+    "GDN_Weapons" : [""], 
+    "GDN_Armors" : [""], 
+    "GDN_Enemies" : [""], 
+    "GDN_States" : [""], 
+    "GDN_Tilesets" : [""], 
+    "GDN_Map" : [""],
+    "GDN_MapEvents" : [""],
+    "GDN_TextBoxes" : [""],
+    "GDN_ScriptCalls" : [""],
+    "GDN_DamageFormulas" : [""],    
+    
+    "GDN_Fields" : [""]
+}
