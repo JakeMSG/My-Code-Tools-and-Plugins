@@ -10,8 +10,10 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
  /*:
  * @plugindesc Change system image settings at runtime and persist them to save or meta files.
  * @author JakeMSG
- * v1.0
+ * v1.1
 ============ Change Log ============
+1.1 - 8.3rd.2026
+ * Added missing-file fallback logic
 1.0 - 7.14th.2026
  * initial release
 ================================
@@ -71,10 +73,16 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
  *   systemChangeMetaSave("Img-System-Loading", "custom/ui/Loading")
  *
  *
- * Priority:
+ * Priority (value selection, then missing-file fallback):
  *   1. Save-specific value from systemChangeSave (while a save is loaded)
  *   2. Meta value from systemChangeMetaSave
  *   3. Built-in default
+ *
+ * If a chosen image file is missing, the plugin falls back in the same order:
+ *   Save-specified file missing -> Meta-specified file (if any) -> Default
+ * This prevents runtime errors when an override path points to a missing asset.
+ * .png / .webp alternatives are checked when JakeMSG_WebpMP3AndSubfoldersInMVCommands
+ * is active.
  *
  * On every game launch, meta settings are loaded automatically from
  * JakeMSG_MetaSettings.rpgsave before gameplay begins. When you load a save
@@ -215,6 +223,84 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
         return parsed.folder + parsed.filename + '.png';
     };
 
+    JakeMSG_SCDR.encodeAssetName = function(filename) {
+        if (typeof Utils !== 'undefined' && typeof Utils.encodeURI === 'function') {
+            return Utils.encodeURI(filename);
+        }
+        return encodeURIComponent(filename);
+    };
+
+    JakeMSG_SCDR.urlExists = function(url) {
+        if (typeof JakeMSG_urlExists === 'function') {
+            return JakeMSG_urlExists(url);
+        }
+        try {
+            if (typeof require === 'function') {
+                var fs = require('fs');
+                var path = require('path');
+                var clean = String(url || '').split('?')[0].split('#')[0];
+                try {
+                    clean = decodeURIComponent(clean);
+                } catch (e) {
+                }
+                if (clean.indexOf('file://') === 0) {
+                    clean = clean.replace(/^file:\/\//i, '');
+                }
+                if (/^\/[A-Za-z]:\//.test(clean)) {
+                    clean = clean.substring(1);
+                }
+                if (!/^[A-Za-z]:[\\/]/.test(clean) && clean.indexOf('/') !== 0) {
+                    clean = path.join(process.cwd(), clean.split('/').join(path.sep));
+                }
+                return fs.existsSync(clean);
+            }
+        } catch (e2) {
+        }
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('HEAD', url, false);
+            xhr.send(null);
+            if (xhr.status === 405 || xhr.status === 0) {
+                xhr.open('GET', url, false);
+                xhr.send(null);
+            }
+            return xhr.status === 200 || xhr.status === 0;
+        } catch (e3) {
+            return false;
+        }
+    };
+
+    JakeMSG_SCDR.imgPathExists = function(relativePath) {
+        var parsed = this.parseImgPath(relativePath);
+        if (!parsed || !parsed.filename) {
+            return false;
+        }
+        var encodedName = this.encodeAssetName(parsed.filename);
+        var primaryExt = (typeof JakeMSG_primaryImageExt === 'function') ?
+            JakeMSG_primaryImageExt() : '.png';
+        var fallbackExt = (typeof JakeMSG_fallbackImageExt === 'function') ?
+            JakeMSG_fallbackImageExt() : '.webp';
+        var onlyMain = (typeof JakeMSG_onlyMainNoFallback !== 'undefined') ?
+            JakeMSG_onlyMainNoFallback : false;
+        var path1 = parsed.folder + encodedName + primaryExt;
+        if (typeof JakeMSG_isMV !== 'undefined' && JakeMSG_isMV) {
+            path1 = path1.split('%2F').join('/');
+        }
+        if (this.urlExists(path1)) {
+            return true;
+        }
+        if (!onlyMain) {
+            var path2 = parsed.folder + encodedName + fallbackExt;
+            if (typeof JakeMSG_isMV !== 'undefined' && JakeMSG_isMV) {
+                path2 = path2.split('%2F').join('/');
+            }
+            if (this.urlExists(path2)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     JakeMSG_SCDR.getSaveOverrides = function() {
         if (!$gameSystem) {
             return {};
@@ -225,26 +311,38 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
         return $gameSystem._jakeMSGSystemSettings;
     };
 
-    JakeMSG_SCDR.getEffectivePath = function(key) {
+    JakeMSG_SCDR.getCandidatePaths = function(key) {
+        var candidates = [];
         var saveOverrides = this.getSaveOverrides();
         if (saveOverrides.hasOwnProperty(key)) {
-            return saveOverrides[key];
+            candidates.push(saveOverrides[key]);
         }
         if (this.metaOverrides.hasOwnProperty(key)) {
-            return this.metaOverrides[key];
+            candidates.push(this.metaOverrides[key]);
+        }
+        candidates.push(this.defaults[key]);
+        return candidates;
+    };
+
+    JakeMSG_SCDR.getEffectivePath = function(key) {
+        var candidates = this.getCandidatePaths(key);
+        var i;
+        for (i = 0; i < candidates.length; i++) {
+            var path = candidates[i];
+            // Empty path is a valid Title2 "use database default" value.
+            if (path === '') {
+                return '';
+            }
+            if (this.imgPathExists(path)) {
+                return path;
+            }
         }
         return this.defaults[key];
     };
 
     JakeMSG_SCDR.hasActiveOverride = function(key) {
-        var saveOverrides = this.getSaveOverrides();
-        if (saveOverrides.hasOwnProperty(key)) {
-            return saveOverrides[key] !== this.defaults[key];
-        }
-        if (this.metaOverrides.hasOwnProperty(key)) {
-            return this.metaOverrides[key] !== this.defaults[key];
-        }
-        return false;
+        var effective = this.getEffectivePath(key);
+        return effective !== this.defaults[key];
     };
 
     JakeMSG_SCDR.getSystemOverridePath = function(systemFilename) {
@@ -334,10 +432,17 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
         }
     };
 
-    JakeMSG_SCDR.applyAllSettings = function() {
+    JakeMSG_SCDR.applyAllSettings = function(options) {
         var self = this;
+        options = options || {};
         this.clearFormatCache();
         Object.keys(this.defaults).forEach(function(key) {
+            // Leaving Title (New Game / Load Game): keep the current title visuals
+            // so the normal fade-out is not interrupted by a rebuild/rescale flash.
+            if (options.skipTitleRefresh &&
+                    (key === 'Img-System-Title1' || key === 'Img-System-Title2')) {
+                return;
+            }
             self.applySetting(key);
         });
     };
@@ -497,14 +602,14 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
         if (!$gameSystem._jakeMSGSystemSettings) {
             $gameSystem._jakeMSGSystemSettings = {};
         }
-        JakeMSG_SCDR.applyAllSettings();
+        JakeMSG_SCDR.applyAllSettings({ skipTitleRefresh: true });
     };
 
     var _JakeMSG_SCDR_DataManager_setupNewGame = DataManager.setupNewGame;
     DataManager.setupNewGame = function() {
         _JakeMSG_SCDR_DataManager_setupNewGame.call(this);
         $gameSystem._jakeMSGSystemSettings = {};
-        JakeMSG_SCDR.applyAllSettings();
+        JakeMSG_SCDR.applyAllSettings({ skipTitleRefresh: true });
     };
 
     var _JakeMSG_SCDR_Scene_Boot_create = Scene_Boot.prototype.create;
