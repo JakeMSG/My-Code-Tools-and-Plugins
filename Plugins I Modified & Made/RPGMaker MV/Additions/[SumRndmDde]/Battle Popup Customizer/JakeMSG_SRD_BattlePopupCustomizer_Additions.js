@@ -8,16 +8,18 @@ Imported.JakeMSG_SRD_BattlePopupCustomizer_Additions = true;
 
 var SRD = SRD || {};
 SRD.BattlePopupCustomizer_JakeMSGAdd = SRD.BattlePopupCustomizer_JakeMSGAdd || {};
-SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.1;
+SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.2;
 
 //=============================================================================
 /*:
  * @plugindesc (Requires SRD_BattlePopupCustomizer.js) Additions to the Battle Popup Customizer
  *  SRD Plugin
  * @author JakeMSG
- * v1.1
+ * v1.2
  *
 ============ Change Log ============
+1.2 - 8.3rd.2026
+ * Added Status Effect Infliction / Removal Popouts
 1.1 - 6.25th.2026
  * Added Popout Offsets (plugin parameters and Actor/Enemy notetags)
 1.0 - 3.13th.2026
@@ -112,6 +114,39 @@ SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.1;
  * <Popout Offset X: 12>
  * <Popout Offset Y: -24>
  *
+ * ================================
+ * Status Effect Popouts
+ * ================================
+ *
+ * When a status effect (state) is inflicted or removed during battle, an
+ * optional popout can appear on the affected battler. This covers normal
+ * infliction / removal (skills, items, auto-removal, etc.) and custom calls
+ * such as battler.addState / battler.removeState from scripts or plugins
+ * like YEP_BuffsStatesCore and JakeMSG_YEP_BuffsStatesCore_Additions.
+ *
+ * These popouts use the original plugin's normal Damage Popout settings for
+ * position, animation, duration, flash, and (by default) color. Your Popout
+ * Offsets from this plugin still apply based on whether the battler is an
+ * Actor (Party) member or an Enemy, including Non-Sideview actor popouts.
+ *
+ * Plugin parameters under "Status Effect Popouts":
+ *
+ * -- Infliction -- / -- Removal --
+ *   Master toggles (default: ON). Disable either to turn off that kind of
+ *   status popout entirely.
+ *
+ * Under each of those:
+ * - Show Status Icon: show the state's icon in the popout (default: ON)
+ * - Show Status Name: show the state's name text (default: ON)
+ *   If the icon is also shown, the name appears after the icon.
+ * - Show "+" Sign (Infliction) / Show "-" Sign (Removal):
+ *   show the matching sign before the icon and/or name (default: ON)
+ * - Custom Popout Color: optional Hex color (e.g. #FFFFFF). Leave empty to
+ *   use the normal Damage Popout color settings from SRD_BattlePopupCustomizer.
+ *
+ * If icon, name, and sign are all disabled for a type, no popout is shown
+ * for that type. The death state is ignored.
+ *
  * 
  * ======================================
  * Param Declarations
@@ -152,6 +187,93 @@ SRD.BattlePopupCustomizer_JakeMSGAdd.version = 1.1;
  * @desc The Y offset of the popout for enemy-affecting popouts.
  * @default 0
  * 
+ * 
+ * 
+ * @param ---- Status Effect Popouts ----
+ * @default
+ * 
+ * @param -- Infliction --
+ * @parent ---- Status Effect Popouts ----
+ * @type boolean
+ * @on Enable
+ * @off Disable
+ * @desc Enable popouts when a status effect is inflicted.
+ * @default true
+ * 
+ * @param Infliction Show Status Icon
+ * @text Show Status Icon
+ * @parent -- Infliction --
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the status effect's icon in infliction popouts.
+ * @default true
+ * 
+ * @param Infliction Show Status Name
+ * @text Show Status Name
+ * @parent -- Infliction --
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the status effect's name in infliction popouts.
+ * @default true
+ * 
+ * @param Infliction Show Sign
+ * @text Show "+" Sign
+ * @parent -- Infliction --
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show a "+" sign before the icon/name in infliction popouts.
+ * @default true
+ * 
+ * @param Infliction Custom Popout Color
+ * @text Custom Popout Color
+ * @parent -- Infliction --
+ * @desc Hex color for infliction popouts (e.g. #FFFFFF). Leave empty to use normal Damage Popout colors.
+ * @default
+ * 
+ * @param -- Removal --
+ * @parent ---- Status Effect Popouts ----
+ * @type boolean
+ * @on Enable
+ * @off Disable
+ * @desc Enable popouts when a status effect is removed.
+ * @default true
+ * 
+ * @param Removal Show Status Icon
+ * @text Show Status Icon
+ * @parent -- Removal --
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the status effect's icon in removal popouts.
+ * @default true
+ * 
+ * @param Removal Show Status Name
+ * @text Show Status Name
+ * @parent -- Removal --
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show the status effect's name in removal popouts.
+ * @default true
+ * 
+ * @param Removal Show Sign
+ * @text Show "-" Sign
+ * @parent -- Removal --
+ * @type boolean
+ * @on Show
+ * @off Hide
+ * @desc Show a "-" sign before the icon/name in removal popouts.
+ * @default true
+ * 
+ * @param Removal Custom Popout Color
+ * @text Custom Popout Color
+ * @parent -- Removal --
+ * @desc Hex color for removal popouts (e.g. #FFFFFF). Leave empty to use normal Damage Popout colors.
+ * @default
+ * 
  */
 //=============================================================================
 
@@ -176,6 +298,53 @@ _.actorPopoutOffsetX = _.parseOffsetParam(addOnParams['Actor X Offset']);
 _.actorPopoutOffsetY = _.parseOffsetParam(addOnParams['Actor Y Offset']);
 _.enemyPopoutOffsetX = _.parseOffsetParam(addOnParams['Enemy X Offset']);
 _.enemyPopoutOffsetY = _.parseOffsetParam(addOnParams['Enemy Y Offset']);
+
+_.parseBoolParam = function(value, defaultValue) {
+	if (value === undefined || value === null || value === '') {
+		return !!defaultValue;
+	}
+	if (typeof value === 'boolean') {
+		return value;
+	}
+	var text = String(value).trim().toLowerCase();
+	if (text === 'true') {
+		return true;
+	}
+	if (text === 'false') {
+		return false;
+	}
+	return !!defaultValue;
+};
+
+_.parseOptionalColor = function(value) {
+	var text = String(value === undefined || value === null ? '' : value).trim();
+	if (!text) {
+		return '';
+	}
+	if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(text)) {
+		return text;
+	}
+	return text;
+};
+
+_.statusPopouts = {
+	infliction: {
+		enabled: _.parseBoolParam(addOnParams['-- Infliction --'], true),
+		showIcon: _.parseBoolParam(addOnParams['Infliction Show Status Icon'], true),
+		showName: _.parseBoolParam(addOnParams['Infliction Show Status Name'], true),
+		showSign: _.parseBoolParam(addOnParams['Infliction Show Sign'], true),
+		customColor: _.parseOptionalColor(addOnParams['Infliction Custom Popout Color']),
+		sign: '+'
+	},
+	removal: {
+		enabled: _.parseBoolParam(addOnParams['-- Removal --'], true),
+		showIcon: _.parseBoolParam(addOnParams['Removal Show Status Icon'], true),
+		showName: _.parseBoolParam(addOnParams['Removal Show Status Name'], true),
+		showSign: _.parseBoolParam(addOnParams['Removal Show Sign'], true),
+		customColor: _.parseOptionalColor(addOnParams['Removal Custom Popout Color']),
+		sign: '-'
+	}
+};
 
 _.getBattlerPopoutOffsets = function(battler) {
 	if (!battler) {
@@ -422,8 +591,160 @@ Game_Battler.prototype.battlePopup = function(text, xPos, yPos, duration, animat
 	var popup = _.buildCustom4Popup(text, xPos, yPos, duration, animation, colorBase, colorOutline, flash);
 	_.ensurePopupQueue(this).push(popup);
 	_.ensureYEPBarrierPopupResult(this);
+	_.ensureDamagePopupRequest(this);
 	return popup;
 	};
+
+_.getDamagePopupDefaults = function() {
+	var info = baseCustomizer && baseCustomizer.popups ? baseCustomizer.popups[0] : null;
+	if (info) {
+		return info;
+	}
+	return _.defaultCustom4;
+};
+
+_.statusEffectSignOffsetY = -2;
+
+_.buildStatusEffectPopupText = function(state, settings) {
+	if (!state || !settings) {
+		return { sign: '', body: '' };
+	}
+	var sign = settings.showSign ? String(settings.sign || '') : '';
+	var body = '';
+	if (settings.showIcon && state.iconIndex > 0) {
+		body += '\\I[' + state.iconIndex + ']';
+	}
+	if (settings.showName && state.name) {
+		if (settings.showIcon && state.iconIndex > 0) {
+			body += ' ';
+		}
+		body += state.name;
+	}
+	return { sign: sign, body: body };
+};
+
+_.ensureDamagePopupRequest = function(battler) {
+	if (!battler || !$gameParty.inBattle()) {
+		return;
+	}
+	if (Imported.YEP_BattleEngineCore) {
+		if (!battler._damagePopup) {
+			if (battler.clearDamagePopup) {
+				battler.clearDamagePopup();
+			} else {
+				battler._damagePopup = [];
+			}
+		}
+		if (Array.isArray(battler._damagePopup) && battler._damagePopup.length === 0) {
+			battler._damagePopup.push(_.createEmptyResult());
+		}
+	} else if (battler.startDamagePopup && !battler.isDamagePopupRequested()) {
+		battler.startDamagePopup();
+	}
+};
+
+_.shouldShowStatusEffectPopup = function(battler, stateId, kind) {
+	if (!$gameParty || !$gameParty.inBattle()) {
+		return false;
+	}
+	if (!battler || !stateId) {
+		return false;
+	}
+	if (battler.deathStateId && stateId === battler.deathStateId()) {
+		return false;
+	}
+	var settings = _.statusPopouts[kind];
+	if (!settings || !settings.enabled) {
+		return false;
+	}
+	if (!settings.showIcon && !settings.showName && !settings.showSign) {
+		return false;
+	}
+	var state = $dataStates[stateId];
+	if (!state) {
+		return false;
+	}
+	if (settings.showIcon && !settings.showName && !settings.showSign && state.iconIndex <= 0) {
+		return false;
+	}
+	return true;
+};
+
+_.queueStatusEffectPopup = function(battler, stateId, kind) {
+	if (!_.shouldShowStatusEffectPopup(battler, stateId, kind)) {
+		return null;
+	}
+	var settings = _.statusPopouts[kind];
+	var state = $dataStates[stateId];
+	var built = _.buildStatusEffectPopupText(state, settings);
+	if (!built.sign && !built.body) {
+		return null;
+	}
+	var defaults = _.getDamagePopupDefaults();
+	var color = settings.customColor || defaults.color;
+	var outline = defaults.outline;
+	var flash = defaults.flashColor.concat([defaults.flashDuration]);
+	var popup = battler.battlePopup(
+		built.body,
+		defaults.x,
+		defaults.y,
+		defaults.duration,
+		defaults.animations,
+		color,
+		outline,
+		flash
+	);
+	if (popup && built.sign) {
+		popup.jakeMSGSign = built.sign;
+		popup.jakeMSGSignOffsetY = _.statusEffectSignOffsetY;
+	}
+	return popup;
+};
+
+_.resolveStateIdForPopup = function(battler, stateRef) {
+	if (!battler || stateRef === undefined || stateRef === null || stateRef === '') {
+		return 0;
+	}
+	if (battler.resolveStateRef) {
+		return battler.resolveStateRef(stateRef, false) || 0;
+	}
+	var stateId = Number(stateRef);
+	return isNaN(stateId) ? 0 : stateId;
+};
+
+_.isNextTurnStateId = function(stateId) {
+	if (!stateId) {
+		return false;
+	}
+	if (Imported.JakeMSG_YEP_BuffsStatesCore_Additions &&
+		Yanfly && Yanfly.BuffsStates_JakeMSGAdd &&
+		Yanfly.BuffsStates_JakeMSGAdd.isNextTurnStateId) {
+		return Yanfly.BuffsStates_JakeMSGAdd.isNextTurnStateId(stateId);
+	}
+	return false;
+};
+
+var _Game_Battler_addState = Game_Battler.prototype.addState;
+Game_Battler.prototype.addState = function(stateId) {
+	var resolvedId = _.resolveStateIdForPopup(this, stateId);
+	var skipPopup = !resolvedId || _.isNextTurnStateId(resolvedId);
+	var wasAffected = !skipPopup && this.isStateAffected && this.isStateAffected(resolvedId);
+	_Game_Battler_addState.apply(this, arguments);
+	if (!skipPopup && !wasAffected && this.isStateAffected && this.isStateAffected(resolvedId)) {
+		_.queueStatusEffectPopup(this, resolvedId, 'infliction');
+	}
+};
+
+var _Game_Battler_removeState = Game_Battler.prototype.removeState;
+Game_Battler.prototype.removeState = function(stateId) {
+	var resolvedId = _.resolveStateIdForPopup(this, stateId);
+	var skipPopup = !resolvedId || _.isNextTurnStateId(resolvedId);
+	var wasAffected = !skipPopup && this.isStateAffected && this.isStateAffected(resolvedId);
+	_Game_Battler_removeState.apply(this, arguments);
+	if (!skipPopup && wasAffected && this.isStateAffected && !this.isStateAffected(resolvedId)) {
+		_.queueStatusEffectPopup(this, resolvedId, 'removal');
+	}
+};
 
 
 _.showPopup = function(text, xPos, yPos, duration, animation, colorBase, colorOutline, flash) {
@@ -438,17 +759,36 @@ Sprite_Damage.prototype.hasPopupTextCodes = function(text) {
 	return _.hasValidTextCode(text);
 	};
 
+Sprite_Damage.prototype.applyPopupTextCodeColors = function(window, info) {
+	if (!window || !window.contents || !info) {
+		return;
+	}
+	window.contents.fontFace = baseCustomizer.font;
+	window.contents.fontSize = baseCustomizer.size;
+	window.contents.textColor = info.color;
+	window.contents.outlineColor = info.outline;
+	if (Imported.YEP_AbsorptionBarrier && this._result && this._result._barrierAffected) {
+		window.contents.textColor = '#FFFFFF';
+	}
+	};
+
+Sprite_Damage.prototype.patchPopupTextCodeReset = function(window, info) {
+	if (!window) {
+		return;
+	}
+	var sprite = this;
+	var _resetFontSettings = window.resetFontSettings;
+	window.resetFontSettings = function() {
+		_resetFontSettings.call(this);
+		sprite.applyPopupTextCodeColors(this, info);
+	};
+	};
+
 Sprite_Damage.prototype.createTextCodeBitmap = function(info, text) {
 	var maxWidth = Math.max(64, Graphics.boxWidth);
 	var measureWindow = new Window_Base(0, 0, maxWidth + 64, baseCustomizer.size + 64);
+	this.patchPopupTextCodeReset(measureWindow, info);
 	measureWindow.resetFontSettings();
-	measureWindow.contents.fontFace = baseCustomizer.font;
-	measureWindow.contents.fontSize = baseCustomizer.size;
-	measureWindow.contents.textColor = info.color;
-	measureWindow.contents.outlineColor = info.outline;
-	if (Imported.YEP_AbsorptionBarrier && this._result && this._result._barrierAffected) {
-		measureWindow.contents.textColor = '#FFFFFF';
-	}
 	var converted = measureWindow.convertEscapeCharacters(String(text || ''));
 	var textState = { index: 0, text: converted };
 	var textHeight = Math.max(measureWindow.contents.fontSize, measureWindow.calcTextHeight(textState, false));
@@ -456,14 +796,8 @@ Sprite_Damage.prototype.createTextCodeBitmap = function(info, text) {
 	var bitmap = new Bitmap(textWidth + 20, textHeight + 6);
 	var renderWindow = new Window_Base(0, 0, bitmap.width + 64, bitmap.height + 64);
 	renderWindow.contents = bitmap;
+	this.patchPopupTextCodeReset(renderWindow, info);
 	renderWindow.resetFontSettings();
-	renderWindow.contents.fontFace = baseCustomizer.font;
-	renderWindow.contents.fontSize = baseCustomizer.size;
-	renderWindow.contents.textColor = info.color;
-	renderWindow.contents.outlineColor = info.outline;
-	if (Imported.YEP_AbsorptionBarrier && this._result && this._result._barrierAffected) {
-		renderWindow.contents.textColor = '#FFFFFF';
-	}
 	renderWindow.drawTextEx(String(text || ''), 2, 0);
 	return bitmap;
 	};
@@ -619,17 +953,54 @@ Sprite_Damage.prototype.setup = function(target) {
 	}
 	};
 
+Sprite_Damage.prototype.createJakeMSGBodyBitmap = function(info) {
+	var text = String(info.text || '');
+	if (!text) {
+		return null;
+	}
+	if (this.hasPopupTextCodes && this.hasPopupTextCodes(text)) {
+		return this.createTextCodeBitmap(info, text);
+	}
+	var bitmap = this.createChildBitmap(info, text.length || 1);
+	bitmap.drawText(text, 2, 0, bitmap.width, bitmap.height, 'left');
+	return bitmap;
+	};
+
+Sprite_Damage.prototype.createJakeMSGSignLiftedBitmap = function(info, bodyBitmap) {
+	var sign = String(info.jakeMSGSign || '');
+	var offsetY = Number(info.jakeMSGSignOffsetY);
+	if (isNaN(offsetY)) {
+		offsetY = _.statusEffectSignOffsetY;
+	}
+	var padTop = Math.max(0, -offsetY);
+	var measure = this.createChildBitmap(info, Math.max(1, sign.length));
+	var signWidth = Math.max(1, Math.ceil(measure.measureTextWidth(sign)));
+	var signHeight = Math.max(1, measure.fontSize);
+	var body = bodyBitmap;
+	var bodyWidth = body ? body.width : 0;
+	var bodyHeight = body ? body.height : 0;
+	var width = signWidth + bodyWidth + 4;
+	var height = Math.max(bodyHeight + padTop, signHeight + padTop);
+	var bitmap = new Bitmap(width, height);
+	bitmap.fontFace = baseCustomizer.font;
+	bitmap.fontSize = baseCustomizer.size;
+	bitmap.textColor = info.color;
+	bitmap.outlineColor = info.outline;
+	bitmap.drawText(sign, 2, padTop + offsetY, signWidth + 4, signHeight, 'left');
+	if (body && bodyWidth > 0 && bodyHeight > 0) {
+		bitmap.blt(body, 0, 0, bodyWidth, bodyHeight, 2 + signWidth, padTop);
+	}
+	return bitmap;
+	};
+
 Sprite_Damage.prototype.createJakeMSGCustomPopup = function(info) {
-	var bitmap;
-	if (this.hasPopupTextCodes && this.hasPopupTextCodes(info.text)) {
-		bitmap = this.createTextCodeBitmap(info, info.text);
-	} else {
-		bitmap = this.createChildBitmap(info, info.text.length || 1);
+	var bitmap = this.createJakeMSGBodyBitmap(info);
+	if (info.jakeMSGSign) {
+		bitmap = this.createJakeMSGSignLiftedBitmap(info, bitmap);
+	} else if (!bitmap) {
+		bitmap = this.createChildBitmap(info, 1);
 	}
 	var sprite = this.createChildSprite(bitmap);
-	if (!(this.hasPopupTextCodes && this.hasPopupTextCodes(info.text))) {
-		sprite.bitmap.drawText(info.text, 2, 0, bitmap.width, bitmap.height, 'left');
-	}
 	sprite.dy = 0;
 	sprite.x = eval(info.x);
 	sprite.y = eval(info.y);
