@@ -236,13 +236,13 @@ end
 
 def fillbar_hide()
 	if $game_party.in_battle    
-  $game_troop.game.screen.pictures[FILL_BAR::ID_PIC_BASE].erase;
-  $game_troop.game.screen.pictures[FILL_BAR::ID_PIC_FILLING].erase;
-  $game_troop.game.screen.pictures[FILL_BAR::ID_PIC_SYMBOLBORDER].erase;
+  $game_troop.screen.pictures[FILL_BAR::ID_PIC_BASE].erase;
+  $game_troop.screen.pictures[FILL_BAR::ID_PIC_FILLING].erase;
+  $game_troop.screen.pictures[FILL_BAR::ID_PIC_SYMBOLBORDER].erase;
 	else
-  $game_map.game.screen.pictures[FILL_BAR::ID_PIC_BASE].erase;
-  $game_map.game.screen.pictures[FILL_BAR::ID_PIC_FILLING].erase;
-  $game_map.game.screen.pictures[FILL_BAR::ID_PIC_SYMBOLBORDER].erase;
+  $game_map.screen.pictures[FILL_BAR::ID_PIC_BASE].erase;
+  $game_map.screen.pictures[FILL_BAR::ID_PIC_FILLING].erase;
+  $game_map.screen.pictures[FILL_BAR::ID_PIC_SYMBOLBORDER].erase;
 	end
 end
 
