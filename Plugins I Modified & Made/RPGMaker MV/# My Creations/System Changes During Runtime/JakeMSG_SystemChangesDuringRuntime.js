@@ -80,9 +80,10 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
  *
  * If a chosen image file is missing, the plugin falls back in the same order:
  *   Save-specified file missing -> Meta-specified file (if any) -> Default
- * This prevents runtime errors when an override path points to a missing asset.
- * .png / .webp alternatives are checked when JakeMSG_WebpMP3AndSubfoldersInMVCommands
- * is active.
+ *
+ * The provided path is checked exactly as stored (under img/). The plugin does
+ * not rewrite, shorten, or relocate it. If that exact path's folder is missing,
+ * or the file at that path is missing, it skips to the next fallback.
  *
  * On every game launch, meta settings are loaded automatically from
  * JakeMSG_MetaSettings.rpgsave before gameplay begins. When you load a save
@@ -130,12 +131,14 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
  * ============================================================================
  * Path Notes
  * ============================================================================
- * - Paths start from img/, not from the project root.
+ * - Paths are relative to img/ and are used exactly as provided.
+ *   Example: "system/Replacement/Window.png" checks img/system/Replacement/Window.png
+ * - Do not omit required subfolders. A bare name like "WindowRele.png" means
+ *   img/WindowRele.png (img root), not a file inside img/system/.
  * - Forward slashes and backslashes are both accepted.
- * - File extensions are optional. If omitted, the Webp/PNG plugin chooses the
- *   correct .png or .webp file based on your plugin parameters.
- * - Subfolders are supported when JakeMSG_WebpMP3AndSubfoldersInMVCommands is
- *   enabled.
+ * - A leading "img/" is optional and ignored if present.
+ * - File extensions are optional. If omitted, .png/.webp at that same exact
+ *   path are checked (WebP plugin compatibility). No other path is tried.
  *
  *
  * ============================================================================
@@ -178,7 +181,9 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
             'Balloon': 'Img-System-Balloon',
             'GameOver': 'Img-System-GameOver'
         },
-        metaOverrides: {}
+        metaOverrides: {},
+        // Paths that already failed to load at runtime; never try them again.
+        failedPaths: {}
     };
 
     JakeMSG_SCDR.isKnownSetting = function(key) {
@@ -189,15 +194,34 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
         return String(path == null ? '' : path).trim().replace(/\\/g, '/');
     };
 
+    // Keep the provided img-relative path exact. Only normalize slashes and an
+    // optional leading "img/" — never relocate or strip subfolders.
+    JakeMSG_SCDR.normalizeSettingPath = function(path) {
+        var normalized = this.normalizePath(path);
+        if (!normalized) {
+            return '';
+        }
+        while (normalized.indexOf('./') === 0) {
+            normalized = normalized.substring(2);
+        }
+        if (normalized.toLowerCase().indexOf('img/') === 0) {
+            normalized = normalized.substring(4);
+        }
+        while (normalized.charAt(0) === '/') {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    };
+
     JakeMSG_SCDR.resolveSettingValue = function(key, value) {
         if (value === undefined || value === null) {
             return this.defaults[key];
         }
-        return this.normalizePath(value);
+        return this.normalizeSettingPath(value);
     };
 
     JakeMSG_SCDR.parseImgPath = function(relativePath) {
-        var path = this.normalizePath(relativePath);
+        var path = this.normalizeSettingPath(relativePath);
         if (!path) {
             return null;
         }
@@ -206,99 +230,233 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
         if (lastSlash < 0) {
             return {
                 folder: 'img/',
-                filename: path
+                filename: path,
+                relativeDir: ''
             };
         }
         return {
             folder: 'img/' + path.substring(0, lastSlash + 1),
-            filename: path.substring(lastSlash + 1)
+            filename: path.substring(lastSlash + 1),
+            relativeDir: path.substring(0, lastSlash)
         };
     };
 
     JakeMSG_SCDR.toGraphicsImageSrc = function(relativePath) {
-        var parsed = this.parseImgPath(relativePath);
-        if (!parsed) {
-            return 'img/system/Loading.png';
-        }
-        return parsed.folder + parsed.filename + '.png';
+        var exact = this.exactImgFileCandidates(relativePath);
+        return exact.length ? exact[0] : 'img/system/Loading.png';
     };
 
-    JakeMSG_SCDR.encodeAssetName = function(filename) {
-        if (typeof Utils !== 'undefined' && typeof Utils.encodeURI === 'function') {
-            return Utils.encodeURI(filename);
+    JakeMSG_SCDR.gameBasePath = function() {
+        try {
+            if (typeof require === 'function' && typeof process !== 'undefined' &&
+                    process.mainModule && process.mainModule.filename) {
+                var path = require('path');
+                return path.dirname(process.mainModule.filename);
+            }
+        } catch (e) {
         }
-        return encodeURIComponent(filename);
+        return '';
     };
 
-    JakeMSG_SCDR.urlExists = function(url) {
-        if (typeof JakeMSG_urlExists === 'function') {
-            return JakeMSG_urlExists(url);
+    JakeMSG_SCDR.urlToFsPath = function(url) {
+        var clean = String(url || '').split('?')[0].split('#')[0];
+        try {
+            clean = decodeURIComponent(clean);
+        } catch (e) {
+        }
+        if (clean.indexOf('file://') === 0) {
+            clean = clean.replace(/^file:\/\//i, '');
+        }
+        if (/^\/[A-Za-z]:\//.test(clean)) {
+            clean = clean.substring(1);
+        }
+        if (/^[A-Za-z]:[\\/]/.test(clean) || clean.indexOf('/') === 0) {
+            return clean;
         }
         try {
             if (typeof require === 'function') {
-                var fs = require('fs');
                 var path = require('path');
-                var clean = String(url || '').split('?')[0].split('#')[0];
-                try {
-                    clean = decodeURIComponent(clean);
-                } catch (e) {
+                var base = this.gameBasePath() || (typeof process !== 'undefined' && process.cwd ? process.cwd() : '');
+                if (base) {
+                    return path.join(base, clean.split('/').join(path.sep));
                 }
-                if (clean.indexOf('file://') === 0) {
-                    clean = clean.replace(/^file:\/\//i, '');
-                }
-                if (/^\/[A-Za-z]:\//.test(clean)) {
-                    clean = clean.substring(1);
-                }
-                if (!/^[A-Za-z]:[\\/]/.test(clean) && clean.indexOf('/') !== 0) {
-                    clean = path.join(process.cwd(), clean.split('/').join(path.sep));
-                }
-                return fs.existsSync(clean);
             }
         } catch (e2) {
         }
+        return clean;
+    };
+
+    // Strict existence check. Never treat XHR status 0 as "exists".
+    JakeMSG_SCDR.urlExists = function(url) {
+        try {
+            if (typeof require === 'function') {
+                var fs = require('fs');
+                return fs.existsSync(this.urlToFsPath(url));
+            }
+        } catch (e) {
+        }
         try {
             var xhr = new XMLHttpRequest();
-            xhr.open('HEAD', url, false);
+            xhr.open('GET', url, false);
             xhr.send(null);
-            if (xhr.status === 405 || xhr.status === 0) {
-                xhr.open('GET', url, false);
-                xhr.send(null);
-            }
-            return xhr.status === 200 || xhr.status === 0;
-        } catch (e3) {
+            return xhr.status === 200;
+        } catch (e2) {
             return false;
         }
     };
 
-    JakeMSG_SCDR.imgPathExists = function(relativePath) {
-        var parsed = this.parseImgPath(relativePath);
-        if (!parsed || !parsed.filename) {
-            return false;
+    JakeMSG_SCDR.directoryExists = function(url) {
+        try {
+            if (typeof require === 'function') {
+                var fs = require('fs');
+                var fsPath = this.urlToFsPath(url);
+                return fs.existsSync(fsPath) && fs.statSync(fsPath).isDirectory();
+            }
+        } catch (e) {
         }
-        var encodedName = this.encodeAssetName(parsed.filename);
+        // Browser: cannot reliably stat directories; treat as unknown/ok and
+        // let the file check decide.
+        return true;
+    };
+
+    // Exact files only at the provided path location (no relocated fallbacks).
+    // Extension alternatives stay on that same path for WebP plugin support.
+    JakeMSG_SCDR.exactImgFileCandidates = function(relativePath) {
+        var path = this.normalizeSettingPath(relativePath);
+        var urls = [];
+        if (!path) {
+            return urls;
+        }
+        var extMatch = path.match(/\.(png|webp)$/i);
+        var base = path.replace(/\.(png|webp)$/i, '');
         var primaryExt = (typeof JakeMSG_primaryImageExt === 'function') ?
             JakeMSG_primaryImageExt() : '.png';
         var fallbackExt = (typeof JakeMSG_fallbackImageExt === 'function') ?
             JakeMSG_fallbackImageExt() : '.webp';
         var onlyMain = (typeof JakeMSG_onlyMainNoFallback !== 'undefined') ?
             JakeMSG_onlyMainNoFallback : false;
-        var path1 = parsed.folder + encodedName + primaryExt;
-        if (typeof JakeMSG_isMV !== 'undefined' && JakeMSG_isMV) {
-            path1 = path1.split('%2F').join('/');
+        if (extMatch) {
+            urls.push('img/' + base + extMatch[0].toLowerCase());
+            if (!onlyMain) {
+                urls.push('img/' + base + (extMatch[0].toLowerCase() === '.png' ? '.webp' : '.png'));
+            }
+        } else {
+            urls.push('img/' + base + primaryExt);
+            if (!onlyMain) {
+                urls.push('img/' + base + fallbackExt);
+            }
         }
-        if (this.urlExists(path1)) {
+        urls.push('img/' + base + '.rpgmvp');
+        return urls;
+    };
+
+    JakeMSG_SCDR.candidateUrlsForImgPath = function(relativePath) {
+        return this.exactImgFileCandidates(relativePath);
+    };
+
+    JakeMSG_SCDR.markPathFailed = function(relativePath) {
+        var normalized = this.normalizeSettingPath(relativePath);
+        if (normalized) {
+            this.failedPaths[normalized] = true;
+        }
+    };
+
+    JakeMSG_SCDR.isPathMarkedFailed = function(relativePath) {
+        return !!this.failedPaths[this.normalizeSettingPath(relativePath)];
+    };
+
+    // True only if the provided path's folder exists and a file exists there.
+    // Never rewrites the path to a different folder.
+    JakeMSG_SCDR.imgPathExists = function(relativePath) {
+        if (!relativePath && relativePath !== '') {
+            return false;
+        }
+        if (relativePath === '') {
             return true;
         }
-        if (!onlyMain) {
-            var path2 = parsed.folder + encodedName + fallbackExt;
-            if (typeof JakeMSG_isMV !== 'undefined' && JakeMSG_isMV) {
-                path2 = path2.split('%2F').join('/');
-            }
-            if (this.urlExists(path2)) {
+        if (this.isPathMarkedFailed(relativePath)) {
+            return false;
+        }
+        var parsed = this.parseImgPath(relativePath);
+        if (!parsed || !parsed.filename) {
+            return false;
+        }
+        // Missing subfolder path => fail this candidate and use fallback chain.
+        if (parsed.relativeDir && !this.directoryExists(parsed.folder)) {
+            return false;
+        }
+        var urls = this.exactImgFileCandidates(relativePath);
+        var i;
+        for (i = 0; i < urls.length; i++) {
+            if (this.urlExists(urls[i])) {
                 return true;
             }
         }
         return false;
+    };
+
+    JakeMSG_SCDR.urlToRelativeImgPath = function(url) {
+        var clean = this.normalizePath(String(url || '').split('?')[0].split('#')[0]);
+        try {
+            clean = decodeURIComponent(clean);
+        } catch (e) {
+        }
+        var idx = clean.toLowerCase().lastIndexOf('/img/');
+        if (idx >= 0) {
+            clean = clean.substring(idx + 5);
+        } else if (clean.toLowerCase().indexOf('img/') === 0) {
+            clean = clean.substring(4);
+        } else {
+            return '';
+        }
+        return clean;
+    };
+
+    // If a missing override still somehow gets requested, swallow the Loading Error
+    // and fall back instead of freezing the game.
+    JakeMSG_SCDR.suppressOverrideLoadError = function(url) {
+        var relative = this.urlToRelativeImgPath(url);
+        if (!relative) {
+            return false;
+        }
+        var relativeNoExt = relative.replace(/\.(png|webp|rpgmvp)$/i, '');
+        var keys = Object.keys(this.defaults);
+        var matched = false;
+        var i, j, k, key, candidates, candidate, urls, candidateNoExt;
+        for (i = 0; i < keys.length; i++) {
+            key = keys[i];
+            candidates = this.getCandidatePaths(key);
+            for (j = 0; j < candidates.length; j++) {
+                candidate = candidates[j];
+                if (!candidate || candidate === this.defaults[key]) {
+                    continue;
+                }
+                candidateNoExt = this.normalizeSettingPath(candidate).replace(/\.(png|webp)$/i, '');
+                if (candidateNoExt === relativeNoExt ||
+                        this.normalizeSettingPath(candidate) === this.normalizeSettingPath(relative)) {
+                    this.markPathFailed(candidate);
+                    matched = true;
+                    continue;
+                }
+                urls = this.exactImgFileCandidates(candidate);
+                for (k = 0; k < urls.length; k++) {
+                    if (this.normalizePath(urls[k]) === this.normalizePath(url) ||
+                            this.normalizeSettingPath(this.urlToRelativeImgPath(urls[k])) ===
+                                this.normalizeSettingPath(relative)) {
+                        this.markPathFailed(candidate);
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (matched) {
+            var self = this;
+            setTimeout(function() {
+                self.applyAllSettings({ skipTitleRefresh: true });
+            }, 0);
+        }
+        return matched;
     };
 
     JakeMSG_SCDR.getSaveOverrides = function() {
@@ -313,17 +471,28 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
 
     JakeMSG_SCDR.getCandidatePaths = function(key) {
         var candidates = [];
+        var seen = {};
+        var pushUnique = function(path) {
+            var normalized = JakeMSG_SCDR.normalizeSettingPath(path);
+            if (seen.hasOwnProperty(normalized)) {
+                return;
+            }
+            seen[normalized] = true;
+            candidates.push(normalized);
+        };
         var saveOverrides = this.getSaveOverrides();
         if (saveOverrides.hasOwnProperty(key)) {
-            candidates.push(saveOverrides[key]);
+            pushUnique(saveOverrides[key]);
         }
         if (this.metaOverrides.hasOwnProperty(key)) {
-            candidates.push(this.metaOverrides[key]);
+            pushUnique(this.metaOverrides[key]);
         }
-        candidates.push(this.defaults[key]);
+        pushUnique(this.defaults[key]);
         return candidates;
     };
 
+    // Save path (if file exists) -> Meta path (if file exists) -> Default.
+    // Missing override files are skipped so older saves cannot crash the game.
     JakeMSG_SCDR.getEffectivePath = function(key) {
         var candidates = this.getCandidatePaths(key);
         var i;
@@ -342,7 +511,7 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
 
     JakeMSG_SCDR.hasActiveOverride = function(key) {
         var effective = this.getEffectivePath(key);
-        return effective !== this.defaults[key];
+        return !!effective && effective !== this.defaults[key] && this.imgPathExists(effective);
     };
 
     JakeMSG_SCDR.getSystemOverridePath = function(systemFilename) {
@@ -354,10 +523,15 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
     };
 
     JakeMSG_SCDR.loadBitmapFromImgPath = function(relativePath, hue, smooth) {
+        if (!relativePath || !this.imgPathExists(relativePath)) {
+            return null;
+        }
         var parsed = this.parseImgPath(relativePath);
         if (!parsed) {
-            return ImageManager.loadEmptyBitmap();
+            return null;
         }
+        // ImageManager API needs folder + filename, but both come from the
+        // exact provided path — no alternate folder is substituted here.
         return ImageManager.loadBitmap(parsed.folder, parsed.filename, hue || 0, smooth);
     };
 
@@ -559,9 +733,25 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
 
     JakeMSG_SCDR.wrapSystemLoader = function(original) {
         return function(filename, hue) {
-            var overridePath = JakeMSG_SCDR.getSystemOverridePath(filename);
-            if (overridePath) {
-                return JakeMSG_SCDR.loadBitmapFromImgPath(overridePath, hue, false);
+            var key = JakeMSG_SCDR.systemFileMap[filename];
+            if (key) {
+                var candidates = JakeMSG_SCDR.getCandidatePaths(key);
+                var i, path, bitmap;
+                for (i = 0; i < candidates.length; i++) {
+                    path = candidates[i];
+                    if (!path || path === JakeMSG_SCDR.defaults[key]) {
+                        break;
+                    }
+                    if (!JakeMSG_SCDR.imgPathExists(path)) {
+                        JakeMSG_SCDR.markPathFailed(path);
+                        continue;
+                    }
+                    bitmap = JakeMSG_SCDR.loadBitmapFromImgPath(path, hue, false);
+                    if (bitmap) {
+                        return bitmap;
+                    }
+                    JakeMSG_SCDR.markPathFailed(path);
+                }
             }
             return original.call(this, filename, hue);
         };
@@ -569,12 +759,25 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
 
     JakeMSG_SCDR.wrapTitleLoader = function(original, settingKey, smooth) {
         return function(filename, hue) {
-            if (JakeMSG_SCDR.hasActiveOverride(settingKey)) {
-                var overridePath = JakeMSG_SCDR.getEffectivePath(settingKey);
-                if (!overridePath) {
+            var candidates = JakeMSG_SCDR.getCandidatePaths(settingKey);
+            var i, path, bitmap;
+            for (i = 0; i < candidates.length; i++) {
+                path = candidates[i];
+                if (!path) {
                     return ImageManager.loadEmptyBitmap();
                 }
-                return JakeMSG_SCDR.loadBitmapFromImgPath(overridePath, hue, smooth);
+                if (path === JakeMSG_SCDR.defaults[settingKey]) {
+                    break;
+                }
+                if (!JakeMSG_SCDR.imgPathExists(path)) {
+                    JakeMSG_SCDR.markPathFailed(path);
+                    continue;
+                }
+                bitmap = JakeMSG_SCDR.loadBitmapFromImgPath(path, hue, smooth);
+                if (bitmap) {
+                    return bitmap;
+                }
+                JakeMSG_SCDR.markPathFailed(path);
             }
             return original.call(this, filename, hue);
         };
@@ -691,10 +894,46 @@ Imported.JakeMSG_SystemChangesDuringRuntime = true;
     var _JakeMSG_SCDR_Graphics_setLoadingImage = Graphics.setLoadingImage;
     Graphics.setLoadingImage = function(src) {
         if (JakeMSG_SCDR.hasActiveOverride('Img-System-Loading')) {
-            src = JakeMSG_SCDR.toGraphicsImageSrc(JakeMSG_SCDR.getEffectivePath('Img-System-Loading'));
+            var loadingPath = JakeMSG_SCDR.getEffectivePath('Img-System-Loading');
+            if (loadingPath && JakeMSG_SCDR.imgPathExists(loadingPath)) {
+                src = JakeMSG_SCDR.toGraphicsImageSrc(loadingPath);
+            }
         }
         _JakeMSG_SCDR_Graphics_setLoadingImage.call(this, src);
     };
+
+    var _JakeMSG_SCDR_ResourceHandler_createLoader = ResourceHandler.createLoader;
+    ResourceHandler.createLoader = function(url, retryMethod, resignMethod, retryInterval) {
+        retryInterval = retryInterval || this._defaultRetryInterval;
+        var reloaders = this._reloaders;
+        var retryCount = 0;
+        return function() {
+            if (retryCount < retryInterval.length) {
+                setTimeout(retryMethod, retryInterval[retryCount]);
+                retryCount++;
+            } else if (JakeMSG_SCDR.suppressOverrideLoadError(url)) {
+                if (resignMethod) {
+                    resignMethod();
+                }
+            } else {
+                if (resignMethod) {
+                    resignMethod();
+                }
+                if (url) {
+                    if (reloaders.length === 0) {
+                        Graphics.printLoadingError(url);
+                        SceneManager.stop();
+                    }
+                    reloaders.push(function() {
+                        retryCount = 0;
+                        retryMethod();
+                    });
+                }
+            }
+        };
+    };
+    // Keep a reference so minifiers / later audits can see the original alias.
+    JakeMSG_SCDR._originalCreateLoader = _JakeMSG_SCDR_ResourceHandler_createLoader;
 
 })();
 
