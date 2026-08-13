@@ -1,5 +1,8 @@
 ################################################################  Explaining the script
 # ================================================ Method Wrappers - For Easier Script Calls
+# ======================== Change Log
+# 1.1 - Added Audio (bgmPlay / bgsPlay / mePlay / sePlay) and Animation (animShow) script calls
+# 1.0 - Initial release (Pictures, Enemy Sprites, Picture Angle/Mirroring)
 # ======================== Initial Explanations
 # ======== General
 # ==== These Method Wrappers are made to use Script Calls for easier Asset (Audio/Visual) Manipulation
@@ -12,6 +15,8 @@
 # ==== Visual
 # == Enemy Sprites: "Graphics/Battlers"
 # == Pictures: "Graphics/Pictures"
+# ==== Animated
+# == Animations: "Graphics/Animations"
 # ==== Audio
 # == BGM: "Audio/BGM"
 # == BGS: "Audio/BGS"
@@ -26,6 +31,9 @@
 # picChange("Ariel", 1)
 # ======== Using Subfolders
 # picChange("Ariel/Standing/Default", 1)
+# bgmPlay("Battle/Theme1")
+# sePlay("Hits/Slash", 80)
+# animShow(-1, 1)
 # ======================== The Methods
 # ==================== Visual
 # ================ Pictures
@@ -85,10 +93,60 @@
 #
 # picName = Name of the Pic to change to (leave blank to erase picture)
 # troopID = ID if the Troop member whose Enemy entry is to be changed
-
-
-
-
+#
+#
+#
+# ==================== Animated
+# ================ Animations
+# ============ Show Animation
+# animShow(eventOrTroopID = -1, animID = 1, mirror = false, wait = false, delay = 0)
+#
+# eventOrTroopID = On Map => ID of the Map Event to show the Animation on (-1 = Player; 0 = This Event; 1+ = Event ID)
+#                  In Battle => Index of the Troop member to show the Animation on (0 = first enemy)
+# animID = ID of the Animation to show (database Animation ID)
+# mirror [Battle only, ignored on Map] = Whether to mirror the animation (false = not mirrored (default); true = mirrored)
+# wait [Map only, ignored in Battle] = Whether to wait for the animation to finish (false = don't wait; true = wait)
+# delay [Battle only, ignored on Map] = The delay, in frames, before the animation is shown
+#
+#
+#
+# ==================== Audio
+# ================ Bgm
+# ============ Play Bgm
+# bgmPlay(bgmName = "", volume = 100, pitch = 100)
+#
+# bgmName = Name of the Bgm to play (leaving Blank stops the BGM)
+# volume = Volume, in percentage, to play the audio at (Default = 100)
+# pitch = Pitch, in percentage, to play the audio at (Default = 100)
+#
+#
+# ================ Bgs
+# ============ Play Bgs
+# bgsPlay(bgsName = "", volume = 100, pitch = 100)
+#
+# bgsName = Name of the Bgs to play (leaving Blank stops the BGS)
+# volume = Volume, in percentage, to play the audio at (Default = 100)
+# pitch = Pitch, in percentage, to play the audio at (Default = 100)
+#
+#
+# ================ Me
+# ============ Play Me
+# mePlay(meName = "", volume = 100, pitch = 100)
+#
+# meName = Name of the Me to play (leaving Blank stops the ME)
+# volume = Volume, in percentage, to play the audio at (Default = 100)
+# pitch = Pitch, in percentage, to play the audio at (Default = 100)
+#
+#
+# ================ Se
+# ============ Play Se
+# sePlay(seName = "", volume = 100, pitch = 100)
+#
+# seName = Name of the Se to play (leaving Blank does Nothing)
+# volume = Volume, in percentage, to play the audio at (Default = 100)
+# pitch = Pitch, in percentage, to play the audio at (Default = 100)
+#
+#
 # ================================================ Newly-added Methods
 # ======================== Usable by:
 # ======== Pictures outside of Battle
@@ -222,9 +280,88 @@ end
 
 
 
+# ================================================ Animated
+# ================================ Implementing Battle Animation Delay (animShow delay parameter)
+# ------------
+# Game_Battler
+# ------------
+class Game_Battler < Game_BattlerBase
+  attr_accessor :jake_anim_delay
+  alias game_battler_clear_sprite_effects_jakemsg clear_sprite_effects
+  def clear_sprite_effects
+    game_battler_clear_sprite_effects_jakemsg
+    @jake_anim_delay = 0
+  end
+end
+# ------------
+# Sprite_Battler
+# ------------
+class Sprite_Battler < Sprite_Base
+  alias sprite_battler_setup_new_animation_jakemsg setup_new_animation
+  def setup_new_animation
+    if @battler && @battler.animation_id > 0 && @battler.jake_anim_delay.to_i > 0
+      @battler.jake_anim_delay -= 1
+      return
+    end
+    sprite_battler_setup_new_animation_jakemsg
+  end
+end
+# ================================
+
+
+# ================================ Animations
+# ================ Show Animation
+def animShow(eventOrTroopID = -1, animID = 1, mirror = false, wait = false, delay = 0)
+  eventOrTroopID = eventOrTroopID.to_i
+  animID = animID.to_i
+  delay = delay.to_i
+  return if animID < 1 || $data_animations[animID].nil?
+  if $game_party.in_battle
+    member = $game_troop.members[eventOrTroopID]
+    return unless member
+    member.animation_mirror = mirror
+    member.jake_anim_delay = (delay > 0 ? delay : 0)
+    member.animation_id = animID
+  else
+    character = if is_a?(Game_Interpreter)
+      get_character(eventOrTroopID)
+    elsif eventOrTroopID < 0
+      $game_player
+    else
+      $game_map.events[eventOrTroopID]
+    end
+    return unless character
+    character.animation_id = animID
+    Fiber.yield while character.animation_id > 0 if wait
+  end
+end
+
+
+
+
 
 
 # ================================================ Audio
+# ================================ Bgm
+# ================ Play Bgm
+def bgmPlay(bgmName = "", volume = 100, pitch = 100)
+  RPG::BGM.new(bgmName, volume, pitch).play
+end
 
+# ================================ Bgs
+# ================ Play Bgs
+def bgsPlay(bgsName = "", volume = 100, pitch = 100)
+  RPG::BGS.new(bgsName, volume, pitch).play
+end
 
-  
+# ================================ Me
+# ================ Play Me
+def mePlay(meName = "", volume = 100, pitch = 100)
+  RPG::ME.new(meName, volume, pitch).play
+end
+
+# ================================ Se
+# ================ Play Se
+def sePlay(seName = "", volume = 100, pitch = 100)
+  RPG::SE.new(seName, volume, pitch).play
+end
