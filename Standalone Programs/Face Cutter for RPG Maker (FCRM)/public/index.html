@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Cutter for RPG Maker - v1.0</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="ambient-band ambient-a"></div>
+  <div class="ambient-band ambient-b"></div>
+
+  <div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true">
+    <div class="drop-overlay-card">
+      <strong id="dropOverlayTitle">Drop PNG files</strong>
+      <p id="dropOverlayText">Release to add pictures.</p>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <h1>Face Cutter for RPG Maker - v1.0</h1>
+        <p>Cut portraits into VX Ace / MV / MZ Face sheets</p>
+      </div>
+      <nav id="stepper" class="stepper" aria-label="Steps">
+        <button type="button" class="step-btn active" data-step="1">
+          <span class="step-num">1</span>
+          <span class="step-label">Select</span>
+        </button>
+        <button type="button" class="step-btn" data-step="2" disabled>
+          <span class="step-num">2</span>
+          <span class="step-label">Align</span>
+        </button>
+        <button type="button" class="step-btn" data-step="3" disabled>
+          <span class="step-num">3</span>
+          <span class="step-label">Size</span>
+        </button>
+        <button type="button" class="step-btn" data-step="4" disabled>
+          <span class="step-num">4</span>
+          <span class="step-label">Cut</span>
+        </button>
+        <button type="button" class="step-btn" data-step="5" disabled>
+          <span class="step-num">5</span>
+          <span class="step-label">Faces</span>
+        </button>
+      </nav>
+      <div class="toolbar-group">
+        <button id="btnStartOver" type="button">Start Over</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="step1" class="step-panel active" data-step="1">
+        <div class="panel-copy">
+          <h2>Select pictures to cut faces from</h2>
+          <p>Choose one or more <strong>.png</strong> files. You can use the file window or drag and drop them onto this page.</p>
+        </div>
+        <div class="select-layout">
+          <div id="sourceDropZone" class="drop-zone">
+            <div class="drop-zone-inner">
+              <strong>Drop .png pictures here</strong>
+              <span>or</span>
+              <button id="btnPickSources" class="accent" type="button">Choose PNG files</button>
+            </div>
+          </div>
+          <aside class="file-list-card">
+            <div class="card-head">
+              <h3>Selected pictures</h3>
+              <span id="sourceCount" class="muted">0 files</span>
+            </div>
+            <ul id="sourceList" class="file-list"></ul>
+          </aside>
+        </div>
+      </section>
+
+      <section id="step2" class="step-panel" data-step="2">
+        <div class="panel-copy">
+          <h2>Align pictures</h2>
+          <p>If the face moves between pictures, offset those pictures so the same face lines up. Alignment is applied when every picture is cut at once. With a single picture, you can continue without changing anything.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="canvas-toolbar">
+              <button id="btnAlignFit" type="button">Fit</button>
+              <label class="inline-field">Overlay opacity
+                <input id="alignOpacity" type="range" min="15" max="100" value="55">
+              </label>
+              <span id="alignHint" class="muted">Select a picture, then drag it or nudge it.</span>
+            </div>
+            <div class="canvas-host checker">
+              <canvas id="alignCanvas" tabindex="0"></canvas>
+            </div>
+          </div>
+          <aside class="side-card">
+            <h3>Pictures</h3>
+            <ul id="alignList" class="file-list compact"></ul>
+            <div class="nudge-block">
+              <div class="card-head">
+                <h3>Offset</h3>
+                <button id="btnResetOffsets" type="button">Reset all</button>
+              </div>
+              <label class="stack-field">X
+                <input id="offsetX" type="number" step="1" value="0">
+              </label>
+              <label class="stack-field">Y
+                <input id="offsetY" type="number" step="1" value="0">
+              </label>
+              <div class="nudge-pad">
+                <button type="button" data-nudge="0,-1">Up</button>
+                <button type="button" data-nudge="-1,0">Left</button>
+                <button type="button" data-nudge="1,0">Right</button>
+                <button type="button" data-nudge="0,1">Down</button>
+              </div>
+              <p class="muted tiny">Arrow keys nudge the selected picture by 1 pixel. Hold Shift for 10 pixels.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="step3" class="step-panel" data-step="3">
+        <div class="panel-copy">
+          <h2>Choose the face square size</h2>
+          <p>This size is used for cutting and for the 4×2 Face sheet (8 slots). Empty slots stay transparent.</p>
+        </div>
+        <div class="size-grid">
+          <button id="size96" type="button" class="size-card" data-size="96">
+            <span class="size-kicker">RPG Maker VX Ace</span>
+            <strong>96×96 pixels</strong>
+            <span class="muted">Face file: 384×192 (2 rows of 4)</span>
+            <span class="mini-sheet" data-cell="48"></span>
+          </button>
+          <button id="size144" type="button" class="size-card" data-size="144">
+            <span class="size-kicker">RPG Maker MV / MZ</span>
+            <strong>144×144 pixels</strong>
+            <span class="muted">Face file: 576×288 (2 rows of 4)</span>
+            <span class="mini-sheet" data-cell="72"></span>
+          </button>
+        </div>
+      </section>
+
+      <section id="step4" class="step-panel" data-step="4">
+        <div class="panel-copy">
+          <h2>Cut faces</h2>
+          <p>Move the square over the pictures. Every picture is cut at this position, using the alignment offsets. Resize all pictures together if the face is too large or too small for the square. Transparent pixels in the source are kept.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="canvas-toolbars">
+              <div class="canvas-toolbar">
+                <button id="btnCutFit" type="button">Fit</button>
+                <label class="inline-field">View zoom
+                  <input id="cutZoom" type="range" min="5" max="800" value="100">
+                </label>
+                <label class="inline-field">X
+                  <input id="cropX" type="number" step="1" value="0">
+                </label>
+                <label class="inline-field">Y
+                  <input id="cropY" type="number" step="1" value="0">
+                </label>
+                <span id="cropSizeLabel" class="pill">96×96</span>
+              </div>
+              <div class="canvas-toolbar">
+                <span class="toolbar-label">Pictures</span>
+                <button id="btnScaleDown" type="button" title="Shrink pictures">−</button>
+                <label class="inline-field grow-scale">Size
+                  <input id="imageScale" type="range" min="10" max="400" value="100">
+                </label>
+                <label class="inline-field">
+                  <input id="imageScalePct" type="number" min="10" max="800" step="1" value="100">
+                  <span>%</span>
+                </label>
+                <button id="btnScaleUp" type="button" title="Enlarge pictures">+</button>
+                <button id="btnScaleReset" type="button">Reset size</button>
+              </div>
+            </div>
+            <div class="canvas-host checker">
+              <canvas id="cutCanvas" tabindex="0"></canvas>
+            </div>
+            <p class="muted tiny canvas-help">Drag the orange square to move it. Drag outside it to pan. Mouse wheel zooms the view. Ctrl + mouse wheel resizes all pictures around the square. Arrow keys nudge the square by 1 pixel (Shift = 10).</p>
+          </div>
+          <aside class="side-card">
+            <div class="card-head">
+              <h3>Live preview</h3>
+              <span id="previewCount" class="muted">0</span>
+            </div>
+            <div id="livePreview" class="preview-strip"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="step5" class="step-panel" data-step="5">
+        <div class="panel-copy">
+          <h2>Make or modify Face files</h2>
+          <p>This step can be repeated until you are satisfied. Choose which cut faces to use, then create new Face file(s) or replace slots in existing ones. Replacing a slot clears it completely first, so old pixels cannot show through transparent areas.</p>
+        </div>
+        <div class="export-layout">
+          <aside class="side-card palette-card">
+            <div class="card-head">
+              <h3>Cut faces</h3>
+              <div class="toolbar-row">
+                <button id="btnSelectAllCuts" type="button">Select all</button>
+                <button id="btnSelectNoneCuts" type="button">Select none</button>
+              </div>
+            </div>
+            <p class="muted tiny">Check a face to use it. Drag it onto a slot, or click it and then click a slot. Drag in this list to change auto-fill order. Click any slot that you've filled, again, to reset it.</p>
+            <div id="cutPalette" class="cut-palette"></div>
+          </aside>
+          <div class="export-main">
+            <div class="mode-tabs">
+              <button id="modeCreate" type="button" class="mode-tab active">Create new Face file(s)</button>
+              <button id="modeModify" type="button" class="mode-tab">Modify existing Face file(s)</button>
+            </div>
+
+            <div id="createPane" class="mode-pane">
+              <div class="save-row">
+                <label class="grow-field">Output folder
+                  <input id="outputFolder" type="text" readonly placeholder="Choose a folder">
+                </label>
+                <button id="btnPickFolder" type="button">Browse</button>
+                <label class="name-field">Base name
+                  <input id="baseName" type="text" value="Faces" spellcheck="false">
+                </label>
+                <button id="btnAutoFill" type="button">Auto-fill selected</button>
+                <button id="btnAddSheet" type="button">Add Face file</button>
+                <button id="btnCreateSave" class="accent" type="button">Create Face file(s)</button>
+              </div>
+              <div id="createSheets" class="sheets-stack"></div>
+            </div>
+
+            <div id="modifyPane" class="mode-pane hidden">
+              <div class="modify-top">
+                <div id="modifyDropZone" class="drop-zone compact">
+                  <div class="drop-zone-inner">
+                    <strong>Drop existing Face .png file(s) here</strong>
+                    <span>or</span>
+                    <button id="btnPickFaces" class="accent" type="button">Choose Face file(s)</button>
+                  </div>
+                </div>
+                <div class="save-row">
+                  <button id="btnModifySave" class="accent" type="button">Save changes (overwrite)</button>
+                  <button id="btnModifySaveAs" type="button">Save As…</button>
+                  <span class="muted tiny">Assigned slots are fully replaced. Unassigned slots keep the original pixels, including transparency.</span>
+                </div>
+              </div>
+              <div id="modifySheets" class="sheets-stack"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bottombar">
+      <p id="statusText" class="muted">Select one or more PNG pictures to begin.</p>
+      <div class="nav-actions">
+        <button id="btnBack" type="button" disabled>Back</button>
+        <button id="btnNext" class="accent" type="button" disabled>Next</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="loading" class="loading hidden"><span>Working…</span></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

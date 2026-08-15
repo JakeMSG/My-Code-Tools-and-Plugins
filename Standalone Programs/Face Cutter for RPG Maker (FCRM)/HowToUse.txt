@@ -1,0 +1,279 @@
+Face Cutter for RPG Maker - v1.0
+How to use
+
+This program cuts faces out of .png pictures and writes RPG Maker Face
+files. A Face file is a sheet of 8 squares (2 rows of 4).
+
+
+==================================================
+Starting the program
+==================================================
+
+- Double-click "Face Cutter for RPG Maker - v1.0.bat" in this folder.
+- The first launch needs internet. It checks for Node.js 18+. If this PC
+  does not have it, a portable Node.js is downloaded into runtime\node.
+- After Node.js is ready, missing program files are downloaded into
+  node_modules (Electron + pngjs), then the desktop window opens.
+- Later launches skip those downloads if the files are already there.
+- The window title is: Face Cutter for RPG Maker - v1.0
+
+You can also run "npm install" then "npm start" if you already have
+Node.js 18+ and want to skip the launcher.
+
+
+==================================================
+RPG Maker Face sizes
+==================================================
+
+- RPG Maker VX Ace:
+  - One face: 96 x 96 pixels
+  - Face file: 384 x 192 pixels (4 columns x 2 rows)
+
+- RPG Maker MV / MZ:
+  - One face: 144 x 144 pixels
+  - Face file: 576 x 288 pixels (4 columns x 2 rows)
+
+Slot index order (same as RPG Maker):
+
+  0  1  2  3
+  4  5  6  7
+
+Empty slots stay fully transparent. Cut faces keep the transparent
+background from the source pictures.
+
+
+==================================================
+Workflow overview
+==================================================
+
+The program is a 5-step wizard. Use Next / Back, or click a previous
+step in the top bar.
+
+  1. Select  - choose .png pictures to cut faces from
+  2. Align   - offset pictures if the face moves between them
+  3. Size    - 96x96 (VX Ace) or 144x144 (MV/MZ)
+  4. Cut     - move one square; every picture is cut at that square
+  5. Faces   - create new Face file(s) and/or modify existing ones
+
+Step 5 can be repeated until you are satisfied. You do not have to
+restart the program to write another Face file from the same cuts.
+
+"Start Over" clears pictures, offsets, cuts, and Face-file work.
+
+
+==================================================
+Step 1 - Select pictures
+==================================================
+
+Choose one or more .png files as sources.
+
+Ways to add files:
+- Click "Choose PNG files" to open a file window (multi-select).
+- Drag and drop .png files onto the window.
+
+The list on the right shows each file, its pixel size, and Remove.
+The same file is not added twice.
+
+Only .png is accepted.
+
+
+==================================================
+Step 2 - Align pictures
+==================================================
+
+Use this when several pictures show the same character, but the face
+is not in the same pixel position. Offsets are applied in Step 4 so
+one cutting square can grab that same face from every picture.
+
+- Pictures start aligned at offset 0, 0.
+- Click a picture in the list (or click it on the canvas) to select it.
+- Drag the selected picture, type X/Y, or use the nudge buttons.
+- Arrow keys nudge by 1 pixel. Hold Shift for 10 pixels.
+- Overlay opacity fades the unselected pictures so you can line faces up.
+- Mouse wheel zooms. Drag empty canvas space to pan. Fit resets the view.
+- "Reset all" sets every offset back to 0, 0.
+
+With only one picture, alignment is optional. Just continue.
+
+
+==================================================
+Step 3 - Square size
+==================================================
+
+Click one card:
+
+- 96x96  - RPG Maker VX Ace Face files (384 x 192)
+- 144x144 - RPG Maker MV / MZ Face files (576 x 288)
+
+This size is used for cutting and for every Face file you write afterwards.
+
+
+==================================================
+Step 4 - Cut faces
+==================================================
+
+A single orange square is placed over the pictures.
+
+- Drag the square to choose the cut position.
+- Drag outside the square to pan. Mouse wheel zooms the view. Fit resets
+  the view camera (not the picture size).
+- X / Y fields set the square position in pixels.
+- Arrow keys nudge the square by 1 pixel. Hold Shift for 10 pixels.
+- Picture Size resizes every loaded picture at once, around the center
+  of the cutting square, so a too-large or too-small face can be fitted
+  into 96x96 or 144x144. Alignment offsets stay in effect.
+- Use the size slider, the % field, the - / + buttons, or Ctrl + mouse
+  wheel. "Reset size" returns pictures to 100%.
+- Range: 10% to 800% (the slider goes to 400%; type a higher % if needed).
+- The live preview shows the cut from every picture, using Step 2 offsets
+  and the current picture size.
+- If the square hangs off a picture, the missing pixels stay transparent.
+
+Cutting formula for each picture (including resize):
+  scale = pictureSizePercent / 100
+  sourceX = (squareX - shiftX) / scale - pictureOffsetX
+  sourceY = (squareY - shiftY) / scale - pictureOffsetY
+  sourceW = squareSize / scale
+  sourceH = squareSize / scale
+  then that source rectangle is resampled into the 96x96 or 144x144 face.
+
+Click "Cut Faces and Continue" to build the cut faces and go to Step 5.
+You can come back and click "Re-cut Faces and Continue" if you move the
+square or resize the pictures. Old cuts are then replaced.
+
+
+==================================================
+Step 5 - Make or modify Face files (repeatable)
+==================================================
+
+The left list is every cut face from Step 4.
+
+- Check or uncheck a face to include or exclude it.
+- Select all / Select none.
+- Drag faces in the list to change Auto-fill order.
+- Drag a face onto a slot, or click a face and then click a slot.
+- Click a filled slot again (or right-click it) to reset that assignment.
+- Escape cancels a face that is waiting to be placed.
+
+You can stay on this step and create files, then modify others, then
+create again, without recutting.
+
+
+--------------------------------------------------
+Option A - Create new Face file(s)
+--------------------------------------------------
+
+- Choose an output folder (defaults to the folder of the first picture).
+- Set a base name. One file is saved as BaseName.png. Extra files are
+  BaseName_2.png, BaseName_3.png, and so on.
+- "Auto-fill selected" places checked faces in list order, 8 per file,
+  left to right, top to bottom (slots 0-7). Extra faces open another file.
+- "Add Face file" adds another empty 8-slot sheet if you want to place
+  faces by hand.
+- Unused slots stay fully transparent. The sheet is always the full
+  4x2 Face size even if fewer than 8 faces are placed.
+- "Create Face file(s)" writes the PNG files. If a name already exists,
+  you are asked before overwrite. Explorer opens on the first saved file.
+
+A new Face file is built on a fully transparent sheet. Faces are copied
+into slots as complete pixels (including alpha). Nothing is drawn on top
+of old art, because there is no old art.
+
+
+--------------------------------------------------
+Option B - Modify existing Face file(s)
+--------------------------------------------------
+
+- Switch to "Modify existing Face file(s)".
+- Add Face PNG files with "Choose Face file(s)" or by drag and drop.
+- Each file must already be a standard Face sheet for the size chosen
+  in Step 3:
+    96x96  -> 384 x 192
+    144x144 -> 576 x 288
+  A wrong size is rejected with a message.
+
+- Place cut faces onto the slots you want to replace.
+- Assigned slots are cleared completely, then the new face is copied in.
+  Old pixels cannot show through the new face's transparent background.
+- Slots you do not assign keep the original pixels, including any
+  original transparency.
+- "Save changes (overwrite)" writes back to the original files after
+  a confirmation.
+- "Save As..." writes copies (one file: save dialog; several files:
+  pick a folder and keep the original names).
+
+You can load more than one Face file and fill slots across them.
+
+
+==================================================
+Transparency notes
+==================================================
+
+- Source pictures should be PNG with alpha if you want transparent
+  backgrounds around the face.
+- New Face files start fully transparent, then receive only the faces
+  you placed.
+- Replacing a slot is a full pixel replace for that 96x96 or 144x144
+  square, not a transparent overlay. That is required so leftover hair,
+  outlines, or old faces do not remain behind the new art.
+
+
+==================================================
+Keyboard and mouse
+==================================================
+
+Step 2 (Align)
+- Arrow keys: nudge selected picture 1px (Shift: 10px)
+- Drag picture: move its offset
+- Drag empty canvas / mouse wheel: pan / zoom
+
+Step 4 (Cut)
+- Arrow keys: nudge cutting square 1px (Shift: 10px)
+- Drag square: move cut position
+- Drag outside square / mouse wheel: pan / zoom the view
+- Picture Size slider, %, - / +: shrink or enlarge all pictures
+- Ctrl + mouse wheel: resize all pictures around the square
+- Reset size: pictures back to 100%
+
+Step 5 (Faces)
+- Click face, then click slot: place
+- Drag face onto slot: place
+- Click filled slot or right-click slot: clear
+- Escape: cancel the face waiting to be placed
+
+Anywhere
+- Start Over: reset the whole session after confirm
+
+
+==================================================
+Tips
+==================================================
+
+- For a set of expressions of the same character, load every expression
+  PNG in Step 1, align them in Step 2, then cut once in Step 4.
+- If a portrait is much larger than 96 or 144, shrink Picture Size on the
+  Cut step until the face fills the square. If it is too small, enlarge.
+- Auto-fill is the fastest way to pack checked faces into new sheets.
+- If you only need to replace two slots in Actor1.png, use Modify,
+  drop that file, and place only those two faces.
+- Pixel-art VX Ace faces stay sharp in the previews; MV/MZ faces use
+  smoother scaling when shown smaller than 1:1.
+
+
+==================================================
+Files in this folder
+==================================================
+
+- Face Cutter for RPG Maker - v1.0.bat   launcher
+- HowToUse.txt                           this file
+- package.json                           Node / Electron package
+- tools\ensure-runtime.ps1               first-launch Node.js + file setup
+- electron\                              desktop window and file dialogs
+- public\                                the program UI
+- src\pngio.js                           PNG Face-sheet read / write
+
+Created on first launch (not required when sharing the program):
+
+- node_modules\                          downloaded program libraries
+- runtime\                               portable Node.js, only if this PC
+                                         did not already have Node.js 18+
