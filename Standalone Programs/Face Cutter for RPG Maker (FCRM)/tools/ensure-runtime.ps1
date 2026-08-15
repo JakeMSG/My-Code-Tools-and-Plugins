@@ -135,6 +135,16 @@ function Resolve-NodeExe {
   return Install-PortableNode
 }
 
+function Add-NodeToPath {
+  param([string]$NodeExe)
+  $nodeDir = Split-Path -Parent $NodeExe
+  if (-not $nodeDir) {
+    return
+  }
+  $parts = @($env:PATH -split ';' | Where-Object { $_ -and ($_ -ne $nodeDir) })
+  $env:PATH = (@($nodeDir) + $parts) -join ';'
+}
+
 function Get-NpmCli {
   param([string]$NodeExe)
   $nodeDir = Split-Path -Parent $NodeExe
@@ -164,13 +174,18 @@ function Install-AppDependencies {
   }
 
   Write-Step 'Installing program files (first launch, please wait)...'
+  Add-NodeToPath -NodeExe $NodeExe
   $npmCli = Get-NpmCli -NodeExe $NodeExe
   Push-Location -LiteralPath $AppDir
   try {
+    # Ignore lifecycle scripts so Electron's "node install.js" postinstall
+    # cannot fail on PCs that do not have Node.js on the system PATH.
+    # The Electron binary is downloaded next with the portable node.exe.
+    $npmArgs = @('install', '--no-fund', '--no-audit', '--ignore-scripts')
     if ($npmCli.ToLowerInvariant().EndsWith('.js')) {
-      & $NodeExe $npmCli install --no-fund --no-audit
+      & $NodeExe $npmCli @npmArgs
     } else {
-      & $npmCli install --no-fund --no-audit
+      & $npmCli @npmArgs
     }
     if ($LASTEXITCODE -ne 0) {
       throw "npm install failed with exit code $LASTEXITCODE."
@@ -190,8 +205,12 @@ function Ensure-ElectronBinary {
   $installJs = Join-Path $AppDir 'node_modules\electron\install.js'
   if (Test-Path -LiteralPath $installJs) {
     Write-Step 'Downloading Electron runtime...'
+    Add-NodeToPath -NodeExe $NodeExe
     try {
       & $NodeExe $installJs
+      if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+        Write-Step 'Electron install.js returned an error. Trying a direct extract...'
+      }
     } catch {
       Write-Step 'Electron install.js did not finish. Trying a direct extract...'
     }
@@ -240,6 +259,7 @@ function Start-App {
 try {
   Write-Step $AppName
   $nodeExe = Resolve-NodeExe
+  Add-NodeToPath -NodeExe $nodeExe
   Install-AppDependencies -NodeExe $nodeExe
   Ensure-ElectronBinary -NodeExe $nodeExe
   Start-App

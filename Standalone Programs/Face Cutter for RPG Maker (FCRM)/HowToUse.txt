@@ -15,6 +15,8 @@ Starting the program
 - After Node.js is ready, missing program files are downloaded into
   node_modules (Electron + pngjs), then the desktop window opens.
 - Later launches skip those downloads if the files are already there.
+- If a first launch failed, delete the node_modules folder (you can keep
+  runtime) and run the .bat again.
 - The window title is: Face Cutter for RPG Maker - v1.0
 
 You can also run "npm install" then "npm start" if you already have
