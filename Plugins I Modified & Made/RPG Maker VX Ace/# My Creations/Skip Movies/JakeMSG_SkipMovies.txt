@@ -1,0 +1,995 @@
+################################################################  Explaining the script
+# ======================== Change Log
+# 1.0 (8.15th.2026) - Initial release
+# ======================== Initial Explanations
+# ======== General
+# ==== Lets the player skip Movie files (Play Movie event command / Graphics.play_movie)
+# == by pressing Escape or X, matching JakeMSG_SkipMovies for MV and MZ
+# ==== Ace's built-in Graphics.play_movie freezes Ruby until the clip ends. The engine's
+# == only abort is F12, which is a full game reset (Title Screen), not a video stop.
+# == That is why earlier versions were inconsistent: injected F12 is ignored during the
+# == clip, then processed later as a real reset if you spam the skip key.
+# ==== This version plays the file with ffplay (auto-detected, or FFPLAY_PATH, or
+# == ffplay.exe next to Game.exe) so the game keeps running and skip keys work.
+# == The player is a borderless overlay on the game client (same size as Play Movie).
+# == It does not resize the game window. ffplay is started DPI-unaware so Windows
+# == stretches it the same way it stretches Ace.
+# == After skip, Play Movie returns and the next event command runs (Troop 63 stills).
+# ==== If ffplay is not already installed, it is downloaded once (needs internet) and
+# == saved as ffplay.exe next to Game.exe. Later launches reuse that file.
+# == If download fails, it falls back to the built-in player (not skippable).
+# ==== Place this script under Materials, above Main
+# ==== Close Game.exe completely after updating this script (F12 does not reload scripts)
+# ======== How to use
+# ==== Play Movie events and Graphics.play_movie("Movies/Name") calls become skippable
+# ======== Skip keys
+# ==== Default: Escape (0x1B) and X (0x58)
+#
+#
+#
+################################################################  The Script
+
+module JakeMSG_SkipMovies
+  #	↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ======== Edit here for parameters
+  SKIP_KEYS        = [0x1B, 0x58]  # Escape, X
+  ENABLED          = true
+  DEBUG            = false         # beep when a movie starts
+  USE_FFPLAY       = true          # required for skip (Ace's own player cannot skip)
+  FFPLAY_PATH      = nil           # nil = auto-detect; or full path to ffplay.exe
+  DOWNLOAD_FFPLAY  = true          # download ffplay.exe once if it is not found
+  #	↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ======== Edit here for parameters
+
+  WAIT_TIMEOUT       = 258
+  CREATE_NO_WINDOW   = 0x08000000
+  PLAYER_TITLE       = 'JakeMSG_SkipMovie'
+  GW_HWNDNEXT        = 2
+  GW_CHILD           = 5
+  GWL_STYLE          = -16
+  GWL_EXSTYLE        = -20
+  WS_POPUP           = 0x80000000
+  WS_CHILD           = 0x40000000
+  WS_VISIBLE         = 0x10000000
+  WS_CAPTION         = 0x00C00000
+  WS_THICKFRAME      = 0x00040000
+  WS_SYSMENU         = 0x00080000
+  WS_BORDER          = 0x00800000
+  WS_CLIPSIBLINGS    = 0x04000000
+  WS_CLIPCHILDREN    = 0x02000000
+  HWND_TOPMOST       = -1
+  SWP_NOACTIVATE     = 0x0010
+  SWP_SHOWWINDOW     = 0x0040
+  SWP_FRAMECHANGED   = 0x0020
+  SWP_NOSENDCHANGING = 0x0400
+  WS_EX_NOACTIVATE   = 0x08000000
+  WS_EX_TOOLWINDOW   = 0x00000080
+  WS_EX_TOPMOST      = 0x00000008
+  WS_EX_APPWINDOW    = 0x00040000
+  FFMPEG_ZIP_URLS    = [
+    'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip',
+    'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.zip'
+  ]
+
+  class << self
+    attr_accessor :enabled
+  end
+  self.enabled = ENABLED
+
+  def self.skip_enabled?
+    enabled ? true : false
+  end
+
+  def self.play(filename)
+    filename = filename.to_s
+    return original_play(filename) if filename.empty? || !skip_enabled?
+    beep(880, 90) if DEBUG
+    save_context
+    wait_skip_keys_up
+    if USE_FFPLAY && play_with_ffplay(filename)
+      wait_skip_keys_up
+      Graphics.frame_reset rescue nil
+      Graphics.update rescue nil
+      Input.update rescue nil
+      return
+    end
+    beep(220, 180) if DEBUG
+    original_play(filename)
+  end
+
+  def self.original_play(filename)
+    Graphics.jakemsg_skipmovies_play_movie(filename)
+  end
+
+  def self.note_interpreter(interp)
+    @saved_interp = interp
+    @saved_index = interp.instance_variable_get(:@index) if interp
+  end
+
+  def self.save_context
+    @saved_scene = SceneManager.scene
+    unless @saved_interp
+      if $game_party && $game_party.in_battle && $game_troop
+        @saved_interp = $game_troop.interpreter
+      elsif $game_map
+        @saved_interp = $game_map.interpreter
+      end
+    end
+    if @saved_interp && @saved_index.nil?
+      @saved_index = @saved_interp.instance_variable_get(:@index)
+    end
+  end
+
+  def self.beep(freq, ms)
+    kernel_beep.call(freq, ms)
+  rescue Exception
+  end
+
+  def self.log_error(err)
+    path = 'JakeMSG_SkipMovies_error.txt'
+    File.open(path, 'w') do |f|
+      f.puts(err.class.to_s)
+      f.puts(err.message.to_s)
+      err.backtrace.each { |l| f.puts(l) } if err.respond_to?(:backtrace) && err.backtrace
+    end
+  rescue Exception
+  end
+
+  def self.wait_skip_keys_up
+    80.times do
+      break unless skip_key_down?
+      sleep(0.01)
+    end
+  end
+
+  def self.skip_key_down?
+    SKIP_KEYS.any? { |vk| (get_async_key_state.call(vk) & 0x8000) != 0 }
+  end
+
+  def self.play_with_ffplay(filename)
+    movie = locate_movie(filename)
+    player = locate_ffplay
+    player = install_ffplay if player.nil? && DOWNLOAD_FFPLAY
+    return false if movie.nil? || player.nil?
+    hwnd = game_hwnd.to_i
+    @dumped_ffplay = false
+    @dumped_restore = false
+    @game_rect = read_rect(:window, hwnd)
+    x, y, w, h = overlay_rect(hwnd)
+    dump_size_debug(hwnd, x, y, w, h)
+    mark_ffplay_dpi_unaware(player)
+    apply_player_env
+    args = '-autoexit -noborder -nostats -hide_banner -loglevel quiet'
+    args += " -window_title #{PLAYER_TITLE}"
+    args += " -left #{x} -top #{y} -x #{w} -y #{h}"
+    cmd = '"' + player + '" ' + args + ' "' + movie + '"'
+    hprocess, hthread, pid = create_player_process(player, cmd, game_dir)
+    return false if hprocess.nil? || hprocess == 0
+    begin
+      loop do
+        restore_game_window(hwnd)
+        x, y, w, h = overlay_rect(hwnd)
+        align_player_window(pid, hwnd, x, y, w, h)
+        wait = wait_for_single_object.call(hprocess, 50)
+        break if wait == 0
+        if skip_key_down?
+          terminate_process.call(hprocess, 1)
+          wait_for_single_object.call(hprocess, 2000)
+          break
+        end
+      end
+      true
+    ensure
+      restore_game_window(hwnd)
+      close_handle.call(hthread) if hthread && hthread != 0
+      close_handle.call(hprocess) if hprocess && hprocess != 0
+    end
+  rescue Exception => e
+    log_error(e)
+    false
+  end
+
+  def self.align_player_window(pid, game, x, y, w, h)
+    child = find_player_hwnd(pid)
+    return false if child.nil? || child == 0
+    return false if child == game.to_i
+    return false if pid.to_i != 0 && pid_of(child) != pid.to_i
+    style_player_window(child)
+    flags = SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED | SWP_NOSENDCHANGING
+    set_window_pos.call(child, HWND_TOPMOST, x, y, w, h, flags)
+    dump_ffplay_rect(child, game)
+    true
+  rescue Exception => e
+    log_error(e)
+    false
+  end
+
+  def self.style_player_window(child)
+    return if child.nil? || child == 0
+    style = get_window_long.call(child, GWL_STYLE).to_i
+    style = (style | WS_POPUP) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_BORDER & ~WS_SYSMENU
+    set_window_long.call(child, GWL_STYLE, style & 0xFFFFFFFF)
+    ex = get_window_long.call(child, GWL_EXSTYLE).to_i
+    ex = (ex | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST) & ~WS_EX_APPWINDOW
+    set_window_long.call(child, GWL_EXSTYLE, ex & 0xFFFFFFFF)
+  rescue Exception
+  end
+
+  def self.restore_game_window(hwnd)
+    return if hwnd.nil? || hwnd == 0 || @game_rect.nil?
+    sl, st, sr, sb = @game_rect
+    l, t, r, b = read_rect(:window, hwnd)
+    return if l == sl && t == st && r == sr && b == sb
+    move_window.call(hwnd, sl, st, sr - sl, sb - st, 1)
+    dump_restore(hwnd, l, t, r, b)
+  rescue Exception
+  end
+
+  def self.apply_player_env
+    set_env.call('__COMPAT_LAYER', 'GDIDPISCALING DPIUNAWARE')
+    set_env.call('SDL_WINDOWS_DPI_AWARENESS', 'unaware')
+    set_env.call('SDL_HINT_WINDOWS_DPI_AWARENESS', 'unaware')
+    set_env.call('SDL_VIDEO_HIGHDPI_DISABLED', '1')
+  rescue Exception
+  end
+
+  def self.mark_ffplay_dpi_unaware(player)
+    return if @marked_unaware
+    exe = player.to_s.gsub('/', '\\')
+    sys = ENV['SystemRoot'].to_s
+    sys = 'C:\\Windows' if sys.empty?
+    reg = sys + '\\System32\\reg.exe'
+    cmd = '"' + reg + '" add "HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers" /v "' + exe + '" /t REG_SZ /d "~ GDIDPISCALING DPIUNAWARE" /f'
+    hprocess, hthread, pid = create_player_process(reg, cmd, sys)
+    if hprocess && hprocess != 0
+      wait_for_single_object.call(hprocess, 3000)
+      close_handle.call(hthread) if hthread && hthread != 0
+      close_handle.call(hprocess)
+    end
+    @marked_unaware = true
+  rescue Exception
+  end
+
+  def self.find_player_hwnd(pid)
+    titled = find_window.call(nil, PLAYER_TITLE)
+    return titled if titled && titled != 0
+    titled = find_window.call(0, PLAYER_TITLE)
+    return titled if titled && titled != 0
+    return 0 if pid.nil? || pid == 0
+    best = 0
+    best_area = 0
+    hwnd = get_window.call(get_desktop_window.call, GW_CHILD)
+    while hwnd && hwnd != 0
+      if pid_of(hwnd) == pid && is_window_visible.call(hwnd) != 0
+        l, t, r, b = read_rect(:window, hwnd)
+        area = (r - l) * (b - t)
+        if area > best_area
+          best_area = area
+          best = hwnd
+        end
+      end
+      hwnd = get_window.call(hwnd, GW_HWNDNEXT)
+    end
+    best
+  rescue Exception
+    0
+  end
+
+  def self.clip_parent_window(hwnd)
+    return if hwnd.nil? || hwnd == 0
+    style = get_window_long.call(hwnd, GWL_STYLE)
+    set_window_long.call(hwnd, GWL_STYLE, (style | WS_CLIPCHILDREN) & 0xFFFFFFFF)
+  rescue Exception
+  end
+
+  def self.locate_movie(filename)
+    name = filename.to_s.gsub('\\', '/')
+    name = name.sub(/\.(ogv|webm|mp4|avi|mkv)\z/i, '')
+    rels = []
+    rels << name
+    rels << name.sub(/\AMovies\//i, 'Movies/')
+    unless name =~ /\AMovies\//i
+      rels << ('Movies/' + File.basename(name))
+    end
+    exts = ['.ogv', '.webm', '.mp4', '.avi', '.mkv', '']
+    dir = game_dir
+    rels.uniq.each do |rel|
+      exts.each do |ext|
+        rel_path = rel + ext
+        return rel_path if File.exist?(rel_path)
+        if dir
+          full = dir + '/' + rel_path
+          return full if File.exist?(full)
+        end
+      end
+    end
+    nil
+  end
+
+  def self.locate_ffplay
+    paths = []
+    paths << FFPLAY_PATH.to_s unless FFPLAY_PATH.nil? || FFPLAY_PATH.to_s.empty?
+    paths << (game_dir.to_s + '/ffplay.exe')
+    paths << (game_dir.to_s + '/System/ffplay.exe')
+    paths << (game_dir.to_s + '/ffmpeg/bin/ffplay.exe')
+    w6432 = ENV['ProgramW6432'].to_s
+    paths << (w6432 + '\\ffmpeg\\bin\\ffplay.exe') unless w6432.empty?
+    pf = ENV['ProgramFiles'].to_s
+    paths << (pf + '\\ffmpeg\\bin\\ffplay.exe') unless pf.empty?
+    paths << 'C:\\Program Files\\ffmpeg\\bin\\ffplay.exe'
+    paths << 'C:\\Program Files (x86)\\ffmpeg\\bin\\ffplay.exe'
+    old = "\0\0\0\0"
+    old.force_encoding('ASCII-8BIT') if old.respond_to?(:force_encoding)
+    wow = wow64_off(old)
+    found = nil
+    paths.each do |p|
+      next if p.nil? || p.empty?
+      if File.exist?(p)
+        found = p
+        break
+      end
+    end
+    wow64_on(old, wow)
+    found
+  rescue Exception
+    nil
+  end
+
+  def self.install_ffplay
+    return nil if @ffplay_install_tried
+    @ffplay_install_tried = true
+    dest = game_dir.to_s + '/ffplay.exe'
+    return dest if File.exist?(dest) && file_large?(dest)
+    msgbox("Skip Movies needs ffplay (from ffmpeg).\nDownloading it once into the game folder.\nThis needs internet and may take a minute.")
+    zip = game_dir.to_s + '/JakeMSG_ffmpeg.zip'
+    tmp = game_dir.to_s + '/JakeMSG_ffmpeg_tmp'
+    begin
+      rm_tree(tmp)
+      Dir.mkdir(tmp) unless File.exist?(tmp)
+      FFMPEG_ZIP_URLS.each do |url|
+        File.delete(zip) if File.exist?(zip)
+        next unless download_file(url, zip)
+        next unless file_large?(zip)
+        next unless extract_zip(zip, tmp)
+        found = find_named_file(tmp, 'ffplay.exe')
+        next if found.nil?
+        next unless copy_file(found, dest)
+        return dest if file_large?(dest)
+      end
+      log_error(RuntimeError.new('ffplay download/extract failed'))
+      nil
+    rescue Exception => e
+      log_error(e)
+      nil
+    ensure
+      begin
+        File.delete(zip) if File.exist?(zip)
+      rescue Exception
+      end
+      rm_tree(tmp)
+    end
+  end
+
+  def self.file_large?(path)
+    File.exist?(path) && File.size(path).to_i > 1000000
+  rescue Exception
+    false
+  end
+
+  def self.download_file(url, dest)
+    dest_win = dest.to_s.gsub('/', '\\')
+    hr = url_download_to_file.call(0, url.to_s, dest_win, 0, 0)
+    return true if hr == 0 && file_large?(dest)
+    sys = windows_dir
+    curl = sys + '\\System32\\curl.exe'
+    cmd = '"' + curl + '" -L --fail -o "' + dest_win + '" "' + url.to_s + '"'
+    run_wait(curl, cmd, game_dir, 300000)
+    file_large?(dest)
+  rescue Exception => e
+    log_error(e)
+    false
+  end
+
+  def self.extract_zip(zip, dest)
+    zip_win = zip.to_s.gsub('/', '\\')
+    dest_win = dest.to_s.gsub('/', '\\')
+    sys = windows_dir
+    tar = sys + '\\System32\\tar.exe'
+    cmd = '"' + tar + '" -xf "' + zip_win + '" -C "' + dest_win + '"'
+    return true if run_wait(tar, cmd, dest, 180000) && find_named_file(dest, 'ffplay.exe')
+    ps = sys + '\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+    zip_ps = zip_win.gsub("'", "''")
+    dest_ps = dest_win.gsub("'", "''")
+    pscmd = '"' + ps + '" -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath \'' + zip_ps + '\' -DestinationPath \'' + dest_ps + '\' -Force"'
+    run_wait(ps, pscmd, dest, 180000) && find_named_file(dest, 'ffplay.exe')
+  rescue Exception => e
+    log_error(e)
+    false
+  end
+
+  def self.run_wait(app, cmd, cwd, timeout_ms)
+    hprocess, hthread, pid = create_player_process(app, cmd, cwd)
+    return false if hprocess.nil? || hprocess == 0
+    wait_for_single_object.call(hprocess, timeout_ms.to_i)
+    close_handle.call(hthread) if hthread && hthread != 0
+    close_handle.call(hprocess)
+    true
+  rescue Exception => e
+    log_error(e)
+    false
+  end
+
+  def self.copy_file(src, dst)
+    copy_file_api.call(src.to_s.gsub('/', '\\'), dst.to_s.gsub('/', '\\'), 0) != 0
+  rescue Exception
+    false
+  end
+
+  def self.find_named_file(dir, name)
+    dir = dir.to_s
+    return nil unless File.exist?(dir)
+    want = name.to_s.downcase
+    Dir.foreach(dir) do |e|
+      next if e == '.' || e == '..'
+      path = dir + '/' + e
+      if File.directory?(path)
+        found = find_named_file(path, name)
+        return found if found
+      elsif e.downcase == want
+        return path
+      end
+    end
+    nil
+  rescue Exception
+    nil
+  end
+
+  def self.rm_tree(path)
+    path = path.to_s
+    return unless File.exist?(path)
+    if File.directory?(path)
+      Dir.foreach(path) do |e|
+        next if e == '.' || e == '..'
+        rm_tree(path + '/' + e)
+      end
+      Dir.delete(path) rescue nil
+    else
+      File.delete(path) rescue nil
+    end
+  rescue Exception
+  end
+
+  def self.windows_dir
+    sys = ENV['SystemRoot'].to_s
+    sys.empty? ? 'C:\\Windows' : sys
+  end
+
+  def self.game_dir
+    buf = "\0" * 520
+    buf.force_encoding('ASCII-8BIT') if buf.respond_to?(:force_encoding)
+    n = get_module_file_name.call(0, buf, 260)
+    return Dir.pwd if n.nil? || n == 0
+    path = buf[0, n]
+    path.gsub!('\\', '/')
+    path.sub!(/\/[^\/]+\z/, '')
+    path
+  rescue Exception
+    Dir.pwd
+  end
+
+  def self.dump_size_debug(hwnd, x, y, w, h)
+    return unless DEBUG
+    cl, ct, cr, cb = read_rect(:client, hwnd)
+    wl, wt, wr, wb = read_rect(:window, hwnd)
+    horz, desk, logpx = device_caps
+    File.open('JakeMSG_SkipMovies_size.txt', 'w') do |f|
+      f.puts "Graphics #{Graphics.width}x#{Graphics.height}"
+      f.puts "client #{cr - cl}x#{cb - ct} at #{cl},#{ct}"
+      f.puts "window #{wr - wl}x#{wb - wt} at #{wl},#{wt}"
+      f.puts "dpi #{monitor_dpi(hwnd)}"
+      f.puts "cursorDpi #{cursor_scale_dpi}"
+      f.puts "caps horz=#{horz} desk=#{desk} logpx=#{logpx}"
+      f.puts "appliedDpi #{registry_dword('Control Panel\\Desktop\\WindowMetrics', 'AppliedDPI')}"
+      f.puts "logPixels #{registry_dword('Control Panel\\Desktop', 'LogPixels')}"
+      f.puts "scale #{screen_scale}"
+      f.puts "ratio #{windowed_ratio}"
+      f.puts "overlay #{w}x#{h} at #{x},#{y}"
+    end
+  rescue Exception
+  end
+
+  def self.dump_ffplay_rect(child, game)
+    return unless DEBUG
+    return if @dumped_ffplay
+    @dumped_ffplay = true
+    wl, wt, wr, wb = read_rect(:window, child)
+    gl, gt, gr, gb = read_rect(:window, game)
+    File.open('JakeMSG_SkipMovies_size.txt', 'a') do |f|
+      f.puts "ffplay #{wr - wl}x#{wb - wt} at #{wl},#{wt}"
+      f.puts "gameAfter #{gr - gl}x#{gb - gt} at #{gl},#{gt}"
+      f.puts "sameHwnd #{child.to_i == game.to_i}"
+    end
+  rescue Exception
+  end
+
+  def self.dump_restore(hwnd, l, t, r, b)
+    return unless DEBUG
+    return if @dumped_restore
+    @dumped_restore = true
+    File.open('JakeMSG_SkipMovies_size.txt', 'a') do |f|
+      f.puts "restoredGame from #{r - l}x#{b - t} at #{l},#{t}"
+    end
+  rescue Exception
+  end
+
+  def self.pick_overlay_hwnd(main)
+    pid = pid_of(main)
+    best = main
+    best_area = 0
+    hwnd = get_window.call(get_desktop_window.call, GW_CHILD)
+    while hwnd && hwnd != 0
+      if pid_of(hwnd) == pid && is_window_visible.call(hwnd) != 0
+        l, t, r, b = read_rect(:window, hwnd)
+        area = (r - l) * (b - t)
+        if area > best_area
+          best_area = area
+          best = hwnd
+        end
+      end
+      hwnd = get_window.call(hwnd, GW_HWNDNEXT)
+    end
+    best
+  rescue Exception
+    main
+  end
+
+  def self.pid_of(hwnd)
+    buf = scratch_ptr
+    write_u32(buf, 0)
+    get_window_thread_process_id.call(hwnd, buf)
+    read_u32(buf)
+  rescue Exception
+    0
+  end
+
+  def self.overlay_rect(hwnd)
+    hwnd = hwnd.to_i
+    rect = [0, 0, 0, 0].pack('l4')
+    rect.force_encoding('ASCII-8BIT') if rect.respond_to?(:force_encoding)
+    get_client_rect.call(hwnd, rect)
+    l, t, r, b = rect.unpack('l4')
+    w = r - l
+    h = b - t
+    pt = [0, 0].pack('l2')
+    pt.force_encoding('ASCII-8BIT') if pt.respond_to?(:force_encoding)
+    client_to_screen.call(hwnd, pt)
+    x, y = pt.unpack('l2')
+    w = Graphics.width if w <= 0
+    h = Graphics.height if h <= 0
+    [x, y, w, h]
+  end
+
+  def self.screen_scale
+    horz, desk, logpx = device_caps
+    if horz > 0 && desk > 0
+      s = desk.to_f / horz.to_f
+      return s if s > 1.01 && s < 5.0
+    end
+    applied = registry_dword('Control Panel\\Desktop\\WindowMetrics', 'AppliedDPI').to_i
+    return applied / 96.0 if applied > 96
+    return logpx / 96.0 if logpx > 96
+    1.0
+  rescue Exception
+    1.0
+  end
+
+  def self.device_caps
+    hdc = get_dc.call(0)
+    horz = get_device_caps.call(hdc, 8)
+    desk = get_device_caps.call(hdc, 118)
+    logpx = get_device_caps.call(hdc, 88)
+    release_dc.call(0, hdc)
+    [horz.to_i, desk.to_i, logpx.to_i]
+  rescue Exception
+    [0, 0, 96]
+  end
+
+  def self.registry_dword(subkey, name)
+    hkcu = -2147483647
+    ptr = scratch_ptr + 40
+    write_u32(ptr, 0)
+    err = reg_open_key.call(hkcu, subkey, 0, 0x20019, ptr)
+    return 0 if err != 0
+    hkey = read_u32(ptr)
+    type_ptr = scratch_ptr + 44
+    data_ptr = scratch_ptr + 48
+    len_ptr = scratch_ptr + 52
+    write_u32(type_ptr, 0)
+    write_u32(data_ptr, 0)
+    write_u32(len_ptr, 4)
+    err = reg_query_value.call(hkey, name, 0, type_ptr, data_ptr, len_ptr)
+    reg_close_key.call(hkey)
+    return 0 if err != 0
+    read_u32(data_ptr)
+  rescue Exception
+    0
+  end
+
+  def self.client_origin_screen(hwnd)
+    ptr = scratch_ptr
+    write_i32(ptr, 0)
+    write_i32(ptr + 4, 0)
+    client_to_screen_ptr.call(hwnd, ptr)
+    [read_i32(ptr), read_i32(ptr + 4)]
+  rescue Exception
+    [0, 0]
+  end
+
+  def self.read_rect(kind, hwnd)
+    ptr = scratch_ptr
+    4.times { |i| write_u32(ptr + i * 4, 0) }
+    if kind == :window
+      get_window_rect_ptr.call(hwnd, ptr)
+    else
+      get_client_rect_ptr.call(hwnd, ptr)
+    end
+    [read_i32(ptr), read_i32(ptr + 4), read_i32(ptr + 8), read_i32(ptr + 12)]
+  rescue Exception
+    [0, 0, 0, 0]
+  end
+
+  def self.monitor_dpi(hwnd)
+    hmon = monitor_from_window.call(hwnd, 2)
+    ptr = scratch_ptr
+    write_u32(ptr, 0)
+    write_u32(ptr + 4, 0)
+    return 96 unless get_dpi_for_monitor
+    hr = get_dpi_for_monitor.call(hmon, 0, ptr, ptr + 4)
+    dpi = read_u32(ptr)
+    return dpi if hr == 0 && dpi > 96
+    dpi2 = dpi_for_window(hwnd)
+    return dpi2 if dpi2 > 96
+    cs = cursor_scale_dpi
+    return cs if cs > 96
+    96
+  rescue Exception
+    96
+  end
+
+  def self.cursor_scale_dpi
+    ptr = scratch_ptr
+    get_cursor_pos.call(ptr)
+    lx = read_i32(ptr)
+    get_physical_cursor_pos.call(ptr)
+    px = read_i32(ptr)
+    return 96 if lx.abs < 32 || px == 0
+    (96.0 * px.abs / lx.abs).round
+  rescue Exception
+    96
+  end
+
+  def self.windowed_ratio
+    ini = game_dir.to_s.gsub('/', '\\') + '\\Game.ini'
+    n = get_profile_int.call('Fullscreen++', 'WindowedRatio', 1, ini)
+    n = 1 if n.nil? || n <= 0
+    n
+  rescue Exception
+    1
+  end
+
+  def self.scratch_ptr
+    @scratch_ptr ||= virtual_alloc.call(0, 80, 0x3000, 0x04)
+  end
+
+  def self.read_u32(addr)
+    buf = "\0\0\0\0"
+    buf.force_encoding('ASCII-8BIT') if buf.respond_to?(:force_encoding)
+    copy_from_mem.call(buf, addr, 4)
+    buf.unpack('V')[0]
+  end
+
+  def self.read_i32(addr)
+    buf = "\0\0\0\0"
+    buf.force_encoding('ASCII-8BIT') if buf.respond_to?(:force_encoding)
+    copy_from_mem.call(buf, addr, 4)
+    buf.unpack('l')[0]
+  end
+
+  def self.write_u32(addr, val)
+    blob = [val.to_i].pack('V')
+    blob.force_encoding('ASCII-8BIT') if blob.respond_to?(:force_encoding)
+    copy_to_mem.call(addr, blob, 4)
+  end
+
+  def self.write_i32(addr, val)
+    blob = [val.to_i].pack('l')
+    blob.force_encoding('ASCII-8BIT') if blob.respond_to?(:force_encoding)
+    copy_to_mem.call(addr, blob, 4)
+  end
+
+  def self.with_dpi_aware
+    api = dpi_context_api
+    old = nil
+    if api
+      old = api.call(-4)
+      old = api.call(-3) if old.nil? || old == 0
+    end
+    yield
+  ensure
+    api.call(old) if api && old && old != 0
+  end
+
+  def self.create_player_process(app, cmd, cwd)
+    si = [68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1].pack('V*')
+    si << [5, 0].pack('v*')
+    si << [0, 0, 0, 0].pack('V*')
+    pi = "\0" * 16
+    si.force_encoding('ASCII-8BIT') if si.respond_to?(:force_encoding)
+    pi.force_encoding('ASCII-8BIT') if pi.respond_to?(:force_encoding)
+    cmd_buf = cmd.to_s + "\0"
+    cmd_buf.force_encoding('ASCII-8BIT') if cmd_buf.respond_to?(:force_encoding)
+    cwd_buf = cwd.to_s.gsub('/', '\\') + "\0"
+    cwd_buf.force_encoding('ASCII-8BIT') if cwd_buf.respond_to?(:force_encoding)
+    app_buf = app.to_s + "\0"
+    app_buf.force_encoding('ASCII-8BIT') if app_buf.respond_to?(:force_encoding)
+    old = "\0\0\0\0"
+    wow = wow64_off(old)
+    ok = create_process.call(app_buf, cmd_buf, 0, 0, 0, CREATE_NO_WINDOW, 0, cwd_buf, si, pi)
+    if ok == 0
+      ok = create_process.call(app_buf, cmd_buf, 0, 0, 0, 0, 0, cwd_buf, si, pi)
+    end
+    wow64_on(old, wow)
+    return [0, 0, 0] if ok == 0
+    hprocess, hthread, pid = pi.unpack('V3')
+    [hprocess, hthread, pid]
+  rescue Exception => e
+    log_error(e)
+    [0, 0, 0]
+  end
+
+  def self.game_hwnd
+    find_window.call('RGSS Player', nil)
+  rescue Exception
+    0
+  end
+
+  def self.kernel_beep
+    @kernel_beep ||= Win32API.new('kernel32', 'Beep', 'II', 'I')
+  end
+
+  def self.get_async_key_state
+    @get_async_key_state ||= Win32API.new('user32', 'GetAsyncKeyState', 'I', 'I')
+  end
+
+  def self.find_window
+    @find_window ||= Win32API.new('user32', 'FindWindow', 'PP', 'I')
+  end
+
+  def self.get_client_rect
+    @get_client_rect ||= Win32API.new('user32', 'GetClientRect', 'IP', 'I')
+  end
+
+  def self.get_client_rect_ptr
+    @get_client_rect_ptr ||= Win32API.new('user32', 'GetClientRect', 'II', 'I')
+  end
+
+  def self.get_window_rect_ptr
+    @get_window_rect_ptr ||= Win32API.new('user32', 'GetWindowRect', 'II', 'I')
+  end
+
+  def self.client_to_screen_ptr
+    @client_to_screen_ptr ||= Win32API.new('user32', 'ClientToScreen', 'II', 'I')
+  end
+
+  def self.monitor_from_window
+    @monitor_from_window ||= Win32API.new('user32', 'MonitorFromWindow', 'II', 'I')
+  end
+
+  def self.get_dpi_for_monitor
+    return @get_dpi_for_monitor if defined?(@get_dpi_for_monitor)
+    @get_dpi_for_monitor = Win32API.new('shcore', 'GetDpiForMonitor', 'IIII', 'I')
+  rescue Exception
+    @get_dpi_for_monitor = nil
+  end
+
+  def self.get_cursor_pos
+    @get_cursor_pos ||= Win32API.new('user32', 'GetCursorPos', 'I', 'I')
+  end
+
+  def self.get_physical_cursor_pos
+    @get_physical_cursor_pos ||= Win32API.new('user32', 'GetPhysicalCursorPos', 'I', 'I')
+  end
+
+  def self.is_window_visible
+    @is_window_visible ||= Win32API.new('user32', 'IsWindowVisible', 'I', 'I')
+  end
+
+  def self.get_profile_int
+    @get_profile_int ||= Win32API.new('kernel32', 'GetPrivateProfileIntA', 'PPIP', 'I')
+  end
+
+  def self.virtual_alloc
+    @virtual_alloc ||= Win32API.new('kernel32', 'VirtualAlloc', 'IIII', 'I')
+  end
+
+  def self.copy_to_mem
+    @copy_to_mem ||= Win32API.new('kernel32', 'RtlMoveMemory', 'IPI', 'I')
+  end
+
+  def self.copy_from_mem
+    @copy_from_mem ||= Win32API.new('kernel32', 'RtlMoveMemory', 'PII', 'I')
+  end
+
+  def self.logical_to_physical_api
+    return @logical_to_physical if defined?(@logical_to_physical)
+    @logical_to_physical = Win32API.new('user32', 'LogicalToPhysicalPointForPerMonitorDPI', 'IP', 'I')
+  rescue Exception
+    @logical_to_physical = nil
+  end
+
+  def self.dpi_window_api
+    return @dpi_window if defined?(@dpi_window)
+    @dpi_window = Win32API.new('user32', 'GetDpiForWindow', 'I', 'I')
+  rescue Exception
+    @dpi_window = nil
+  end
+
+  def self.dpi_for_window(hwnd)
+    api = dpi_window_api
+    return 96 unless api
+    n = api.call(hwnd.to_i)
+    (n.nil? || n <= 0) ? 96 : n
+  rescue Exception
+    96
+  end
+
+  def self.dpi_context_api
+    return @dpi_context if defined?(@dpi_context)
+    @dpi_context = Win32API.new('user32', 'SetThreadDpiAwarenessContext', 'I', 'I')
+  rescue Exception
+    @dpi_context = nil
+  end
+
+  def self.client_to_screen
+    @client_to_screen ||= Win32API.new('user32', 'ClientToScreen', 'IP', 'I')
+  end
+
+  def self.create_process
+    @create_process ||= Win32API.new('kernel32', 'CreateProcessA', 'PPIIIIIPPP', 'I')
+  end
+
+  def self.set_parent
+    @set_parent ||= Win32API.new('user32', 'SetParent', 'II', 'I')
+  end
+
+  def self.get_parent
+    @get_parent ||= Win32API.new('user32', 'GetParent', 'I', 'I')
+  end
+
+  def self.move_window
+    @move_window ||= Win32API.new('user32', 'MoveWindow', 'IIIIII', 'I')
+  end
+
+  def self.set_window_pos
+    @set_window_pos ||= Win32API.new('user32', 'SetWindowPos', 'IIIIIII', 'I')
+  end
+
+  def self.get_window_long
+    @get_window_long ||= Win32API.new('user32', 'GetWindowLongA', 'II', 'I')
+  end
+
+  def self.set_window_long
+    @set_window_long ||= Win32API.new('user32', 'SetWindowLongA', 'III', 'I')
+  end
+
+  def self.get_desktop_window
+    @get_desktop_window ||= Win32API.new('user32', 'GetDesktopWindow', '', 'I')
+  end
+
+  def self.get_window
+    @get_window ||= Win32API.new('user32', 'GetWindow', 'II', 'I')
+  end
+
+  def self.get_window_thread_process_id
+    @get_window_thread_process_id ||= Win32API.new('user32', 'GetWindowThreadProcessId', 'II', 'I')
+  end
+
+  def self.is_window
+    @is_window ||= Win32API.new('user32', 'IsWindow', 'I', 'I')
+  end
+
+  def self.terminate_process
+    @terminate_process ||= Win32API.new('kernel32', 'TerminateProcess', 'II', 'I')
+  end
+
+  def self.wait_for_single_object
+    @wait_for_single_object ||= Win32API.new('kernel32', 'WaitForSingleObject', 'II', 'I')
+  end
+
+  def self.close_handle
+    @close_handle ||= Win32API.new('kernel32', 'CloseHandle', 'I', 'I')
+  end
+
+  def self.get_module_file_name
+    @get_module_file_name ||= Win32API.new('kernel32', 'GetModuleFileNameA', 'IPI', 'I')
+  end
+
+  def self.wow64_off(old)
+    api = wow64_disable_api
+    return 0 unless api
+    api.call(old)
+  rescue Exception
+    0
+  end
+
+  def self.wow64_on(old, wow)
+    api = wow64_revert_api
+    api.call(old) if api && wow && wow != 0
+  rescue Exception
+  end
+
+  def self.wow64_disable_api
+    return @wow64_disable if defined?(@wow64_disable)
+    @wow64_disable = Win32API.new('kernel32', 'Wow64DisableWow64FsRedirection', 'P', 'I')
+  rescue Exception
+    @wow64_disable = nil
+  end
+
+  def self.wow64_revert_api
+    return @wow64_revert if defined?(@wow64_revert)
+    @wow64_revert = Win32API.new('kernel32', 'Wow64RevertWow64FsRedirection', 'P', 'I')
+  rescue Exception
+    @wow64_revert = nil
+  end
+
+  def self.get_dc
+    @get_dc ||= Win32API.new('user32', 'GetDC', 'I', 'I')
+  end
+
+  def self.release_dc
+    @release_dc ||= Win32API.new('user32', 'ReleaseDC', 'II', 'I')
+  end
+
+  def self.get_device_caps
+    @get_device_caps ||= Win32API.new('gdi32', 'GetDeviceCaps', 'II', 'I')
+  end
+
+  def self.reg_open_key
+    @reg_open_key ||= Win32API.new('advapi32', 'RegOpenKeyExA', 'IPIII', 'I')
+  end
+
+  def self.reg_query_value
+    @reg_query_value ||= Win32API.new('advapi32', 'RegQueryValueExA', 'IPIIII', 'I')
+  end
+
+  def self.reg_close_key
+    @reg_close_key ||= Win32API.new('advapi32', 'RegCloseKey', 'I', 'I')
+  end
+
+  def self.set_env
+    @set_env ||= Win32API.new('kernel32', 'SetEnvironmentVariableA', 'PP', 'I')
+  end
+
+  def self.url_download_to_file
+    @url_download_to_file ||= Win32API.new('urlmon', 'URLDownloadToFileA', 'IPPIP', 'I')
+  end
+
+  def self.copy_file_api
+    @copy_file_api ||= Win32API.new('kernel32', 'CopyFileA', 'PPI', 'I')
+  end
+end
+
+class << Graphics
+  unless method_defined?(:jakemsg_skipmovies_play_movie)
+    alias jakemsg_skipmovies_play_movie play_movie
+  end
+  def play_movie(*args)
+    JakeMSG_SkipMovies.play(args[0].to_s)
+  end
+end
+
+class Game_Interpreter
+  alias jakemsg_skipmovies_command_261 command_261 unless method_defined?(:jakemsg_skipmovies_command_261)
+  def command_261
+    JakeMSG_SkipMovies.note_interpreter(self)
+    jakemsg_skipmovies_command_261
+  end
+end
