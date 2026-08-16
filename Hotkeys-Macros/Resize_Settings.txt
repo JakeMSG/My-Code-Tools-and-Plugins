@@ -1,0 +1,9 @@
+# Resize settings for Resize_Center_Game.ahk
+# Edit these values, then press Ctrl+Q (no need to restart the helper).
+
+TARGET_W=1900
+TARGET_H=1392 
+
+#### Fullscreen, Squared-ish (VX Ace)
+# TARGET_W=1900
+# TARGET_H=1392 
