@@ -1,0 +1,17 @@
+================ 0. Prerequisites 
+======== You first need Sugoi Translator Toolkit, you can get it from the Dev's Patreon here (latest Toolkit build given for free on every 14-15th of each month, in the About section of the Patreon):
+https://www.patreon.com/c/mingshiba/home
+======== Then, you need to open it, then open "Sugoi Translator Offline Japan", then wait until it's properly loaded, then keep it in the background
+
+================ 1. How to use
+==== 1. Type: "shell:sendto" into the path of the explorer window
+==== 2. Make a shortcut to "Program\SALFT - Drag&Drop Files.bat"
+==== 3. Right-click any folder (even with subfolders!), then click "Send To", and choose that Bat file
+** Of course, you can also just drag the Files/Folders needed directly onto the Batch file, but the way I described makes the process much easier
+
+======== Targeted files (recursive):
+==== .json  Live2D runtime display names (cdi3 / physics3 "Name" fields). IDs and file paths are not changed.
+==== .cmo3  Cubism Editor model display names (parameters, parts, deformers, physics labels)
+==== .can3  Cubism Editor animation/expression display names
+======== A backup copy is written next to the source folder as "<folder>-TRBackup"
+======== If a model is already open in Cubism Editor, close it without saving, then reopen it after translation
