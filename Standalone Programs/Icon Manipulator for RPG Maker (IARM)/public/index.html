@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Icon Manipulator for RPG Maker - v1.0</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="ambient-band ambient-a"></div>
+  <div class="ambient-band ambient-b"></div>
+
+  <div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true">
+    <div class="drop-overlay-split">
+      <div id="dropMainCard" class="drop-overlay-card">
+        <strong id="dropOverlayTitle">Drop PNG files</strong>
+        <p id="dropOverlayText">Release to add files.</p>
+      </div>
+      <div id="dropTrayCard" class="drop-overlay-card hidden">
+        <strong>Drop into Tray</strong>
+        <p>24×24 or 32×32 single icon PNGs. Opposite format is resized.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <h1>Icon Manipulator for RPG Maker - v1.0</h1>
+        <p>Make, extract, and place VX Ace / MV / MZ icons</p>
+      </div>
+      <nav id="stepper" class="stepper" aria-label="Steps"></nav>
+      <div class="toolbar-group">
+        <button id="btnStartOver" type="button">Start Over</button>
+      </div>
+    </header>
+
+    <main id="workspace" class="workspace">
+      <div class="workspace-main">
+        <section id="view-format" class="step-panel active">
+          <div class="panel-copy">
+            <h2>Choose output icon format</h2>
+            <p>This size is used for every icon you create, extract, or place. Input files of the other RPG Maker format are converted automatically.</p>
+          </div>
+          <div class="size-grid">
+            <button type="button" class="size-card" data-format="24">
+              <span class="size-kicker">RPG Maker VX Ace</span>
+              <strong>24×24 pixels</strong>
+              <span class="muted">Iconset width 384px · 16 icons per row</span>
+            </button>
+            <button type="button" class="size-card" data-format="32">
+              <span class="size-kicker">RPG Maker MV / MZ</span>
+              <strong>32×32 pixels</strong>
+              <span class="muted">Iconset width 512px · 16 icons per row</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="view-utils" class="step-panel">
+          <div class="panel-copy">
+            <h2>Choose a utility</h2>
+            <p>Utilities share the Tray. You can come back here, or to Format, at any time from the step bar.</p>
+          </div>
+          <div class="size-grid three">
+            <button type="button" class="size-card" data-utility="make">
+              <span class="size-kicker">Utility</span>
+              <strong>Make/Edit Icon(s)</strong>
+              <span class="muted">Turn pictures into icons, or further edit Tray icons, with corners and borders. Then export or store them in the Tray.</span>
+            </button>
+            <button type="button" class="size-card" data-utility="extract">
+              <span class="size-kicker">Utility</span>
+              <strong>Extract Icon(s)</strong>
+              <span class="muted">Pick icons from an Iconset.png by click, drag, ID, or X/Y, then export or store them.</span>
+            </button>
+            <button type="button" class="size-card" data-utility="add">
+              <span class="size-kicker">Utility</span>
+              <strong>Add Icon(s)</strong>
+              <span class="muted">Place Tray icons into an existing Iconset, add rows, and export the result.</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="view-make-pick" class="step-panel">
+          <div class="panel-copy">
+            <h2>Make/Edit Icon(s) — choose pictures</h2>
+            <p>Select or drop PNG pictures, or add icons from the Tray to edit them further. Pictures are fitted into the chosen icon size.</p>
+          </div>
+          <div class="select-layout">
+            <div id="makeDropZone" class="drop-zone">
+              <div class="drop-zone-inner">
+                <strong>Drop PNG pictures here</strong>
+                <span>or</span>
+                <button id="btnMakePick" class="accent" type="button">Choose PNG files</button>
+                <button id="btnMakeFromTray" type="button">Add from Tray</button>
+              </div>
+            </div>
+            <aside class="file-list-card">
+              <div class="card-head">
+                <h3>Pictures</h3>
+                <span id="makeCount" class="muted">0 files</span>
+                <button id="btnMakeClearPictures" type="button">Clear Pictures</button>
+              </div>
+              <ul id="makeList" class="file-list"></ul>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-make-edit" class="step-panel">
+          <div class="panel-copy">
+            <h2>Make/Edit Icon(s) — edit</h2>
+            <p>Apply the same edits to all pictures, or select a subset and edit those only. Live previews use the output format size. You can still add Tray icons from the list on the right.</p>
+          </div>
+          <div class="edit-layout">
+            <aside class="side-card">
+              <div class="card-head">
+                <h3>Pictures</h3>
+                <div class="toolbar-row">
+                  <button id="btnMakeClearPicturesEdit" type="button">Clear Pictures</button>
+                  <button id="btnMakeSelectAll" type="button">Select all</button>
+                  <button id="btnMakeSelectNone" type="button">Select none</button>
+                  <button id="btnMakeFromTrayEdit" type="button">Add from Tray</button>
+                </div>
+              </div>
+              <label class="check-row"><input id="makeGroupMode" type="checkbox" checked> Edit as a group</label>
+              <p class="muted tiny">Uncheck to edit selected pictures separately. Settings typed while several are selected apply to all of those selected pictures.</p>
+              <div id="makeEditList" class="file-list compact"></div>
+            </aside>
+            <div class="canvas-card">
+              <div class="card-head">
+                <h3>Preview</h3>
+                <span id="makePreviewHint" class="muted tiny"></span>
+              </div>
+              <div id="makePreview" class="preview-grid checker"></div>
+            </div>
+            <aside class="side-card edit-controls">
+              <h3>Corners</h3>
+              <label class="stack-field">Mode
+                <select id="cornerMode">
+                  <option value="normal">Normal (uncut)</option>
+                  <option value="sharp">Sharp corners (straight-cut)</option>
+                  <option value="round">Rounded corners (round-cut)</option>
+                </select>
+              </label>
+              <label id="cornerSizeWrap" class="stack-field hidden">Amount (pixels)
+                <input id="cornerSize" type="number" min="0" max="16" step="1" value="4">
+              </label>
+              <h3>Border</h3>
+              <label class="stack-field">Bordering
+                <select id="borderMode">
+                  <option value="outside">Outside (around, no overwrite)</option>
+                  <option value="inside">Inside (overwrites the picture)</option>
+                </select>
+              </label>
+              <label class="stack-field">Thickness (pixels)
+                <input id="borderThickness" type="number" min="0" max="16" step="1" value="0">
+              </label>
+              <label class="stack-field">Color
+                <span class="color-row">
+                  <input id="borderColorPicker" type="color" value="#ffffff">
+                  <input id="borderColor" type="text" value="#ffffff" spellcheck="false">
+                </span>
+              </label>
+              <label class="stack-field">Style
+                <select id="borderStyle">
+                  <option value="normal">Normal (contiguous)</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="interrupted">Interrupted line</option>
+                </select>
+              </label>
+              <label id="dotGapWrap" class="stack-field hidden">Space between dots (pixels)
+                <input id="dotGap" type="number" min="1" max="16" step="1" value="1">
+              </label>
+              <div id="dashWrap" class="hidden twin-fields">
+                <label class="stack-field">Line (pixels)
+                  <input id="dashLen" type="number" min="1" max="16" step="1" value="3">
+                </label>
+                <label class="stack-field">Space (pixels)
+                  <input id="dashGap" type="number" min="1" max="16" step="1" value="2">
+                </label>
+              </div>
+              <label class="check-row"><input id="multiBorder" type="checkbox"> Multi-border</label>
+              <div id="extraBorders" class="extra-borders hidden"></div>
+              <button id="btnAddBorder" class="hidden" type="button">Add extra border</button>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-make-export" class="step-panel">
+          <div class="panel-copy">
+            <h2>Make/Edit Icon(s) — export or Tray</h2>
+            <p>This step can be repeated. Export selected edited icons as single PNG files, or keep them in the Tray for Extract/Add.</p>
+          </div>
+          <div class="export-simple">
+            <div class="save-row">
+              <button id="btnMakeSelectAllOut" type="button">Select all</button>
+              <button id="btnMakeSelectNoneOut" type="button">Select none</button>
+              <button id="btnMakeToTray" type="button">Add selected to Tray</button>
+              <button id="btnMakeExport" class="accent" type="button">Export selected as PNG files</button>
+            </div>
+            <div id="makeOutList" class="preview-grid"></div>
+          </div>
+        </section>
+
+        <section id="view-extract-kind" class="step-panel">
+          <div class="panel-copy">
+            <h2>Extract Icon(s) — Iconset format</h2>
+            <p>Choose the format of the Iconset you will load. If it is the opposite of your output format, it will be converted first.</p>
+          </div>
+          <div class="size-grid">
+            <button type="button" class="size-card" data-extract-kind="24">
+              <span class="size-kicker">Input</span>
+              <strong>VX Ace Iconset</strong>
+              <span class="muted">24×24 icons · file width 384px</span>
+            </button>
+            <button type="button" class="size-card" data-extract-kind="32">
+              <span class="size-kicker">Input</span>
+              <strong>MV / MZ Iconset</strong>
+              <span class="muted">32×32 icons · file width 512px</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="view-extract-pick" class="step-panel">
+          <div class="panel-copy">
+            <h2>Extract Icon(s) — choose Iconset</h2>
+            <p>Select or drop one Iconset.png. Width must be 384 (Ace) or 512 (MV/MZ), and height must be a multiple of the icon size.</p>
+          </div>
+          <div id="extractDropZone" class="drop-zone">
+            <div class="drop-zone-inner">
+              <strong>Drop an Iconset PNG here</strong>
+              <span>or</span>
+              <button id="btnExtractPick" class="accent" type="button">Choose Iconset.png</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-extract-select" class="step-panel">
+          <div class="panel-copy">
+            <h2>Extract Icon(s) — select icons</h2>
+            <p>Click to select, Ctrl-click to toggle, Shift-click for a range, or drag a box. IDs start at 0 in the top-left and run left to right, row by row.</p>
+          </div>
+          <div class="stage-layout extract-select">
+            <div class="canvas-card">
+              <div class="canvas-toolbar">
+                <span id="extractSheetInfo" class="muted tiny"></span>
+                <span id="extractHoverInfo" class="pill">Hover an icon</span>
+              </div>
+              <div class="canvas-host checker iconset-host">
+                <div class="iconset-stack">
+                  <canvas id="extractCanvas" tabindex="0"></canvas>
+                  <div id="extractSelOverlay" class="iconset-overlay"></div>
+                </div>
+              </div>
+            </div>
+            <aside class="side-card">
+              <h3>Selection</h3>
+              <p id="extractSelCount" class="muted tiny">0 selected</p>
+              <label class="stack-field">IDs (0, 1, 5-10)
+                <input id="extractIds" type="text" spellcheck="false" placeholder="0-15, 32">
+                <button id="btnExtractApplyIds" type="button">Select mentioned ID icons</button>
+                <button id="btnExtractAddIds" type="button">Add mentioned ID icons</button>
+              </label>
+              <label class="stack-field">X,Y (0-based)
+                <input id="extractXY" type="text" spellcheck="false" placeholder="0,0; 3,1">
+                <button id="btnExtractApplyXY" type="button">Select mentioned X&amp;Y icons</button>
+                <button id="btnExtractAddXY" type="button">Add mentioned X&amp;Y icons</button>
+              </label>
+              <div class="toolbar-row">
+                <button id="btnExtractSelectAll" type="button">Select all</button>
+                <button id="btnExtractSelectNone" type="button">Select none</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-extract-export" class="step-panel">
+          <div class="panel-copy">
+            <h2>Extract Icon(s) — export or Tray</h2>
+            <p>This step can be repeated. Click icons to include or exclude them, then export or add them to the Tray.</p>
+          </div>
+          <div class="export-simple">
+            <div class="save-row">
+              <button id="btnExtractSelectAllOut" type="button">Select all</button>
+              <button id="btnExtractSelectNoneOut" type="button">Select none</button>
+              <button id="btnExtractToTray" type="button">Add selected to Tray</button>
+              <button id="btnExtractExport" class="accent" type="button">Export selected as PNG files</button>
+            </div>
+            <div id="extractOutList" class="preview-grid"></div>
+          </div>
+        </section>
+
+        <section id="view-add-pick" class="step-panel">
+          <div class="panel-copy">
+            <h2>Add Icon(s) — choose Iconset</h2>
+            <p>Select or drop the Iconset to modify. Opposite-format sheets are converted to your output format. Place Tray icons on slots next.</p>
+          </div>
+          <div id="addDropZone" class="drop-zone">
+            <div class="drop-zone-inner">
+              <strong>Drop an Iconset PNG here</strong>
+              <span>or</span>
+              <button id="btnAddPick" class="accent" type="button">Choose Iconset.png</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-add-place" class="step-panel">
+          <div class="panel-copy">
+            <h2>Add Icon(s) — place and export</h2>
+            <p>Click a Tray icon then a slot, or drag it onto a slot. Click a filled slot again to reset it. Overridden slots are cleared first so transparency cannot leak old pixels. Export can be repeated.</p>
+          </div>
+          <div class="add-layout">
+            <aside class="side-card">
+              <div class="card-head">
+                <h3>Tray icons to place</h3>
+              </div>
+              <p class="muted tiny">The Tray on the right is the same list. Select one here, then click a slot.</p>
+              <div id="addTrayList" class="preview-grid small"></div>
+            </aside>
+            <div class="canvas-card">
+              <div class="save-row">
+                <button id="btnAddRow" type="button">Add new empty Row</button>
+                <button id="btnRemoveRow" type="button">Remove last row</button>
+                <button id="btnAddSave" class="accent" type="button">Save changes (overwrite)</button>
+                <button id="btnAddSaveAs" type="button">Save As…</button>
+                <span id="addSheetInfo" class="muted tiny"></span>
+                <span id="addHoverInfo" class="pill">Hover an icon</span>
+              </div>
+              <div class="canvas-host checker iconset-host">
+                <canvas id="addCanvas" tabindex="0"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside id="trayPanel" class="tray-panel hidden">
+        <div class="card-head">
+          <h3>Tray</h3>
+          <span id="trayCount" class="muted">0</span>
+        </div>
+        <p class="muted tiny">Single icons in the output format, shared between utilities. Drop 24×24 or 32×32 PNG files here at any time after Format.</p>
+        <div id="trayDropZone" class="drop-zone compact">
+          <div class="drop-zone-inner">
+            <strong>Drop single icons</strong>
+            <button id="btnTrayPick" type="button">Add PNG icons</button>
+          </div>
+        </div>
+        <div class="toolbar-row">
+          <button id="btnTrayClear" type="button">Clear Tray</button>
+        </div>
+        <div id="trayList" class="tray-list"></div>
+      </aside>
+    </main>
+
+    <footer class="bottombar">
+      <p id="statusText" class="muted">Choose VX Ace (24×24) or MV/MZ (32×32) as the output format.</p>
+      <div class="nav-actions">
+        <button id="btnBack" type="button" disabled>Back</button>
+        <button id="btnNext" class="accent" type="button" disabled>Next</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="loading" class="loading hidden"><span>Working…</span></div>
+  <div id="appModal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+    <div id="appModalCard" class="app-modal-card">
+      <span id="appModalKicker" class="app-modal-kicker"></span>
+      <h2 id="appModalTitle"></h2>
+      <p id="appModalMessage" class="app-modal-message"></p>
+      <p id="appModalDetail" class="app-modal-detail muted hidden"></p>
+      <div id="appModalButtons" class="app-modal-actions"></div>
+    </div>
+  </div>
+
+  <script src="./iconfx.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

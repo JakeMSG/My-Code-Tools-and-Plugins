@@ -1,0 +1,226 @@
+Icon Manipulator for RPG Maker - v1.0
+How to use
+
+This program makes, extracts, and places RPG Maker icons. Icons live in
+Iconset.png files: 16 icons per row, as many rows as you need, growing
+downward.
+
+
+==================================================
+Starting the program
+==================================================
+
+- Double-click "Icon Manipulator for RPG Maker - v1.0.bat" in this folder.
+- The first launch needs internet. It checks for Node.js 18+. If this PC
+  does not have it, a portable Node.js is downloaded into runtime\node.
+- After Node.js is ready, missing program files are downloaded into
+  node_modules (Electron + pngjs), then the desktop window opens.
+- Later launches skip those downloads if the files are already there.
+- If a first launch failed, delete the node_modules folder (you can keep
+  runtime) and run the .bat again.
+- The window title is: Icon Manipulator for RPG Maker - v1.0
+
+
+==================================================
+Icon sizes and Iconset layout
+==================================================
+
+- RPG Maker VX Ace:
+  - One icon: 24 x 24 pixels
+  - Iconset width: 384 pixels (16 columns)
+  - Height: 24 x number of rows
+
+- RPG Maker MV / MZ:
+  - One icon: 32 x 32 pixels
+  - Iconset width: 512 pixels (16 columns)
+  - Height: 32 x number of rows
+
+IDs start at 0 in the top-left and run left to right, then the next row:
+
+  Row 0: IDs  0-15   (X 0-15, Y 0)
+  Row 1: IDs 16-31   (X 0-15, Y 1)
+  ...
+
+When you browse an Iconset, the program shows X, Y, and ID for the icon
+under the pointer.
+
+
+==================================================
+Steps (always available from the top bar)
+==================================================
+
+1. Format     - choose the OUTPUT icon size (24x24 or 32x32)
+2. Utilities  - pick Make/Edit, Extract, or Add
+
+Each utility then has its own steps. Click a previous step at any time
+to go back (Format, Utilities, or an earlier utility step).
+
+
+==================================================
+Format selection
+==================================================
+
+Choose the format of icons this session should CREATE and RESULT in.
+
+- VX Ace: 24x24
+- MV/MZ: 32x32
+
+This does not force the input file to already be that size. Opposite
+RPG Maker sizes are converted automatically. Any other size is rejected
+with a warning, and that file is not processed.
+
+Click Next after choosing a format, or click a format card to continue.
+
+
+==================================================
+Tray
+==================================================
+
+After Format is chosen, a Tray appears on the right. It holds single
+icons in the current output format, for use between utilities.
+
+Add to the Tray at any later step:
+- "Add PNG icons" in the Tray
+- Drag and drop 24x24 or 32x32 PNG files. After Format is chosen, a
+  drop overlay can show a Tray card so you can add icons even while
+  another utility is open. On Pictures / Load steps, the left card is
+  for that step and the right card is for the Tray.
+- "Add selected to Tray" in Make/Edit or Extract
+
+If a dropped single icon is the opposite RPG Maker size, it is resized
+to the output format. Any other size shows a warning pop-up and is
+skipped.
+
+Clear Tray removes every stored icon.
+
+Switching Format while the Tray is not empty:
+- Cancel
+- Clear Tray and Switch
+- Convert and Switch (resizes every Tray icon to the new format)
+
+
+==================================================
+Utility: Make/Edit Icon(s)
+==================================================
+
+Turn ordinary PNG pictures into icons of the output size, or take
+icons already in the Tray and edit them further.
+
+1) Pictures
+   - Choose files or drop PNGs.
+   - Or add icons from the Tray: "Add from Tray", click a Tray icon,
+     or drag a Tray icon onto the pictures area.
+   - Each picture is fitted into the 24x24 or 32x32 square (centered,
+     transparency kept around it).
+   - Tray icons already in the picture list are not added a second time.
+   - Clear Pictures removes every picture from the list (with a confirm),
+     like Clear Tray.
+
+2) Edit
+   - "Edit as a group" applies the same settings to every picture.
+   - Uncheck it to edit a selection (click, Ctrl-click for several).
+     Changes then apply to the selected pictures only.
+   Corners:
+   - Normal (uncut): default, no corner cut.
+   - Sharp corners: chamfer. The amount is the length of the new
+     straight edge, in pixels.
+   - Rounded corners: round cut. The amount is the radius in pixels.
+   Border (drawn after corners, so it follows the new outline):
+   - Outside (default): border sits around the picture; the picture is
+     inset so the border does not overwrite it. Final size stays 24 or 32.
+   - Inside: border is drawn on the picture and overwrites the outer
+     pixels.
+   - Thickness in pixels (0 = no main border).
+   - Color, default #ffffff (white). Hex field or color picker.
+   - Style: Normal (solid), Dotted (1px dots + gap), Interrupted line
+     (line length + gap).
+   Multi-border:
+   - Enable to stack extra borders relative to the main border
+     (outside of it or inside of it).
+   - Each extra border has the same style options.
+   - "Transparent spacer" uses thickness as empty space between borders
+     and does not draw color.
+
+3) Export or Tray (repeatable)
+   - Select which edited icons to use.
+   - Export as single PNG files of the output size, or add them to the
+     Tray.
+
+
+==================================================
+Utility: Extract Icon(s)
+==================================================
+
+1) Iconset type
+   - Say whether the file you will load is a VX Ace Iconset or an
+     MV/MZ Iconset.
+   - If that input format is the opposite of the session Format, the
+     whole sheet is converted so extracted icons match the output size.
+
+2) Load
+   - Choose or drop one Iconset.png.
+   - Width must be 384 (Ace) or 512 (MV/MZ). Height must be a multiple
+     of 24 or 32. Anything else shows a warning and is not processed.
+   - If the file does not match the Iconset type you picked, you are
+     asked to go back and choose the matching type.
+
+3) Select
+   - Click an icon. Ctrl-click toggles. Shift-click selects a range.
+   - Click and drag a box to select a rectangle of icons.
+   - Or type IDs (example: 0-15, 32) or X,Y pairs (example: 0,0; 3,1).
+   - Hover shows X, Y, and ID.
+
+4) Export or Tray (repeatable)
+   - Add selected icons to the Tray, or export them as single PNGs.
+
+
+==================================================
+Utility: Add Icon(s)
+==================================================
+
+Place Tray icons into an existing Iconset.
+
+1) Load
+   - Choose or drop the Iconset to modify.
+   - Opposite format is converted to the session Format.
+   - Any other size shows a warning and is not processed.
+
+2) Place and export (repeatable)
+   - Click a Tray icon, then click a slot. Or drag a Tray icon onto a
+     slot.
+   - Click a filled slot again to reset it (original pixels return).
+   - Replacing a slot clears it completely first, then copies the new
+     icon, so old pixels cannot show through transparency.
+   - Add new empty Row: appends a transparent row of 16 slots.
+   - Remove last row: deletes the bottom row (assignments there are
+     dropped). At least one row remains.
+   - Hover shows X, Y, and ID.
+   - Save overwrites the original file (after confirm) or Save As.
+
+
+==================================================
+Transparency
+==================================================
+
+- Source transparency is kept when fitting pictures into icons.
+- Empty Iconset slots and unused new rows stay fully transparent.
+- Replacing a slot is a full pixel replace for that 24x24 or 32x32
+  square, not a transparent overlay.
+
+
+==================================================
+Files in this folder
+==================================================
+
+- Icon Manipulator for RPG Maker - v1.0.bat   launcher
+- HowToUse.txt                                this file
+- package.json                                Node / Electron package
+- tools\ensure-runtime.ps1                    first-launch Node.js + files
+- electron\                                   desktop window and dialogs
+- public\                                     the program UI
+- src\pngio.js                                PNG read / write
+
+Created on first launch (not required when sharing the program):
+
+- node_modules\     downloaded program libraries
+- runtime\          portable Node.js, only if this PC lacked Node.js 18+
