@@ -14,9 +14,12 @@ JakeMSG.PassivesForAll = JakeMSG.PassivesForAll || {};
  /*:
  * @plugindesc Adds passive eval timings for owned data entries + visual passives menus in battle.
  * @author JakeMSG
- * v1.2
+ * v1.3
  *
 ============ Change Log ============
+1.3 - 8.31st.2026
+ * Fixed On Obtain / On Loss for States not running during battle (they waited until battle end)
+ * Also fixed the same battle-timing gap for Skills, Equips, and the other Notetag On Death when those hooks were skipped mid-battle
 1.2 - 6.25th.2026
  * Fixed a crash upon Saving
 1.1 - 6.19th.2026
@@ -258,6 +261,8 @@ JakeMSG.PassivesForAll = JakeMSG.PassivesForAll || {};
  * - Eval errors are caught and logged once per timing/script source.
  * - On Obtain/On Loss for item/weapon/armor uses ownership transition checks.
  *   Re-triggers after ownership returns from zero to owned again.
+ * - On Obtain/On Loss for states (and the other one-shot timings) also run
+ *   during battle. They no longer wait until the battle ends.
  *
  * 
  * 
@@ -555,7 +560,7 @@ JakeMSG.PassivesForAll = JakeMSG.PassivesForAll || {};
 
 (function($) {
 
-$.version = 1.0;
+$.version = 1.3;
 $.pluginName = 'JakeMSG_PassivesForAll';
 $.paramsRaw = PluginManager.parameters($.pluginName);
 
@@ -569,6 +574,9 @@ $.ownershipState = {
     weapon: {},
     armor: {}
 };
+$.battlerOwnCache = {};
+$.battlerUidSeq = 0;
+$.runtimeOwnershipHooksInstalled = false;
 
 $.trackedOwnershipIds = {
     item: [],
@@ -1235,6 +1243,8 @@ $.resetRuntimeCaches = function() {
         weapon: {},
         armor: {}
     };
+    $.battlerOwnCache = {};
+    $.battlerUidSeq = 0;
 };
 
 $.processDatabaseNotetags = function() {
@@ -1587,6 +1597,506 @@ $.updateOwnershipTransitions = function() {
     $.updateOwnershipTransitionsForType('armor', $dataArmors);
 };
 
+$.battlerCacheKey = function(battler) {
+    if (!battler) {
+        return '';
+    }
+    if (battler.isActor && battler.isActor()) {
+        var actorId = battler.actorId ? battler.actorId() : battler._actorId;
+        return 'a:' + actorId;
+    }
+    if (battler.isEnemy && battler.isEnemy()) {
+        if (!battler._jakePFAUid) {
+            $.battlerUidSeq = ($.battlerUidSeq || 0) + 1;
+            battler._jakePFAUid = $.battlerUidSeq;
+        }
+        return 'e:' + battler._jakePFAUid;
+    }
+    return '';
+};
+
+$.getBattlerOwnCache = function(battler, create) {
+    var key = $.battlerCacheKey(battler);
+    if (!key) {
+        return null;
+    }
+    if (!$.battlerOwnCache[key] && create) {
+        $.battlerOwnCache[key] = {
+            states: null,
+            skills: null,
+            equips: null,
+            dead: null,
+            pendingObtain: {},
+            pendingLoss: {},
+            pendingSkillObtain: {},
+            pendingSkillLoss: {}
+        };
+    }
+    return $.battlerOwnCache[key] || null;
+};
+
+$.purgeEnemyOwnCache = function() {
+    var keys = Object.keys($.battlerOwnCache);
+    for (var i = 0; i < keys.length; i++) {
+        if (keys[i].indexOf('e:') === 0) {
+            delete $.battlerOwnCache[keys[i]];
+        }
+    }
+};
+
+$.idSetHas = function(set, id) {
+    if (!set || id === undefined || id === null) {
+        return false;
+    }
+    return !!(set[id] || set[String(id)]);
+};
+
+$.ownedStateIdSet = function(battler) {
+    var set = {};
+    if (!battler || typeof battler.states !== 'function') {
+        return set;
+    }
+    if (battler._states && !Array.isArray(battler._states)) {
+        return set;
+    }
+    var list = battler.states();
+    if (!list || !list.length) {
+        return set;
+    }
+    for (var i = 0; i < list.length; i++) {
+        var state = list[i];
+        if (state && state.id) {
+            set[state.id] = true;
+        }
+    }
+    return set;
+};
+
+$.battlerCurrentlyHasState = function(battler, stateId) {
+    if (!battler || !stateId) {
+        return false;
+    }
+    if ($.idSetHas($.ownedStateIdSet(battler), stateId)) {
+        return true;
+    }
+    if (Array.isArray(battler._states) && battler._states.contains(Number(stateId))) {
+        return true;
+    }
+    return false;
+};
+
+$.resolveBattlerStateId = function(battler, stateRef) {
+    if (stateRef === undefined || stateRef === null || stateRef === '') {
+        return 0;
+    }
+    if (battler && typeof battler.resolveStateRef === 'function') {
+        var resolved = battler.resolveStateRef(stateRef, false);
+        if (resolved) {
+            return resolved;
+        }
+    }
+    var id = Number(stateRef);
+    return isNaN(id) ? 0 : id;
+};
+
+$.fireStateObtain = function(battler, stateId) {
+    stateId = Number(stateId);
+    if (!battler || !stateId || !$dataStates[stateId]) {
+        return;
+    }
+    var entry = $.getBattlerOwnCache(battler, true);
+    if (entry) {
+        if (entry.states) {
+            if ($.idSetHas(entry.states, stateId)) {
+                return;
+            }
+            entry.states[stateId] = true;
+        } else {
+            entry.pendingObtain = entry.pendingObtain || {};
+            if ($.idSetHas(entry.pendingObtain, stateId)) {
+                return;
+            }
+            entry.pendingObtain[stateId] = true;
+        }
+        if (entry.pendingLoss) {
+            delete entry.pendingLoss[stateId];
+            delete entry.pendingLoss[String(stateId)];
+        }
+    }
+    $.executeTimingScripts($dataStates[stateId], 'onObtain', battler, $.getOwningMemberIndex(battler));
+};
+
+$.fireStateLoss = function(battler, stateId) {
+    stateId = Number(stateId);
+    if (!battler || !stateId || !$dataStates[stateId]) {
+        return;
+    }
+    var entry = $.getBattlerOwnCache(battler, true);
+    if (entry) {
+        if (entry.states) {
+            if (!$.idSetHas(entry.states, stateId)) {
+                return;
+            }
+            delete entry.states[stateId];
+            delete entry.states[String(stateId)];
+        } else {
+            entry.pendingLoss = entry.pendingLoss || {};
+            if ($.idSetHas(entry.pendingLoss, stateId)) {
+                return;
+            }
+            entry.pendingLoss[stateId] = true;
+        }
+        if (entry.pendingObtain) {
+            delete entry.pendingObtain[stateId];
+            delete entry.pendingObtain[String(stateId)];
+        }
+    }
+    $.executeTimingScripts($dataStates[stateId], 'onLoss', battler, $.getOwningMemberIndex(battler));
+};
+
+$.syncBattlerStates = function(battler) {
+    var entry = $.getBattlerOwnCache(battler, true);
+    if (!entry) {
+        return;
+    }
+    var current = $.ownedStateIdSet(battler);
+    if (!entry.states) {
+        entry.states = current;
+        entry.pendingObtain = {};
+        entry.pendingLoss = {};
+        return;
+    }
+    var prev = entry.states;
+    var id;
+    for (id in current) {
+        if (current.hasOwnProperty(id) && !$.idSetHas(prev, id)) {
+            $.fireStateObtain(battler, id);
+        }
+    }
+    for (id in prev) {
+        if (prev.hasOwnProperty(id) && !$.idSetHas(current, id)) {
+            $.fireStateLoss(battler, id);
+        }
+    }
+    entry.states = $.ownedStateIdSet(battler);
+};
+
+$.ownedSkillIdSet = function(actor) {
+    var set = {};
+    if (!actor || typeof actor.skills !== 'function') {
+        return set;
+    }
+    var list = actor.skills();
+    if (!list || !list.length) {
+        return set;
+    }
+    for (var i = 0; i < list.length; i++) {
+        var skill = list[i];
+        if (skill && skill.id) {
+            set[skill.id] = true;
+        }
+    }
+    return set;
+};
+
+$.fireSkillObtain = function(actor, skillId) {
+    skillId = Number(skillId);
+    if (!actor || !skillId || !$dataSkills[skillId]) {
+        return;
+    }
+    var entry = $.getBattlerOwnCache(actor, true);
+    if (entry) {
+        if (entry.skills) {
+            if ($.idSetHas(entry.skills, skillId)) {
+                return;
+            }
+            entry.skills[skillId] = true;
+        } else {
+            entry.pendingSkillObtain = entry.pendingSkillObtain || {};
+            if ($.idSetHas(entry.pendingSkillObtain, skillId)) {
+                return;
+            }
+            entry.pendingSkillObtain[skillId] = true;
+        }
+        if (entry.pendingSkillLoss) {
+            delete entry.pendingSkillLoss[skillId];
+            delete entry.pendingSkillLoss[String(skillId)];
+        }
+    }
+    $.executeTimingScripts($dataSkills[skillId], 'onObtain', actor, $.getOwningMemberIndex(actor));
+};
+
+$.fireSkillLoss = function(actor, skillId) {
+    skillId = Number(skillId);
+    if (!actor || !skillId || !$dataSkills[skillId]) {
+        return;
+    }
+    var entry = $.getBattlerOwnCache(actor, true);
+    if (entry) {
+        if (entry.skills) {
+            if (!$.idSetHas(entry.skills, skillId)) {
+                return;
+            }
+            delete entry.skills[skillId];
+            delete entry.skills[String(skillId)];
+        } else {
+            entry.pendingSkillLoss = entry.pendingSkillLoss || {};
+            if ($.idSetHas(entry.pendingSkillLoss, skillId)) {
+                return;
+            }
+            entry.pendingSkillLoss[skillId] = true;
+        }
+        if (entry.pendingSkillObtain) {
+            delete entry.pendingSkillObtain[skillId];
+            delete entry.pendingSkillObtain[String(skillId)];
+        }
+    }
+    $.executeTimingScripts($dataSkills[skillId], 'onLoss', actor, $.getOwningMemberIndex(actor));
+};
+
+$.syncActorSkills = function(actor) {
+    var entry = $.getBattlerOwnCache(actor, true);
+    if (!entry) {
+        return;
+    }
+    var current = $.ownedSkillIdSet(actor);
+    if (!entry.skills) {
+        entry.skills = current;
+        entry.pendingSkillObtain = {};
+        entry.pendingSkillLoss = {};
+        return;
+    }
+    var prev = entry.skills;
+    var id;
+    for (id in current) {
+        if (current.hasOwnProperty(id) && !$.idSetHas(prev, id)) {
+            $.fireSkillObtain(actor, id);
+        }
+    }
+    for (id in prev) {
+        if (prev.hasOwnProperty(id) && !$.idSetHas(current, id)) {
+            $.fireSkillLoss(actor, id);
+        }
+    }
+    entry.skills = $.ownedSkillIdSet(actor);
+};
+
+$.equipSlotSnapshot = function(actor) {
+    if (!actor || typeof actor.equips !== 'function') {
+        return [];
+    }
+    var equips = actor.equips();
+    var result = [];
+    if (!equips) {
+        return result;
+    }
+    for (var i = 0; i < equips.length; i++) {
+        result.push(equips[i] || null);
+    }
+    return result;
+};
+
+$.syncActorEquips = function(actor, fireChanges) {
+    var entry = $.getBattlerOwnCache(actor, true);
+    if (!entry) {
+        return;
+    }
+    var current = $.equipSlotSnapshot(actor);
+    if (!entry.equips) {
+        entry.equips = current;
+        return;
+    }
+    if (fireChanges) {
+        var len = Math.max(entry.equips.length, current.length);
+        for (var i = 0; i < len; i++) {
+            var oldItem = entry.equips[i] || null;
+            var newItem = current[i] || null;
+            if (oldItem !== newItem) {
+                $.processEquipChangeTimings(actor, oldItem, newItem);
+            }
+        }
+    }
+    entry.equips = current;
+};
+
+$.fireDeathTiming = function(battler) {
+    var entry = $.getBattlerOwnCache(battler, true);
+    if (entry && entry.dead === true) {
+        return;
+    }
+    if (entry) {
+        entry.dead = true;
+    }
+    var dataObj = $.dataFromBattler(battler);
+    $.executeTimingScripts(dataObj, 'onDeath', battler, $.getOwningMemberIndex(battler));
+};
+
+$.syncBattlerDead = function(battler) {
+    var entry = $.getBattlerOwnCache(battler, true);
+    if (!entry) {
+        return;
+    }
+    var isDeadNow = !!(battler.isDead && battler.isDead());
+    if (entry.dead === null) {
+        entry.dead = isDeadNow;
+        return;
+    }
+    if (!entry.dead && isDeadNow) {
+        $.fireDeathTiming(battler);
+    }
+    entry.dead = isDeadNow;
+};
+
+$.collectOwnershipBattlers = function() {
+    var list = [];
+    var seen = {};
+    var add = function(battler) {
+        if (!battler) {
+            return;
+        }
+        var key = $.battlerCacheKey(battler);
+        if (!key || seen[key]) {
+            return;
+        }
+        seen[key] = true;
+        list.push(battler);
+    };
+
+    var party = $.partyMembersForIndex();
+    for (var i = 0; i < party.length; i++) {
+        add(party[i]);
+    }
+
+    if ($gameParty && $gameParty.inBattle()) {
+        var enemies = $.troopMembers();
+        for (var e = 0; e < enemies.length; e++) {
+            add(enemies[e]);
+        }
+    } else {
+        $.purgeEnemyOwnCache();
+    }
+
+    return list;
+};
+
+$.updateBattlerOwnershipTransitions = function() {
+    var battlers = $.collectOwnershipBattlers();
+    for (var i = 0; i < battlers.length; i++) {
+        var battler = battlers[i];
+        $.syncBattlerStates(battler);
+        $.syncBattlerDead(battler);
+        if (battler.isActor && battler.isActor()) {
+            $.syncActorSkills(battler);
+            $.syncActorEquips(battler, true);
+        }
+    }
+};
+
+$.wrapMethodOnce = function(targetObj, methodName, flagName, wrapperFactory) {
+    if (!targetObj || typeof targetObj[methodName] !== 'function') {
+        return false;
+    }
+    var current = targetObj[methodName];
+    if (current && current[flagName]) {
+        return true;
+    }
+    var wrapped = wrapperFactory(current);
+    wrapped[flagName] = true;
+    targetObj[methodName] = wrapped;
+    return true;
+};
+
+$.installRuntimeOwnershipHooks = function() {
+    if ($.runtimeOwnershipHooksInstalled) {
+        return;
+    }
+    $.runtimeOwnershipHooksInstalled = true;
+
+    $.wrapMethodOnce(Game_Battler.prototype, 'addState', '__jakePFAAddStateWrap', function(original) {
+        return function(stateRef) {
+            var stateId = $.resolveBattlerStateId(this, stateRef);
+            var hadState = stateId ? $.battlerCurrentlyHasState(this, stateId) : false;
+            var result = original.apply(this, arguments);
+            if (stateId) {
+                var hasState = $.battlerCurrentlyHasState(this, stateId);
+                if (!hadState && hasState) {
+                    $.fireStateObtain(this, stateId);
+                } else if (hadState && !hasState) {
+                    $.fireStateLoss(this, stateId);
+                }
+            }
+            return result;
+        };
+    });
+
+    $.wrapMethodOnce(Game_Battler.prototype, 'removeState', '__jakePFARemoveStateWrap', function(original) {
+        return function(stateRef) {
+            var stateId = $.resolveBattlerStateId(this, stateRef);
+            var hadState = stateId ? $.battlerCurrentlyHasState(this, stateId) : false;
+            var result = original.apply(this, arguments);
+            if (stateId) {
+                var hasState = $.battlerCurrentlyHasState(this, stateId);
+                if (hadState && !hasState) {
+                    $.fireStateLoss(this, stateId);
+                } else if (!hadState && hasState) {
+                    $.fireStateObtain(this, stateId);
+                }
+            }
+            return result;
+        };
+    });
+
+    if (Game_Actor && Game_Actor.prototype) {
+        $.wrapMethodOnce(Game_Actor.prototype, 'learnSkill', '__jakePFALearnSkillWrap', function(original) {
+            return function(skillId) {
+                var hadSkill = this.isLearnedSkill ? this.isLearnedSkill(skillId) : false;
+                var result = original.apply(this, arguments);
+                var hasSkill = this.isLearnedSkill ? this.isLearnedSkill(skillId) : false;
+                if (!hadSkill && hasSkill) {
+                    $.fireSkillObtain(this, skillId);
+                }
+                return result;
+            };
+        });
+
+        $.wrapMethodOnce(Game_Actor.prototype, 'forgetSkill', '__jakePFAForgetSkillWrap', function(original) {
+            return function(skillId) {
+                var hadSkill = this.isLearnedSkill ? this.isLearnedSkill(skillId) : false;
+                var result = original.apply(this, arguments);
+                var hasSkill = this.isLearnedSkill ? this.isLearnedSkill(skillId) : false;
+                if (hadSkill && !hasSkill) {
+                    $.fireSkillLoss(this, skillId);
+                }
+                return result;
+            };
+        });
+    }
+
+    $.wrapMethodOnce(Game_BattlerBase.prototype, 'die', '__jakePFADieWrap', function(original) {
+        return function() {
+            var wasAlive = this.isAlive ? this.isAlive() : false;
+            var result = original.apply(this, arguments);
+            var isDeadNow = this.isDead ? this.isDead() : false;
+            if (wasAlive && isDeadNow) {
+                $.fireDeathTiming(this);
+            }
+            return result;
+        };
+    });
+
+    if (Game_Party && Game_Party.prototype && Game_Party.prototype.gainItem) {
+        $.wrapMethodOnce(Game_Party.prototype, 'gainItem', '__jakePFAGainItemWrap', function(original) {
+            return function() {
+                var result = original.apply(this, arguments);
+                if ($.isRuntimeReady() && $.shouldRunTimingEvals()) {
+                    $.updateOwnershipTransitions();
+                }
+                return result;
+            };
+        });
+    }
+};
+
 $.collectOwnedEquipData = function(isWeapon) {
     var result = [];
     var lookup = {};
@@ -1807,6 +2317,7 @@ $.updateFramePassives = function() {
     }
 
     $.updateOwnershipTransitions();
+    $.updateBattlerOwnershipTransitions();
     $.runWhileOwnedItems();
     $.runWhileOwnedWeapons();
     $.runWhileOwnedArmors();
@@ -1922,6 +2433,7 @@ $.stringifyHookHandlers.DataManager_isDatabaseLoaded = function(original, args) 
     if (!$.databaseProcessed) {
         $.processDatabaseNotetags();
     }
+    $.installRuntimeOwnershipHooks();
     return true;
 };
 
@@ -1959,7 +2471,7 @@ $.stringifyHookHandlers.Game_Actor_learnSkill = function(original, args) {
         var result = original.apply(this, args);
         var hasSkill = this.isLearnedSkill(skillId);
         if (!hadSkill && hasSkill) {
-            $.executeTimingScripts($dataSkills[skillId], 'onObtain', this, $.getOwningMemberIndex(this));
+            $.fireSkillObtain(this, skillId);
         }
         return result;
     } finally {
@@ -1976,7 +2488,7 @@ $.stringifyHookHandlers.Game_Actor_forgetSkill = function(original, args) {
     var result = original.apply(this, args);
     var hasSkill = this.isLearnedSkill(skillId);
     if (hadSkill && !hasSkill) {
-        $.executeTimingScripts($dataSkills[skillId], 'onLoss', this, $.getOwningMemberIndex(this));
+        $.fireSkillLoss(this, skillId);
     }
     return result;
 };
@@ -1987,6 +2499,7 @@ $.stringifyHookHandlers.Game_Actor_changeEquip = function(original, args) {
     var result = original.apply(this, args);
     var newItem = this.equips ? this.equips()[slotId] : null;
     $.processEquipChangeTimings(this, oldItem, newItem);
+    $.syncActorEquips(this, false);
     return result;
 };
 
@@ -1996,27 +2509,28 @@ $.stringifyHookHandlers.Game_Actor_forceChangeEquip = function(original, args) {
     var result = original.apply(this, args);
     var newItem = this.equips ? this.equips()[slotId] : null;
     $.processEquipChangeTimings(this, oldItem, newItem);
+    $.syncActorEquips(this, false);
     return result;
 };
 
 $.stringifyHookHandlers.Game_BattlerBase_addNewState = function(original, args) {
     var stateId = args[0];
-    var hadState = this.isStateAffected ? this.isStateAffected(stateId) : false;
+    var hadState = $.battlerCurrentlyHasState(this, stateId);
     var result = original.apply(this, args);
-    var hasState = this.isStateAffected ? this.isStateAffected(stateId) : false;
+    var hasState = $.battlerCurrentlyHasState(this, stateId);
     if (!hadState && hasState) {
-        $.executeTimingScripts($dataStates[stateId], 'onObtain', this, $.getOwningMemberIndex(this));
+        $.fireStateObtain(this, stateId);
     }
     return result;
 };
 
 $.stringifyHookHandlers.Game_BattlerBase_eraseState = function(original, args) {
     var stateId = args[0];
-    var hadState = this.isStateAffected ? this.isStateAffected(stateId) : false;
+    var hadState = $.battlerCurrentlyHasState(this, stateId);
     var result = original.apply(this, args);
-    var hasState = this.isStateAffected ? this.isStateAffected(stateId) : false;
+    var hasState = $.battlerCurrentlyHasState(this, stateId);
     if (hadState && !hasState) {
-        $.executeTimingScripts($dataStates[stateId], 'onLoss', this, $.getOwningMemberIndex(this));
+        $.fireStateLoss(this, stateId);
     }
     return result;
 };
@@ -2065,12 +2579,10 @@ $.stringifyHookHandlers.Game_BattlerBase_clearStates = function(original, args) 
             return result;
         }
 
-        var index = $.getOwningMemberIndex(this);
         for (var i = 0; i < removedStateIds.length; i++) {
             var stateId = removedStateIds[i];
-            var state = $dataStates[stateId];
-            if (state) {
-                $.executeTimingScripts(state, 'onLoss', this, index);
+            if ($dataStates[stateId]) {
+                $.fireStateLoss(this, stateId);
             }
         }
         return result;
@@ -2085,8 +2597,7 @@ $.stringifyHookHandlers.Game_BattlerBase_die = function(original, args) {
     var isDeadNow = this.isDead ? this.isDead() : false;
 
     if (wasAlive && isDeadNow) {
-        var dataObj = $.dataFromBattler(this);
-        $.executeTimingScripts(dataObj, 'onDeath', this, $.getOwningMemberIndex(this));
+        $.fireDeathTiming(this);
     }
     return result;
 };
