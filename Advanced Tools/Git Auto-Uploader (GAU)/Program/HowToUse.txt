@@ -1,0 +1,143 @@
+Git Auto-Uploader (GAU)
+=======================
+
+What it is
+----------
+A standalone Windows tool for any GitHub repository. It can check whether
+the remote is ahead of your folder, show your local unpublished changes,
+pull, and commit+push. Settings are stored next to the tool
+(gau-config.json), so the next launch in this Program folder skips setup
+and opens the menu.
+
+
+What you need
+-------------
+- Windows 10 or 11 (Command Prompt + Windows PowerShell 5.1 are built in)
+- Internet access
+- A GitHub account with permission on the repo you use
+
+You do not need to install Git yourself. On first run, if git.exe is
+missing, the tool installs Git for Windows from the internet (winget, or
+a direct download of the official 64-bit installer).
+
+
+First run
+---------
+Double-click Git-Auto-Uploader.bat (not the .ps1 file). Keep the window
+open; it waits for you.
+
+The Program folder is named "Git Auto-Uploader (GAU)". In cmd and
+PowerShell, parentheses start a command group, so "(GAU)" was being
+read as a command named GAU and the window closed immediately. The
+.bat launcher avoids that; always start from the .bat.
+
+1. Git
+   Installs Git if needed, then refreshes PATH.
+
+2. Log in to Git / GitHub
+   - Asks for git user.name and user.email if they are not set (these
+     appear on your commits).
+   - Opens a browser GitHub login (GitHub CLI if available, otherwise
+     Git Credential Manager).
+   - Use the same GitHub account that can read/write the repo.
+
+3. GitHub repo link
+   Paste any of these; the tool extracts owner/repo:
+   - https://github.com/Owner/Repo
+   - https://github.com/Owner/Repo.git
+   - https://github.com/Owner/Repo/tree/main/some/folder
+   - https://github.com/Owner/Repo/blob/main/path/file.rpy
+   - git@github.com:Owner/Repo.git
+
+   Extra path segments (tree/blob/...) are ignored. Git always works on
+   the whole repository, not a single subfolder inside the link.
+
+4. Folder path
+   - Type a folder and press Enter:
+     That folder is the working copy. Tool files are NOT ignored, so you
+     can later point this at the GAU Program folder itself and version
+     the tool on GitHub.
+   - Press Enter with an empty line:
+     Uses this Program folder as the working copy, and excludes GAU's
+     own files from commits/pushes (so you do not upload the tool into
+     someone else's project by mistake).
+
+   Empty folder  -> clones the repo there.
+   Folder that already has .git -> points origin at your link.
+   Folder with files but no git -> git init + fetch (your files stay;
+     use Pull if you also want the remote history).
+
+
+Later runs
+----------
+If gau-config.json exists in this Program folder, you go straight to the
+status report and menu.
+
+Menu
+----
+  P  Git Pull
+     Downloads newer commits from GitHub into the chosen folder.
+     Stops if local files conflict with incoming files.
+
+  F  Force Pull
+     Makes this folder match the GitHub repo, even when files conflict.
+     You must type FORCE (not just Y). That:
+     - fetches origin
+     - hard-resets tracked files to the remote branch
+     - deletes untracked files that are not ignored
+     Uncommitted edits and unpushed local commits are discarded.
+     GAU tool files stay if you are in "ignore tool files" mode.
+     Use this only when you want the repo to win.
+
+  C  Commit + Push
+     1. Asks for a commit message (empty message cancels).
+     2. Stages local changes (honouring the ignore-tool-files setting).
+     3. If the change set is larger than about 1.8 GiB, splits into
+        several commits named "your message 1", "your message 2", ...
+        and pushes each one separately. That avoids GitHub's HTTPS pack
+        limit (~2 GiB) that fails a single huge push.
+     4. If there is nothing new to commit but you still have unpushed
+        commits, it only pushes (and still splits the push if needed).
+     Files larger than GitHub's 100 MB per-file limit are warned about;
+     a single file above ~1.8 GiB cannot be pushed this way.
+
+  R  Recheck
+     Fetches origin and refreshes the report.
+
+  L  Log out
+     Signs out of GitHub on this PC, then prompts you to log in again.
+
+  Z  Switch Git repo link
+     Same URL rules as first run. Updates origin on the current folder.
+
+  X  Switch folder path
+     Same rules as first run: empty Enter = this Program folder and
+     ignore GAU files; a typed path = use that folder and do not ignore
+     GAU files (even if you type this Program path on purpose).
+
+  Q  Quit
+     Leaves the menu. Press Enter once more to close the window.
+
+
+Status report
+-------------
+- Remote commits newer than your folder (id, date/time, message,
+  submitter, files added/removed/modified).
+- Your changes that are not on GitHub:
+  uncommitted files, and local commits not yet pushed.
+
+
+Local settings file
+-------------------
+gau-config.json lives in this Program folder. Delete it to run first-time
+setup again. It is listed in Git's local exclude list when you are in
+"ignore tool files" mode, so it is not pushed by accident.
+
+
+Notes
+-----
+- Commit + Push does not invent a message; you type it.
+- Pull can fail if you have overlapping uncommitted files. Commit or
+  stash those first, or confirm you still want to pull.
+- Logout does not delete your repo folder or gau-config.json.
+- Git identity (name/email) is stored in Git's global config on the PC.
