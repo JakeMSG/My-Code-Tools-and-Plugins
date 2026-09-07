@@ -42,15 +42,23 @@ read as a command named GAU and the window closed immediately. The
    - Use the same GitHub account that can read/write the repo.
 
 3. GitHub repo link
-   Paste any of these; the tool extracts owner/repo:
+   Paste a repo root OR a folder inside the repo:
    - https://github.com/Owner/Repo
    - https://github.com/Owner/Repo.git
    - https://github.com/Owner/Repo/tree/main/some/folder
    - https://github.com/Owner/Repo/blob/main/path/file.rpy
    - git@github.com:Owner/Repo.git
 
-   Extra path segments (tree/blob/...) are ignored. Git always works on
-   the whole repository, not a single subfolder inside the link.
+   A /tree/... or /blob/... link is not treated as the whole repo.
+   The tool stores that folder path and maps your local folder to it:
+   local HowToUse.txt  <->  some/folder/HowToUse.txt on GitHub.
+
+   It keeps a hidden clone named .gau-repo inside your folder for Git
+   internals. Pull/Push/Force Pull only sync that subdirectory.
+   Commits that only touch other parts of the repo are ignored in the
+   status list.
+
+   Root links still use the whole repository (no .gau-repo).
 
 4. Folder path
    - Type a folder and press Enter:
@@ -108,7 +116,12 @@ Menu
      Signs out of GitHub on this PC, then prompts you to log in again.
 
   Z  Switch Git repo link
-     Same URL rules as first run. Updates origin on the current folder.
+     Same URL rules as first run (root or /tree/... folder path).
+     Updates origin on the current folder. A folder-path link uses a
+     hidden .gau-repo clone; a root link uses Git in the folder itself.
+
+     If you already saved a /tree/... link before this feature existed,
+     the next launch reads that path from gau-config.json automatically.
 
   X  Switch folder path
      Same rules as first run: empty Enter = this Program folder and
@@ -139,5 +152,9 @@ Notes
 - Commit + Push does not invent a message; you type it.
 - Pull can fail if you have overlapping uncommitted files. Commit or
   stash those first, or confirm you still want to pull.
+- Folder-path links keep Git internals in .gau-repo inside your folder.
+  Do not edit that folder by hand. The tool checks out only that folder
+  (so other long Windows paths in the same repo are not written).
+  Git 2.24 is fine; clone --sparse is not required.
 - Logout does not delete your repo folder or gau-config.json.
 - Git identity (name/email) is stored in Git's global config on the PC.
