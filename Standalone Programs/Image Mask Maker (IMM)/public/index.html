@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Mask Maker - v1.0</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="ambient-band ambient-a"></div>
+  <div class="ambient-band ambient-b"></div>
+
+  <div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true">
+    <div class="drop-overlay-card">
+        <strong id="dropOverlayTitle">Drop PNG or WebP files</strong>
+      <p id="dropOverlayText">Release to add pictures.</p>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <h1>Image Mask Maker - v1.0</h1>
+        <p>Draw inpaint masks on one picture, or on several aligned pictures</p>
+      </div>
+      <nav id="stepper" class="stepper" aria-label="Steps"></nav>
+      <div class="toolbar-group">
+        <button id="btnStartOver" type="button">Start Over</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="stepSelect" class="step-panel active" data-step="select">
+        <div class="panel-copy">
+          <h2>Choose pictures</h2>
+          <p>Select one or more <strong>.png</strong> or <strong>.webp</strong> files. With two or more, the next step aligns them before you draw one shared mask.</p>
+        </div>
+        <div class="select-layout">
+          <div id="sourceDropZone" class="drop-zone">
+            <div class="drop-zone-inner">
+              <strong>Drop .png or .webp pictures here</strong>
+              <span>or</span>
+              <button id="btnPick" class="accent" type="button">Choose PNG or WebP files</button>
+            </div>
+          </div>
+          <aside class="file-list-card">
+            <div class="card-head">
+              <h3>Pictures</h3>
+              <span id="sourceCount" class="muted">0 files</span>
+            </div>
+            <ul id="sourceList" class="file-list"></ul>
+          </aside>
+        </div>
+      </section>
+
+      <section id="stepAlign" class="step-panel" data-step="align">
+        <div class="panel-copy">
+          <h2>Align pictures</h2>
+          <p>Offset each picture so the same part of the character lines up. The mask you draw next is shared. Each saved mask is cut from that drawing at the picture’s offset, so the white areas will not sit on the same pixels in every file.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="canvas-toolbar">
+              <button id="btnAlignFit" type="button">Fit</button>
+              <label class="inline-field">Overlay opacity
+                <input id="alignOpacity" type="range" min="15" max="100" value="55">
+              </label>
+              <span id="alignHint" class="muted">Select a picture, then drag it or nudge it.</span>
+            </div>
+            <div class="canvas-host checker">
+              <canvas id="alignCanvas" tabindex="0"></canvas>
+            </div>
+            <p class="muted tiny canvas-help">Dragging moves the selected picture, including where a later picture covers it. A drag that starts outside that picture selects and moves the top picture under the pointer. Drag empty space to pan. Mouse wheel zooms. Arrow keys nudge by 1 pixel (Shift = 10).</p>
+          </div>
+          <aside class="side-card">
+            <h3>Pictures</h3>
+            <ul id="alignList" class="file-list compact"></ul>
+            <div class="nudge-block">
+              <div class="card-head">
+                <h3>Offset</h3>
+                <button id="btnResetOffsets" type="button">Reset all</button>
+              </div>
+              <label class="stack-field">X
+                <input id="offsetX" type="number" step="1" value="0">
+              </label>
+              <label class="stack-field">Y
+                <input id="offsetY" type="number" step="1" value="0">
+              </label>
+              <div class="nudge-pad">
+                <button type="button" data-nudge="0,-1">Up</button>
+                <button type="button" data-nudge="-1,0">Left</button>
+                <button type="button" data-nudge="1,0">Right</button>
+                <button type="button" data-nudge="0,1">Down</button>
+              </div>
+              <p class="muted tiny">Drag a row to change the order. Pictures lower in the list are drawn on top.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="stepPreMask" class="step-panel" data-step="premask">
+        <div class="panel-copy">
+          <h2>Place a starting mask</h2>
+          <p>This step is optional. Load one PNG or WebP mask and move it until it sits on the pictures. The Mask step then opens with that mask, and you can keep editing it. With no file here, the Mask step starts blank.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="canvas-toolbar">
+              <button id="btnPreMaskFit" type="button">Fit</button>
+              <span id="preMaskHint" class="muted">Choose a mask file, then drag it into place.</span>
+            </div>
+            <div class="canvas-host checker">
+              <canvas id="preMaskCanvas" tabindex="0"></canvas>
+            </div>
+            <p class="muted tiny canvas-help">Drag the mask to move it. Drag empty space to pan. Mouse wheel zooms. Arrow keys nudge the mask by 1 pixel (Shift = 10). White and gray are a see-through tint. Black is empty.</p>
+          </div>
+          <aside class="side-card">
+            <h3>Pre-mask</h3>
+            <p class="muted tiny">One file. It does not need to match a picture name. Its position is in the same pixel space as the aligned pictures.</p>
+            <div class="toolbar-row">
+              <button id="btnPickPreMask" class="accent" type="button">Choose mask file</button>
+              <button id="btnClearPreMask" type="button">Remove</button>
+            </div>
+            <p><strong id="preMaskName">No mask loaded</strong></p>
+            <label class="stack-field">Tint opacity
+              <input id="preMaskOpacity" type="range" min="15" max="90" value="45">
+            </label>
+            <p class="muted tiny">Higher shows more of the white and gray. This only changes the preview, so the picture underneath is easier to line up.</p>
+            <div class="nudge-block">
+              <div class="card-head">
+                <h3>Offset</h3>
+                <button id="btnResetPreMask" type="button">Reset</button>
+              </div>
+              <label class="stack-field">X
+                <input id="preOffsetX" type="number" step="1" value="0">
+              </label>
+              <label class="stack-field">Y
+                <input id="preOffsetY" type="number" step="1" value="0">
+              </label>
+              <div class="nudge-pad">
+                <button type="button" data-pre-nudge="0,-1">Up</button>
+                <button type="button" data-pre-nudge="-1,0">Left</button>
+                <button type="button" data-pre-nudge="1,0">Right</button>
+                <button type="button" data-pre-nudge="0,1">Down</button>
+              </div>
+              <p class="muted tiny">Changing this position and returning to Mask replaces the drawing with the pre-mask. Edits stay while the pre-mask is left where it is.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="stepDraw" class="step-panel" data-step="draw">
+        <div class="panel-copy">
+          <h2>Draw the mask</h2>
+          <p>White is the area to redraw. Gray softens the edge. Black is left as it is. On screen, white and gray are a see-through tint so the picture stays visible. The saved file is an opaque black, white, and gray PNG or WebP, in the same format as the picture.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="canvas-toolbar mask-toolbar">
+              <button id="btnDrawFit" type="button">Fit</button>
+              <div class="metric-cluster">
+                <div class="metric-group">
+                  <button id="btnZoomOut" type="button" title="Zoom out">-</button>
+                  <label class="metric-field">Zoom:
+                    <input id="zoomInput" type="text" inputmode="decimal" value="100" aria-label="Zoom percent">
+                    <span>%</span>
+                  </label>
+                  <button id="btnZoomIn" type="button" title="Zoom in">+</button>
+                </div>
+                <div class="metric-group">
+                  <button id="btnBrushDown" type="button" title="Smaller brush">-</button>
+                  <label class="metric-field">Brush size:
+                    <input id="brushInput" type="text" inputmode="numeric" value="16" aria-label="Brush size in pixels">
+                  </label>
+                  <button id="btnBrushUp" type="button" title="Larger brush">+</button>
+                </div>
+              </div>
+              <span id="drawReadout" class="muted">x 0, y 0 · value 0</span>
+            </div>
+            <div class="canvas-host checker">
+              <canvas id="drawCanvas" class="tool-draw" tabindex="0"></canvas>
+            </div>
+            <p class="muted tiny canvas-help">Type a new Zoom or Brush size and press Enter. The - and + buttons change them too. Wheel zooms toward the pointer. Space, middle mouse, or right-drag pans.</p>
+          </div>
+          <aside class="side-card tools-card">
+            <h3>Tool</h3>
+            <div class="tool-grid">
+              <button type="button" class="tool-btn active" data-tool="brush">Brush</button>
+              <button type="button" class="tool-btn" data-tool="line">Line</button>
+              <button type="button" class="tool-btn" data-tool="rect">Rectangle</button>
+              <button type="button" class="tool-btn" data-tool="ellipse">Ellipse</button>
+              <button type="button" class="tool-btn" data-tool="fill">Fill</button>
+              <button type="button" class="tool-btn" data-tool="erase">Erase</button>
+              <button type="button" class="tool-btn" data-tool="pan">Pan</button>
+            </div>
+            <h3>Paint</h3>
+            <div class="color-row">
+              <button id="btnColorWhite" type="button" class="active">White</button>
+              <button id="btnColorGray" type="button">Gray</button>
+            </div>
+            <label class="stack-field">Gray level
+              <input id="grayLevel" type="range" min="1" max="254" value="128" disabled>
+            </label>
+            <label class="stack-field">Gray level (1–254)
+              <input id="grayLevelNum" type="number" min="1" max="254" step="1" value="128" disabled>
+            </label>
+            <p class="muted tiny">Higher gray is closer to white. Switch back to White at any time. Existing strokes stay until you paint over them.</p>
+            <h3>Shape</h3>
+            <div class="color-row">
+              <button id="shapeFilled" type="button" class="active">Filled</button>
+              <button id="shapeOutline" type="button">Outline</button>
+            </div>
+            <p class="muted tiny">Filled and Outline apply to Rectangle and Ellipse. Outline thickness uses the brush size.</p>
+            <h3>Brush size</h3>
+            <label class="stack-field">Diameter (pixels)
+              <input id="brushSize" type="range" min="1" max="128" value="16">
+            </label>
+            <label class="stack-field">
+              <input id="brushSizeNum" type="number" min="1" max="256" step="1" value="16">
+            </label>
+            <h3>View</h3>
+            <label class="stack-field">Tint opacity
+              <input id="overlayOpacity" type="range" min="15" max="90" value="45">
+            </label>
+            <label class="check-row"><input id="chkRaw" type="checkbox"> Show saved mask</label>
+            <p class="muted tiny">Show saved mask replaces the tint with the real black, white, and gray layer. That preview is not written until you save.</p>
+            <div class="toolbar-row">
+              <button id="btnUndo" type="button" disabled>Undo</button>
+              <button id="btnRedo" type="button" disabled>Redo</button>
+              <button id="btnClear" type="button">Clear mask</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="stepCut" class="step-panel" data-step="cut">
+        <div class="panel-copy">
+          <h2>Cut out the masked area</h2>
+          <p>This step is optional. It copies the white-masked part of each picture into a new file and leaves the originals untouched. Gray keeps a softer edge. Black is left empty. Use the mask drawn on the previous step, or load <strong>_Mask</strong> files named for each picture. PNG pictures save as PNG. WebP pictures save as WebP.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="card-head">
+              <h3>Cut preview</h3>
+              <span id="cutCount" class="muted">0</span>
+            </div>
+            <div id="cutPreviews" class="preview-strip"></div>
+            <p class="muted tiny canvas-help">Checkerboard is empty. The orange frame is the Shrinking Fit bounds.</p>
+          </div>
+          <aside class="side-card">
+            <h3>Mask source</h3>
+            <p class="muted tiny">A loaded file replaces the drawn mask for that picture only. With one picture, any PNG or WebP of the same size can be used. With several, each file must be named like the saved mask: PictureName_Mask.png or PictureName_Mask.webp.</p>
+            <div class="toolbar-row">
+              <button id="btnPickCutMasks" type="button">Choose mask file</button>
+              <button id="btnClearCutMasks" type="button">Use drawn mask</button>
+            </div>
+            <ul id="cutMaskList" class="name-list"></ul>
+            <h3>Maintain position</h3>
+            <p class="muted tiny">Same width and height as the original. The cut stays where it was. Everything else is transparent. Names end in _CutMP.</p>
+            <p><strong id="cutMpName">_CutMP.png</strong></p>
+            <button id="btnSaveCutMp" class="accent" type="button">Save Maintain position…</button>
+            <h3>Shrinking Fit</h3>
+            <p class="muted tiny">The file shrinks to the smallest rectangle that still holds every kept pixel. Names end in _CutSF.</p>
+            <p><strong id="cutSfName">_CutSF.png</strong></p>
+            <button id="btnSaveCutSf" class="accent" type="button">Save Shrinking Fit…</button>
+            <div id="cutMultiDir" class="stack-field">
+              <span class="muted tiny">Output folder for several pictures</span>
+              <span id="cutDirLabel" class="path-label">Not chosen</span>
+              <button id="btnPickCutDir" type="button">Choose folder</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="stepSave" class="step-panel" data-step="save">
+        <div class="panel-copy">
+          <h2>Save the mask</h2>
+          <p id="saveIntro">Each mask matches its picture’s pixel size. White redraws, black keeps, gray softens.</p>
+        </div>
+        <div class="stage-layout">
+          <div class="canvas-card">
+            <div class="card-head">
+              <h3>Preview</h3>
+              <span id="saveCount" class="muted">0</span>
+            </div>
+            <div id="savePreviews" class="preview-strip"></div>
+          </div>
+          <aside class="side-card">
+            <div id="saveSingle">
+              <h3>One picture</h3>
+              <p class="muted tiny">The save window opens on this name. You can change the folder and the file name.</p>
+              <p><strong id="saveOneName">_Mask.png</strong></p>
+              <button id="btnSaveOne" class="accent" type="button">Save mask…</button>
+            </div>
+            <div id="saveMulti" class="hidden">
+              <h3>Several pictures</h3>
+              <p class="muted tiny">One folder receives every mask. Names follow each picture, with _Mask added. If two pictures would use the same name, the later one gets _2, _3, and so on.</p>
+              <div class="stack-field">
+                <span class="muted tiny">Output folder</span>
+                <span id="outDirLabel" class="path-label">Not chosen</span>
+              </div>
+              <div class="toolbar-row">
+                <button id="btnPickOutDir" type="button">Choose folder</button>
+                <button id="btnSaveMany" class="accent" type="button">Save masks</button>
+              </div>
+              <ul id="saveNameList" class="name-list"></ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bottombar">
+      <p id="statusText" class="muted">Select one or more PNG or WebP pictures to begin.</p>
+      <div class="nav-actions">
+        <button id="btnSkipMask" type="button" class="hidden">Skip to Mask</button>
+        <button id="btnSkipSave" type="button" class="hidden">Skip to Save</button>
+        <button id="btnBack" type="button" disabled>Back</button>
+        <button id="btnNext" class="accent" type="button" disabled>Next</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="loading" class="loading hidden"><span>Working…</span></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

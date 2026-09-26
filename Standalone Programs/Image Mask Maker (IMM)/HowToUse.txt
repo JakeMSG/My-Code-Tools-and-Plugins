@@ -1,0 +1,378 @@
+Image Mask Maker - v1.0
+How to use
+
+This program draws an inpaint mask for one PNG or WebP picture, or one
+shared mask that is then saved as a separate file for every aligned
+picture. An optional Cut step can copy the white-masked area out into
+new pictures. The original pictures are not changed.
+
+A saved mask is an opaque PNG or WebP with the same pixel size as its
+picture. A PNG picture saves a PNG mask. A WebP picture saves a WebP
+mask. WebP files written here are lossless, so white, black, and gray
+stay exact.
+
+- White  = redraw this area
+- Black  = keep the original pixels
+- Gray   = soften the edge between those two
+
+On screen, white and gray are a see-through tint so you can still see
+the picture. That tint is only a preview. The file itself is solid
+black, white, and gray, not a transparent picture.
+
+
+==================================================
+Starting the program
+==================================================
+
+- Double-click "Image Mask Maker - v1.0.bat" in this folder.
+- The first launch needs internet. It checks for Node.js 18+. If this PC
+  does not have it, a portable Node.js is downloaded into runtime\node.
+- After Node.js is ready, missing program files are downloaded into
+  node_modules (Electron and the picture libraries), then the desktop window opens.
+- Later launches skip those downloads if the files are already there.
+- If a first launch failed, delete the node_modules folder (you can keep
+  runtime) and run the .bat again.
+- The window title is: Image Mask Maker - v1.0
+
+You can also run "npm install" then "npm start" if you already have
+Node.js 18+ and want to skip the launcher.
+
+
+==================================================
+Steps
+==================================================
+
+The top bar is always available. Click a previous step to go back, or
+use Back / Next.
+
+  1. Select  - choose one or more .png or .webp pictures
+  2. Align   - only when two or more pictures are loaded
+  3. Pre-Mask (Optional) - place a starting mask on the pictures
+  4. Mask    - draw the white and gray areas
+  5. Cut (Optional) - copy the white area into new pictures
+  6. Save    - write the mask file or files
+
+With one picture, Align stays unavailable and Next goes from Select to
+Pre-Mask (Optional). "Skip to Mask" jumps from Select or Align straight
+to Mask. From Mask, Next opens Cut (Optional). "Skip to Save" jumps from
+Mask to Save without cutting. Cut (Optional) and Save can also be opened
+from the top bar once at least one picture is loaded. "Start Over"
+clears pictures, offsets, the pre-mask, loaded cut masks, and the drawing.
+
+
+==================================================
+Step 1 - Select pictures
+==================================================
+
+Choose one or more .png or .webp files. Both formats can be mixed in
+the same session. Each saved mask and cut uses the format of its own
+picture.
+
+Ways to add files:
+- Click "Choose PNG or WebP files" (multi-select).
+- Drag and drop .png or .webp files onto the window.
+
+The list shows each file, its pixel size, and Remove. The same file is
+not added twice. Only .png and .webp are accepted.
+
+
+==================================================
+Step 2 - Align pictures
+==================================================
+
+Use this when several pictures show the same character, but that
+character is not in the same pixel position. Offsets are applied when
+the masks are saved, so one drawing can mark the same body part on
+every picture.
+
+- Pictures start at offset 0, 0.
+- Click a row in the Pictures list to select that picture.
+- Dragging on the canvas moves the selected picture. That includes
+  places where a picture drawn later covers it, so a lower picture can
+  still be moved after you select it in the list.
+- A drag that starts outside the selected picture selects and moves
+  the top picture under the pointer.
+- Drag empty canvas space to pan. Mouse wheel zooms. Fit resets the view.
+- Type X/Y, use the nudge buttons, or press the arrow keys.
+  Arrow keys nudge by 1 pixel. Hold Shift for 10 pixels.
+- Overlay opacity fades the unselected pictures.
+- "Reset all" sets every offset back to 0, 0.
+- Drag a row in the Pictures list up or down to change the order.
+  Pictures lower in the list are drawn on top. The grip at the left of
+  each row shows that the row can be dragged. Clicking the row selects
+  that picture.
+
+Changing an offset after you have already drawn moves that picture
+under the mask. The drawing stays where you put it. Align the pictures
+first, place a pre-mask if you have one, then draw. You can still go
+back and adjust.
+
+
+==================================================
+Step 3 - Pre-Mask (Optional)
+==================================================
+
+Loads one starting mask and lets you move it onto the pictures. The
+Mask step then opens with that mask already drawn, so you can keep
+editing it. Skip to Mask leaves this step unused, and the Mask step
+starts blank.
+
+- Choose a .png or .webp mask, or drop one file on this step.
+- The file does not need a special name. With several pictures, this
+  is still one shared mask, placed in the same pixel space as the
+  aligned pictures.
+- It starts on the first picture. Drag it, type X/Y, or nudge it.
+  Arrow keys move it by 1 pixel. Hold Shift for 10 pixels.
+- White and gray show as a see-through tint. Black is empty.
+- Tint opacity changes how see-through that preview is. Raise it to
+  see the mask more clearly, or lower it to see the picture underneath.
+  It does not change the mask used on the next step.
+- Drag empty space to pan. Mouse wheel zooms. Fit frames the pictures
+  and the mask. Reset puts the mask back on the first picture.
+- If more than one file is dropped, the first one is used.
+- Next opens Mask. The drawing there starts from this placement.
+- If you later move the pre-mask, or choose a different file, and then
+  return to Mask, the drawing is replaced by the pre-mask. Leaving the
+  pre-mask where it is keeps the edits you already made.
+- Remove drops the loaded file. A drawing already started on Mask stays.
+
+
+==================================================
+Step 4 - Draw the mask
+==================================================
+
+Orange frames show each picture. Paint inside those frames. Strokes
+that fall outside a picture are not written into that picture's file.
+If a pre-mask was placed on the previous step, this drawing starts
+from that mask.
+
+Tools
+- Brush: freehand. B
+- Line: straight stroke. L
+- Rectangle: Filled or Outline. R
+- Ellipse: Filled or Outline. C
+- Fill: replaces one connected mask color with the current paint. F
+- Erase: paints black (keep). E
+- Pan: drag the view. P
+  Space, middle mouse, or right-drag also pans, without changing tool.
+
+Paint
+- White: full redraw. Key 1
+- Gray: soften. Key 2
+  Gray level is 1 to 254. Higher is closer to white.
+  You can switch back to White and paint over gray, or switch to Gray
+  and paint over white. Older strokes stay until you paint over them.
+- Filled / Outline applies to Rectangle and Ellipse.
+  Outline thickness uses the brush size.
+- Brush size is the diameter in pixels, 1 to 256.
+  [ shrinks it. ] grows it. The slider stops at 128; type a higher
+  number if you need it.
+- Zoom and Brush size also sit in the top middle of the mask area.
+  Each has a - button on the left and a + button on the right.
+  Zoom - / + changes the percentage by 10. Brush - / + changes the
+  size by 1 pixel.
+  You can type a new number in either field. It applies when you press
+  Enter. Zoom is a percentage from 5 to 3200. Brush size is 1 to 256.
+  Leaving the field without Enter puts the previous number back.
+
+View
+- Tint opacity changes how see-through the white and gray preview is.
+  It does not change the saved file.
+- "Show saved mask" hides the pictures and shows the real black, white,
+  and gray layer.
+- Fit frames the pictures. Mouse wheel zooms toward the pointer.
+- The readout on the right of that bar is the pixel under the pointer
+  and its mask value (0 black, 255 white, or a gray in between).
+
+Undo, Redo, and Clear mask
+- Undo: Ctrl+Z
+- Redo: Ctrl+Y, or Ctrl+Shift+Z
+- Clear mask turns the drawing black. Pictures and alignment stay.
+  Clear can be undone.
+
+From this step, Next opens Cut (Optional). Skip to Save goes to the mask save
+step and leaves Cut (Optional) for later.
+
+
+==================================================
+Step 5 - Cut (Optional)
+==================================================
+
+Copies the masked part of each picture into a new file. The files you
+loaded in Select are not overwritten. A PNG source saves a PNG cut. A
+WebP source saves a lossless WebP cut.
+
+What is kept
+- White mask pixels are kept at full strength.
+- Gray mask pixels are kept with a softer edge: the gray level becomes
+  the opacity of that pixel (higher gray is more solid).
+- Black mask pixels are removed. In the new file those pixels are
+  transparent, not black.
+- If the original pixel was already transparent, it stays empty.
+
+The preview shows that result on a checkerboard. The orange frame is
+the smallest rectangle that still contains every kept pixel.
+
+Mask used for the cut
+- By default, the mask drawn in Step 4. Alignment offsets are applied,
+  the same way as when a mask file is saved.
+- Or load mask PNG or WebP files with "Choose mask file", or drop them
+  on this step.
+- With one picture, a mask file of the same width and height is used
+  even if its name is different. PNG and WebP are both accepted.
+- With several pictures, each file must use the mask naming scheme:
+  the picture name plus _Mask, and the same extension as that picture.
+  Example: Stand_C01_01_Mask.png belongs to Stand_C01_01.png.
+  Stand_C01_01_Mask.webp belongs to Stand_C01_01.webp. A loaded file
+  replaces the drawn mask for that picture only.
+- A loaded mask is already in that picture's own pixels, so it is not
+  shifted again by the alignment offset.
+- The mask must be the same pixel size as its picture. A wrong size is
+  rejected.
+- "Use drawn mask" drops every loaded mask file and returns to the
+  drawing from Step 4.
+
+Two ways to save. Both can be used from this step. Neither changes the
+original picture.
+
+Maintain position
+- The new picture is the same width and height as the original.
+- The kept pixels stay in the same place. The rest of the canvas is
+  transparent.
+- The name is the picture name plus _CutMP, with the picture's extension.
+  Example: Stand_C01_01.png becomes Stand_C01_01_CutMP.png.
+  Stand_C01_01.webp becomes Stand_C01_01_CutMP.webp.
+
+Shrinking Fit
+- The new picture is cropped to the orange frame, so empty margins are
+  dropped and the file can be smaller.
+- The name is the picture name plus _CutSF, with the picture's extension.
+  Example: Stand_C01_01.png becomes Stand_C01_01_CutSF.png.
+  Stand_C01_01.webp becomes Stand_C01_01_CutSF.webp.
+
+One picture
+- Each save button opens a save window on the suggested name. You can
+  change the folder and the file name.
+
+Several pictures
+- Choose one output folder (it starts as the folder of the first
+  picture), then save either set.
+- If two pictures would produce the same file name, the later one is
+  Name_CutMP_2.png or Name_CutSF_2.webp, then _3, and so on. The
+  extension stays with that picture.
+- If a name already exists, you are asked before it is replaced.
+- Explorer opens on the first saved file.
+
+A picture with no white or gray mask is skipped, and you are told its
+name. Next on this step goes to Save, where the mask itself is written.
+
+
+==================================================
+Step 6 - Save
+==================================================
+
+Every saved mask matches its picture's width, height, and format.
+
+One picture
+- "Save mask…" opens a save window.
+- The suggested name is the picture name plus _Mask, with the same
+  extension.
+  Example: Stand_C01_01.png becomes Stand_C01_01_Mask.png.
+  Stand_C01_01.webp becomes Stand_C01_01_Mask.webp.
+- You can change the folder, the file name, and PNG or WebP in that
+  window.
+- If the file already exists, you are asked before it is replaced.
+- Explorer opens on the saved file.
+
+Several pictures
+- Choose one output folder. It starts as the folder of the first
+  picture.
+- "Save masks" writes one file per picture, PNG or WebP to match that
+  picture.
+- Each name is that picture's name plus _Mask.
+- Because the pictures were aligned, the white and gray areas are
+  shifted in each file by that picture's offset. The same body part
+  can therefore sit on different pixels in each mask.
+- If two pictures would produce the same file name in that folder,
+  the later one is named Name_Mask_2.png or Name_Mask_2.webp, then
+  _3, and so on.
+- If any of those names already exist, you are asked before replace.
+- Explorer opens on the first saved file.
+
+You can stay on this step and save again after going back to adjust
+the drawing.
+
+
+==================================================
+What the mask is for
+==================================================
+
+NovelAI inpaint uses a separate mask file:
+
+- White pixels are the area to regenerate.
+- Black pixels stay as they are.
+- Gray pixels soften that boundary.
+
+Give NovelAI the original picture and the matching _Mask file. The mask
+must be the same pixel size as that picture, which is what this program
+writes.
+
+
+==================================================
+Keyboard and mouse
+==================================================
+
+Align
+- Click a Pictures row: select that picture
+- Drag on the selected picture: move it, including under a picture drawn on top
+- Drag outside that picture: select and move the top picture under the pointer
+- Drag a Pictures row: change which picture is drawn on top (lower in the list is on top)
+- Arrow keys: nudge the selected picture 1px (Shift: 10px)
+- Drag empty space / mouse wheel: pan / zoom
+- Skip to Mask: leave Pre-Mask for later
+
+Pre-Mask
+- Choose mask file, or drop one PNG or WebP mask
+- Drag the mask: move it onto the pictures
+- Tint opacity: how see-through the preview is
+- Arrow keys: nudge the mask 1px (Shift: 10px)
+- Drag empty space / mouse wheel: pan / zoom
+- Remove: drop the loaded file
+
+Mask
+- B L R C F E P: Brush, Line, Rectangle, Ellipse, Fill, Erase, Pan
+- 1 / 2: White / Gray
+- [ / ]: brush size
+- Zoom and Brush size fields: type a number, then Enter
+- Zoom - / + : 10 percent. Brush - / + : 1 pixel
+- Mouse wheel: zoom
+- Space, middle mouse, or right-drag: pan
+- Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo
+- Skip to Save: leave Cut for later
+
+Cut
+- Choose mask file, or drop mask files named PictureName_Mask.png or PictureName_Mask.webp
+- Use drawn mask: ignore loaded mask files
+- Save Maintain position (_CutMP) or Save Shrinking Fit (_CutSF)
+
+Anywhere
+- Start Over: reset the whole session after confirm
+
+
+==================================================
+Files in this folder
+==================================================
+
+- Image Mask Maker - v1.0.bat   launcher
+- HowToUse.txt                  this file
+- package.json                  Node / Electron package
+- tools\ensure-runtime.ps1      first-launch Node.js + files
+- electron\                     desktop window and dialogs
+- public\                       the program UI
+- src\pngio.js                  PNG read / write
+- src\webp.js                   WebP read / write
+
+Created on first launch (not required when sharing the program):
+
+- node_modules\     downloaded program libraries
+- runtime\          portable Node.js, only if this PC lacked Node.js 18+
