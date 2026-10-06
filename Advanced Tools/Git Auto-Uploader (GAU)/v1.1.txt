@@ -1,0 +1,4 @@
+======== v1.1 - 10.6th.2026
+==== Fixed a possible issue (with automatically doing a maintenance step on Fetch/Commit/Push) that could potentially leave leftover Temporary files each time, causing a memory buildup in time)
+======== v1.0 - 9.7th.2026
+==== Initial Release!
