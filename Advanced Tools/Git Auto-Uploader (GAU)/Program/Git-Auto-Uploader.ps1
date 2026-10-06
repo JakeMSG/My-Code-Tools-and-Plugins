@@ -78,6 +78,15 @@ function Invoke-GitRaw {
     $gitArgArray = $flat.ToArray()
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
+    # Fetch, pull, and commit otherwise end in Git 2.55's geometric repack.
+    # On a multi-GiB repo that rewrite runs inside this process and fills RAM.
+    $guarded = New-Object System.Collections.Generic.List[string]
+    [void]$guarded.Add('-c')
+    [void]$guarded.Add('maintenance.auto=false')
+    [void]$guarded.Add('-c')
+    [void]$guarded.Add('gc.auto=0')
+    foreach ($arg in $gitArgArray) { [void]$guarded.Add($arg) }
+    $gitArgArray = $guarded.ToArray()
     $output = & $script:GitExe @gitArgArray 2>&1
     $code = $LASTEXITCODE
     $ErrorActionPreference = $prevEap
@@ -105,6 +114,13 @@ function Invoke-Git {
         return Invoke-GitRaw -AllowFail @splat
     }
     return Invoke-GitRaw @splat
+}
+
+function Set-GitNoAutoRepack {
+    if ([string]::IsNullOrWhiteSpace($script:Repo)) { return }
+    [void](Invoke-Git -AllowFail 'config' 'maintenance.auto' 'false')
+    [void](Invoke-Git -AllowFail 'config' 'maintenance.geometric-repack.auto' '0')
+    [void](Invoke-Git -AllowFail 'config' 'gc.auto' '0')
 }
 
 function Convert-StatusCode {
@@ -843,6 +859,7 @@ function Initialize-WorkingCopy {
 
     $script:Repo = $Folder
     [void](Invoke-Git -AllowFail 'config' 'http.postBuffer' '2147483648')
+    Set-GitNoAutoRepack
     Set-ToolFileExclude -Enable $IgnoreToolFiles
     Write-Host ('  Working copy: {0}' -f $Folder) -ForegroundColor Green
 }
@@ -957,6 +974,7 @@ function Ensure-SubPathGitLayout {
     }
     [void](Invoke-Git -AllowFail 'branch' '--set-upstream-to' ("origin/$branch") $branch)
     [void](Invoke-Git -AllowFail 'config' 'http.postBuffer' '2147483648')
+    Set-GitNoAutoRepack
     Set-ToolFileExclude -Enable $IgnoreToolFiles
     try {
         $item = Get-Item -LiteralPath $script:Repo -Force
@@ -1205,7 +1223,7 @@ function Get-RepoState {
     if ($Fetch) {
         Write-Host ''
         Write-Host '  Fetching origin...' -ForegroundColor Cyan
-        $fetchResult = Invoke-Git -AllowFail 'fetch' 'origin'
+        $fetchResult = Invoke-Git -AllowFail 'fetch' '--quiet' 'origin'
         if ($fetchResult.Code -eq 0) {
             Write-Host '  Fetch complete.' -ForegroundColor DarkGray
             $upstream = Get-UpstreamName
@@ -1402,7 +1420,7 @@ function Invoke-GitForcePull {
     }
 
     Write-Host '  Fetching origin...' -ForegroundColor Cyan
-    $fetch = Invoke-Git -AllowFail 'fetch' 'origin'
+    $fetch = Invoke-Git -AllowFail 'fetch' '--quiet' 'origin'
     Write-GitLines $fetch.Lines
     if ($fetch.Code -ne 0) {
         Write-Host '  Fetch failed. Force Pull stopped; local files were not reset.' -ForegroundColor Red
